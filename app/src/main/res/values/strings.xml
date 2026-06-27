@@ -3,4 +3,5 @@
     <string name="appwidget_text">Photo Adder</string>
     <string name="add_widget">Add Photo Widget</string>
     <string name="app_widget_description">Add photos on the wallpaper</string>
+    <string name="snake_widget_description">A retro auto-playing snake decoration</string>
 </resources>
