@@ -1,0 +1,22 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/counter_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0"
+        android:textSize="48sp" />
+
+    <Button
+        android:id="@+id/counter_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tap Me!"
+        android:layout_marginTop="20dp" />
+
+</LinearLayout>
