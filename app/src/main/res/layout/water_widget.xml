@@ -6,25 +6,15 @@
     android:clipToOutline="true">
 
     <ImageView
-        android:id="@+id/widget_image_view"
+        android:id="@+id/water_canvas"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="fitCenter"
-        android:clickable="true"
-        android:contentDescription="Snake Screen" />
-
-    <TextView
-        android:id="@+id/widget_title_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:text="Own's Auto Snake"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:background="#000000"
+        android:contentDescription="@string/water_desc"
+        android:scaleType="fitXY" />
 
     <ImageButton
-        android:id="@+id/btn_toggle"
+        android:id="@+id/btn_toggle_water"
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:layout_alignParentBottom="true"
@@ -33,7 +23,7 @@
         android:background="@drawable/snake_bg_circle"
         android:scaleType="centerInside"
         android:src="@android:drawable/ic_media_play"
-        android:contentDescription="Toggle Snake"
+        android:contentDescription="@string/btn_start"
         android:padding="8dp" />
 
 </RelativeLayout>

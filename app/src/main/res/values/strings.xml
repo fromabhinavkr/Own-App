@@ -4,4 +4,7 @@
     <string name="add_widget">Add Photo Widget</string>
     <string name="app_widget_description">Add photos on the wallpaper</string>
     <string name="snake_widget_description">A retro auto-playing snake decoration</string>
+    <string name="water_desc">A tilt-sensitive water glass</string>
+    <string name="btn_start">Start</string>
+    <string name="btn_stop">Stop</string>
 </resources>
