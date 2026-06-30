@@ -9,15 +9,15 @@ A personalized Android application featuring a collection of interactive and dec
 * **Retro Auto-Playing Snake Widget:** A dot-matrix style snake game that runs autonomously directly on your home screen.
 * **Unified Modern UI:** Clean, circular floating toggle buttons with dynamic play/pause states that blend beautifully into your launcher.
 * **Modern Background Execution:** Utilizes Android 14+ compatible Foreground Services (`specialUse` type) with silent notifications to ensure widgets run smoothly without being killed by aggressive battery management.
+* **Hourglass Widget:** An interactive, tilt-sensitive timer featuring falling sand particles in a classic retro dot-matrix style.
 * **Photo Display Widget:** A dedicated widget to pin custom photos to your wallpaper.
 * **Edge-to-Edge UI & Responsive Design:** Widgets scale dynamically using Android's native widget resizing properties, paired with a transparent system UI for a clean look.
 
 ## 📱 Screenshots
 
 <img width="366" height="519" alt="snake_preview" src="https://github.com/user-attachments/assets/66879571-ee02-4305-8b4f-7ecd740bbd97" />
-
-
 <img width="358" height="515" alt="water_preview" src="https://github.com/user-attachments/assets/84358e86-53fd-42bb-92bf-5d106acc8351" />
+<img width="374" height="514" alt="hourglass_preview" src="https://github.com/user-attachments/assets/4a87e503-588c-4f02-bed8-40009eaf1afb" />
 
 
 ## 🚀 Installation
