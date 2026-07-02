@@ -46,76 +46,118 @@ public class CoinWidget extends AppWidgetProvider {
             final Context appContext = context.getApplicationContext();
             final AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(appContext);
 
-            // Bypasses Android 14 restrictions by running a secure async window
             final PendingResult pendingResult = goAsync();
             final Handler handler = new Handler(Looper.getMainLooper());
 
             handler.post(new Runnable() {
                 int frames = 0;
+                final int TOTAL_FRAMES = 26; // Smooth, cinematic arc
                 final boolean isHeadsResult = new Random().nextBoolean();
+
+                // Front face is ALWAYS Heads, Back is ALWAYS Tails.
+                // Math forces the correct face to land forward.
+                final int halfSpins = isHeadsResult ? 6 : 7;
+                final float totalRotation = halfSpins * (float) Math.PI;
 
                 @Override
                 public void run() {
                     frames++;
-                    boolean isFlipping = frames < 12;
+                    boolean isFlipping = frames < TOTAL_FRAMES;
+                    int animFrame = Math.min(frames, TOTAL_FRAMES);
 
-                    // Create massive canvas
                     Bitmap b = Bitmap.createBitmap(750, 750, Bitmap.Config.ARGB_8888);
                     Canvas c = new Canvas(b);
                     Paint p = new Paint();
                     p.setAntiAlias(true);
 
-                    float cx = 375, cy = 375, radius = 350;
-                    float scale = isFlipping ? (float)Math.abs(Math.sin(frames * 0.8)) : 1.0f;
+                    float cx = 375, cy = 375;
 
-                    // Draw 3D Rims
-                    p.setColor(Color.parseColor("#707070"));
-                    c.drawCircle(cx, cy, radius + 15, p);
-                    p.setColor(Color.parseColor("#B0B0B0"));
-                    c.drawCircle(cx, cy, radius + 8, p);
+                    // --- 1. 3D ELEVATION (Jumps toward you) ---
+                    float elevationProgress = (float) Math.sin((animFrame / (float)TOTAL_FRAMES) * Math.PI);
+                    float currentRadius = 310 + (60 * elevationProgress);
 
-                    // Silver Gradient Face
-                    Shader silverGradient = new LinearGradient(
-                            cx - radius, cy - radius,
-                            cx + radius, cy + radius,
+                    // --- 2. 3D MATH (Angle, Squish, and Depth) ---
+                    float angle = (animFrame / (float)TOTAL_FRAMES) * totalRotation;
+                    float absScaleY = Math.abs((float) Math.cos(angle));
+
+                    // Z-Depth calculates how much the coin tilts up or down
+                    float thickness = 40; // True physical thickness of the coin
+                    float zOffset = (float) Math.sin(angle) * thickness;
+
+                    // Front and Back face coordinates based on perspective
+                    float frontY = cy + zOffset;
+                    float backY = cy - zOffset;
+
+                    // If cos(angle) > 0, the Front Face (Heads) is closest to the camera
+                    boolean frontIsVisible = Math.cos(angle) >= 0;
+                    float visibleY = frontIsVisible ? frontY : backY;
+
+                    // --- 3. VOLUMETRIC STACKING (Drawing the heavy metal cylinder edge) ---
+                    // By drawing slices between the back and front face, we create a perfect 3D edge
+                    p.setColor(Color.parseColor("#5A5A66")); // Dark shaded metal for the edge
+                    p.setStyle(Paint.Style.FILL);
+                    int slices = 25;
+                    for (int i = 0; i <= slices; i++) {
+                        float t = i / (float) slices;
+                        float sliceY = backY + (frontY - backY) * t;
+                        c.drawOval(cx - currentRadius, sliceY - (currentRadius * absScaleY),
+                                cx + currentRadius, sliceY + (currentRadius * absScaleY), p);
+                    }
+
+                    // --- 4. THE SHINY METALLIC FACE ---
+                    // A SweepGradient simulates realistic light reflecting off turning metal
+                    Shader silverSweep = new SweepGradient(cx, visibleY,
                             new int[]{
-                                    Color.parseColor("#E8E8E8"),
-                                    Color.parseColor("#FFFFFF"),
-                                    Color.parseColor("#B8B8B8"),
-                                    Color.parseColor("#888888")
-                            },
-                            new float[]{0.0f, 0.3f, 0.7f, 1.0f},
-                            Shader.TileMode.CLAMP);
+                                    Color.parseColor("#C0C0C8"), // Darker base
+                                    Color.parseColor("#FFFFFF"), // Bright glint
+                                    Color.parseColor("#808088"), // Deep shadow
+                                    Color.parseColor("#E6E6EA"), // Light base
+                                    Color.parseColor("#FFFFFF"), // Bright glint
+                                    Color.parseColor("#808088"), // Deep shadow
+                                    Color.parseColor("#C0C0C8")  // Darker base
+                            }, null);
 
-                    p.setShader(silverGradient);
-                    c.drawOval(cx - (radius * scale), cy - radius, cx + (radius * scale), cy + radius, p);
+                    // Map the lighting to the squished 3D perspective and rotate it over time!
+                    Matrix matrix = new Matrix();
+                    matrix.setScale(1.0f, absScaleY, cx, visibleY);
+                    matrix.postRotate(frames * 18, cx, visibleY); // Light spins as the coin flips
+                    silverSweep.setLocalMatrix(matrix);
+
+                    p.setShader(silverSweep);
+                    c.drawOval(cx - currentRadius, visibleY - (currentRadius * absScaleY),
+                            cx + currentRadius, visibleY + (currentRadius * absScaleY), p);
                     p.setShader(null);
 
-                    // Render Stamped 8-Bit Letters
-                    if (!isFlipping) {
-                        int dotSize = 45;
-                        int spacing = 100;
-                        int startX = 275;
-                        int startY = 175;
+                    // --- 5. RENDER 3D STAMPED LETTERS (H / T) ---
+                    c.save();
+                    c.scale(1.0f, absScaleY, cx, visibleY); // Squishes the text perfectly onto the face
 
-                        int[][] pattern = isHeadsResult ? new int[][]{
-                                {1,0,1}, {1,0,1}, {1,1,1}, {1,0,1}, {1,0,1} // H
-                        } : new int[][]{
-                                {1,1,1}, {0,1,0}, {0,1,0}, {0,1,0}, {0,1,0} // T
-                        };
+                    int dotSize = 45;
+                    int spacing = 100;
+                    int startX = 275;
+                    // Dynamically shift the Y start position so it tracks the moving 3D face
+                    float startY = visibleY - 200;
 
-                        for (int row = 0; row < 5; row++) {
-                            for (int col = 0; col < 3; col++) {
-                                if (pattern[row][col] == 1) {
-                                    p.setColor(Color.parseColor("#909090"));
-                                    c.drawCircle(startX + (col * spacing) + 6, startY + (row * spacing) + 6, dotSize, p);
+                    int[][] pattern = frontIsVisible ? new int[][]{
+                            {1,0,1}, {1,0,1}, {1,1,1}, {1,0,1}, {1,0,1} // H
+                    } : new int[][]{
+                            {1,1,1}, {0,1,0}, {0,1,0}, {0,1,0}, {0,1,0} // T
+                    };
 
-                                    p.setColor(Color.parseColor("#151515"));
-                                    c.drawCircle(startX + (col * spacing), startY + (row * spacing), dotSize, p);
-                                }
+                    for (int row = 0; row < 5; row++) {
+                        for (int col = 0; col < 3; col++) {
+                            if (pattern[row][col] == 1) {
+                                // Engraved Shadow
+                                p.setColor(Color.parseColor("#808088"));
+                                c.drawCircle(startX + (col * spacing) + 6, startY + (row * spacing) + 6, dotSize, p);
+
+                                // Solid Black Dot
+                                p.setColor(Color.parseColor("#151515"));
+                                c.drawCircle(startX + (col * spacing), startY + (row * spacing), dotSize, p);
                             }
                         }
                     }
+                    c.restore();
 
                     RemoteViews v = new RemoteViews(appContext.getPackageName(), R.layout.coin_widget);
                     v.setImageViewBitmap(R.id.coin_image_view, b);
@@ -123,10 +165,9 @@ public class CoinWidget extends AppWidgetProvider {
                     appWidgetManager.updateAppWidget(id, v);
 
                     if (isFlipping) {
-                        handler.postDelayed(this, 80);
+                        handler.postDelayed(this, 40); // 40ms = highly fluid 25fps animation
                     } else {
                         triggerVibration(appContext);
-                        // Safely close the system broadcast token
                         pendingResult.finish();
                     }
                 }
