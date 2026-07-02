@@ -37,7 +37,6 @@ public class HourglassService extends Service implements SensorEventListener {
     private final int UPDATE_RATE = 100; // Fast refresh for smooth falling
 
     // --- EXACT 8-BIT REFERENCE SHAPE ---
-    // Perfect 1-dot steps for the diagonals so sand NEVER gets stuck!
     private final int[] SHAPE_WIDTHS = {
             9, // Row 0: Top Cap
             7, // Row 1: Straight wall
@@ -87,18 +86,14 @@ public class HourglassService extends Service implements SensorEventListener {
     }
 
     private void initializeSand() {
-        // Fill rows 1 through 8 (the entire top chamber right down to the neck)
         for (int y = 1; y <= 8; y++) {
             for (int x = 0; x < GRID_SIZE; x++) {
-                // Fill every single available space perfectly so the volume matches 1:1
                 if (Math.abs(x - (GRID_SIZE / 2)) <= SHAPE_WIDTHS[y]) {
                     sandGrid[x][y] = 1;
                 }
             }
         }
     }
-
-
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -115,41 +110,60 @@ public class HourglassService extends Service implements SensorEventListener {
     private void updatePhysics() {
         int[][] newGrid = new int[GRID_SIZE][GRID_SIZE];
 
-        int dropX = (tiltX > 2.0f) ? -1 : (tiltX < -2.0f) ? 1 : 0;
-        int dropY = (tiltY > 2.0f) ? 1 : (tiltY < -2.0f) ? -1 : 1;
+        int dropX = 0;
+        int dropY = 1;
 
-        for (int y = GRID_SIZE - 1; y >= 0; y--) {
-            int scanY = (dropY > 0) ? y : GRID_SIZE - 1 - y;
-            for (int x = 0; x < GRID_SIZE; x++) {
-                if (sandGrid[x][scanY] == 1) {
+        // 1. Lock gravity to the strongest axis so it doesn't pull diagonally
+        if (Math.abs(tiltX) > Math.abs(tiltY)) {
+            dropX = (tiltX > 0) ? -1 : 1;
+            dropY = 0;
+        } else {
+            dropX = 0;
+            dropY = (tiltY > 0) ? 1 : -1;
+        }
+
+        // 2. Scan the grid from bottom to top based on current gravity direction
+        int startX = (dropX > 0) ? GRID_SIZE - 1 : 0;
+        int endX = (dropX > 0) ? -1 : GRID_SIZE;
+        int stepX = (dropX > 0) ? -1 : 1;
+
+        int startY = (dropY > 0) ? GRID_SIZE - 1 : 0;
+        int endY = (dropY > 0) ? -1 : GRID_SIZE;
+        int stepY = (dropY > 0) ? -1 : 1;
+
+        for (int y = startY; y != endY; y += stepY) {
+            for (int x = startX; x != endX; x += stepX) {
+                if (sandGrid[x][y] == 1) {
 
                     int nextX = x + dropX;
-                    int nextY = scanY + dropY;
+                    int nextY = y + dropY;
 
-                    int prefDir1, prefDir2;
-                    if (dropX == 0) {
-                        prefDir1 = (x < GRID_SIZE / 2) ? 1 : -1; // Slide toward center hole
-                        prefDir2 = -prefDir1;
-                    } else {
-                        prefDir1 = dropX;
-                        prefDir2 = -dropX;
-                    }
+                    // 3. Randomize the slide direction so sand organically spreads and forms pyramids
+                    boolean coinFlip = Math.random() > 0.5;
+                    int slideDir1 = coinFlip ? 1 : -1;
+                    int slideDir2 = -slideDir1;
 
-                    // 1. Try straight down
+                    int slideX1 = x + ((dropX == 0) ? slideDir1 : dropX);
+                    int slideY1 = y + ((dropY == 0) ? slideDir1 : dropY);
+
+                    int slideX2 = x + ((dropX == 0) ? slideDir2 : dropX);
+                    int slideY2 = y + ((dropY == 0) ? slideDir2 : dropY);
+
+                    // A. Try straight down (relative to gravity)
                     if (isInsideHourglass(nextX, nextY) && sandGrid[nextX][nextY] == 0 && newGrid[nextX][nextY] == 0) {
                         newGrid[nextX][nextY] = 1;
                     }
-                    // 2. Try primary slide (towards center)
-                    else if (isInsideHourglass(x + prefDir1, nextY) && sandGrid[x + prefDir1][nextY] == 0 && newGrid[x + prefDir1][nextY] == 0) {
-                        newGrid[x + prefDir1][nextY] = 1;
+                    // B. Try primary diagonal slide
+                    else if (isInsideHourglass(slideX1, slideY1) && sandGrid[slideX1][slideY1] == 0 && newGrid[slideX1][slideY1] == 0) {
+                        newGrid[slideX1][slideY1] = 1;
                     }
-                    // 3. Try secondary slide
-                    else if (isInsideHourglass(x + prefDir2, nextY) && sandGrid[x + prefDir2][nextY] == 0 && newGrid[x + prefDir2][nextY] == 0) {
-                        newGrid[x + prefDir2][nextY] = 1;
+                    // C. Try secondary diagonal slide
+                    else if (isInsideHourglass(slideX2, slideY2) && sandGrid[slideX2][slideY2] == 0 && newGrid[slideX2][slideY2] == 0) {
+                        newGrid[slideX2][slideY2] = 1;
                     }
-                    // 4. Stay put
+                    // D. Stay put (hit a wall or floor)
                     else {
-                        newGrid[x][scanY] = 1;
+                        newGrid[x][y] = 1;
                     }
                 }
             }

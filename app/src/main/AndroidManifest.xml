@@ -33,6 +33,7 @@
 
         <receiver
             android:name=".Photowidget"
+            android:label="Add Photo"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -97,6 +98,18 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/hourglass_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".CoinWidget"
+            android:label="Coin Toss Widget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/coin_widget_info" />
         </receiver>
 
     </application>

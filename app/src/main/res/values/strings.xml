@@ -7,5 +7,6 @@
     <string name="water_desc">A tilt-sensitive water glass</string>
     <string name="btn_start">Start</string>
     <string name="btn_stop">Stop</string>
-    <string name="hourglass_desc">A tilt-sensitive 8-bit falling sand timer</string>
+    <string name="hourglass_desc">A tilt-sensitive sand timer</string>
+    <string name="coin_widget_desc">Tap to flip a coin</string>
 </resources>
