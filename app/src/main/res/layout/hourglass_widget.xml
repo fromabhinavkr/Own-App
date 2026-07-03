@@ -2,8 +2,14 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/snake_bg_rounded"
     android:clipToOutline="true">
+
+    <ImageView
+        android:id="@+id/hourglass_bg_layer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/snake_bg_rounded"
+        android:scaleType="fitXY" />
 
     <ImageView
         android:id="@+id/hourglass_image_view"
@@ -18,7 +24,7 @@
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
         android:layout_margin="8dp"
         android:background="@drawable/snake_bg_circle"
         android:scaleType="centerInside"

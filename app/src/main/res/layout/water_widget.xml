@@ -2,15 +2,20 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/snake_bg_rounded"
     android:clipToOutline="true">
+
+    <ImageView
+        android:id="@+id/water_bg_layer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/snake_bg_rounded"
+        android:scaleType="fitXY" />
 
     <ImageView
         android:id="@+id/water_canvas"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#000000"
-        android:contentDescription="@string/water_desc"
+        android:contentDescription="Water Widget"
         android:scaleType="fitXY" />
 
     <ImageButton
@@ -23,7 +28,7 @@
         android:background="@drawable/snake_bg_circle"
         android:scaleType="centerInside"
         android:src="@android:drawable/ic_media_play"
-        android:contentDescription="@string/btn_start"
+        android:contentDescription="Start Water"
         android:padding="8dp" />
 
 </RelativeLayout>

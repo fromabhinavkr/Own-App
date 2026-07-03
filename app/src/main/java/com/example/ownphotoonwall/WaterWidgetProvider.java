@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Build;
 import android.widget.RemoteViews;
 
@@ -27,15 +28,13 @@ public class WaterWidgetProvider extends AppWidgetProvider {
         super.onReceive(context, intent);
 
         if (ACTION_TOGGLE.equals(intent.getAction())) {
-            // Get ID from intent. If not present, try to get from extras or handle missing ID
             int appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
 
-            // Important: Handle cases where the ID might not be in the intent directly
             if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
-                // If this is called from an external source, you might need a different way to get the ID
                 return;
             }
 
+            // Read the running state
             SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING + appWidgetId, false);
 
@@ -58,13 +57,21 @@ public class WaterWidgetProvider extends AppWidgetProvider {
     }
 
     private void updateWidgetUI(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING + appWidgetId, false);
+        // 1. Get the running state from the Water prefs
+        SharedPreferences waterPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isRunning = waterPrefs.getBoolean(PREF_IS_RUNNING + appWidgetId, false);
+
+        // 2. Get the global Theme state from the Snake prefs!
+        SharedPreferences themePrefs = context.getSharedPreferences(SnakeWidget.PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isDarkTheme = themePrefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.water_widget);
 
-        // UPDATED: Swap icon instead of text
-        // Use ic_media_pause to represent "Stop" and ic_media_play to represent "Start"
+        // 3. Tint the new background layer based on the theme
+        int rootBgColor = isDarkTheme ? Color.parseColor("#151515") : Color.WHITE;
+        views.setInt(R.id.water_bg_layer, "setColorFilter", rootBgColor);
+
+        // 4. Update Play/Pause icon
         int iconRes = isRunning ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play;
         views.setImageViewResource(R.id.btn_toggle_water, iconRes);
 

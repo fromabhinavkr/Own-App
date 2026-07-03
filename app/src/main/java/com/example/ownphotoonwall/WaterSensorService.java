@@ -6,7 +6,9 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -65,7 +67,6 @@ public class WaterSensorService extends Service implements SensorEventListener {
         currentWaterAngle += currentVelocity;
 
         // CLAMPING: Restrict tilt to 1.0 (approx 57 degrees)
-        // This prevents the surface line from becoming a vertical line
         float maxTilt = 1.0f;
         if (currentWaterAngle > maxTilt) currentWaterAngle = maxTilt;
         if (currentWaterAngle < -maxTilt) currentWaterAngle = maxTilt * -1;
@@ -76,7 +77,9 @@ public class WaterSensorService extends Service implements SensorEventListener {
         Path containerPath = new Path();
         containerPath.addRoundRect(0, 0, 300, 300, 40, 40, Path.Direction.CW);
         canvas.clipPath(containerPath);
-        canvas.drawColor(Color.BLACK);
+
+        // FIX 1: Change to TRANSPARENT so the XML background layer shows through!
+        canvas.drawColor(Color.TRANSPARENT);
 
         Paint paint = new Paint();
         paint.setStyle(Paint.Style.FILL);
@@ -88,7 +91,6 @@ public class WaterSensorService extends Service implements SensorEventListener {
         paint.setShader(shader);
 
         // FORCE FILL LOGIC: Calculate surface points with a wider base
-        // We use 450 (wider than the container) to ensure the line never leaves the sides
         float centerX = 150;
         float centerY = 200;
 
@@ -100,8 +102,6 @@ public class WaterSensorService extends Service implements SensorEventListener {
         Path waterPath = new Path();
         waterPath.moveTo(x1, y1);
         waterPath.quadTo(centerX, centerY - 10, x2, y2);
-
-        // Pin strictly to corners so the bottom is always 100% full
         waterPath.lineTo(300, 300);
         waterPath.lineTo(0, 300);
         waterPath.close();
@@ -109,6 +109,20 @@ public class WaterSensorService extends Service implements SensorEventListener {
         canvas.drawPath(waterPath, paint);
 
         RemoteViews views = new RemoteViews(getPackageName(), R.layout.water_widget);
+
+        // FIX 2: Re-apply the Theme colors on every frame update
+        SharedPreferences themePrefs = getSharedPreferences(SnakeWidget.PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isDarkTheme = themePrefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+
+        int rootBgColor = isDarkTheme ? Color.parseColor("#151515") : Color.WHITE;
+        int buttonTint = isDarkTheme ? Color.WHITE : Color.parseColor("#222222");
+
+        views.setInt(R.id.water_bg_layer, "setColorFilter", rootBgColor);
+        views.setInt(R.id.btn_toggle_water, "setColorFilter", buttonTint);
+
+        // Make sure the pause icon stays visible while the service is running
+        views.setImageViewResource(R.id.btn_toggle_water, android.R.drawable.ic_media_pause);
+
         views.setImageViewBitmap(R.id.water_canvas, bitmap);
         AppWidgetManager.getInstance(getApplicationContext())
                 .updateAppWidget(new ComponentName(this, WaterWidgetProvider.class), views);

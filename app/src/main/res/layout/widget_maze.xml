@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/maze_root_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/maze_bg">
+
+    <ImageView
+        android:id="@+id/maze_canvas"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="Maze Game" />
+
+    <ImageView
+        android:id="@+id/maze_status_icon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_centerInParent="true"
+        android:src="@android:drawable/ic_media_play"
+        android:alpha="0.6"
+        android:contentDescription="Status Indicator" />
+
+</RelativeLayout>

@@ -112,6 +112,45 @@
                 android:resource="@xml/coin_widget_info" />
         </receiver>
 
+        <activity
+            android:name=".GearClickActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
+
+        <receiver
+            android:name=".GearWidgetProvider"
+            android:label="Fidget Gear Widget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.ownphotoonwall.ACTION_ROTATE_GEAR" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/gear_widget_info" />
+        </receiver>
+
+        <service
+            android:name=".MazeGameService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:configChanges="uiMode|orientation|screenSize" />
+
+        <receiver
+            android:name=".MazeWidgetProvider"
+            android:label="Maze Widget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.ownphotoonwall.TOGGLE_MAZE" />
+                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/maze_widget_info" />
+        </receiver>
     </application>
 
 </manifest>

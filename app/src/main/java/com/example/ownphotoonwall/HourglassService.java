@@ -8,6 +8,7 @@ import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -38,27 +39,7 @@ public class HourglassService extends Service implements SensorEventListener {
 
     // --- EXACT 8-BIT REFERENCE SHAPE ---
     private final int[] SHAPE_WIDTHS = {
-            9, // Row 0: Top Cap
-            7, // Row 1: Straight wall
-            7, // Row 2: Straight wall
-            6, // Row 3: Diagonal starts
-            5, // Row 4
-            4, // Row 5
-            3, // Row 6
-            2, // Row 7
-            1, // Row 8
-            0, // Row 9: Neck
-            0, // Row 10: Center Neck
-            0, // Row 11: Neck
-            1, // Row 12
-            2, // Row 13
-            3, // Row 14
-            4, // Row 15
-            5, // Row 16
-            6, // Row 17
-            7, // Row 18: Straight wall
-            7, // Row 19: Straight wall
-            9  // Row 20: Bottom Cap
+            9, 7, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 7, 9
     };
 
     private Runnable physicsLoop = new Runnable() {
@@ -113,7 +94,6 @@ public class HourglassService extends Service implements SensorEventListener {
         int dropX = 0;
         int dropY = 1;
 
-        // 1. Lock gravity to the strongest axis so it doesn't pull diagonally
         if (Math.abs(tiltX) > Math.abs(tiltY)) {
             dropX = (tiltX > 0) ? -1 : 1;
             dropY = 0;
@@ -122,7 +102,6 @@ public class HourglassService extends Service implements SensorEventListener {
             dropY = (tiltY > 0) ? 1 : -1;
         }
 
-        // 2. Scan the grid from bottom to top based on current gravity direction
         int startX = (dropX > 0) ? GRID_SIZE - 1 : 0;
         int endX = (dropX > 0) ? -1 : GRID_SIZE;
         int stepX = (dropX > 0) ? -1 : 1;
@@ -134,11 +113,9 @@ public class HourglassService extends Service implements SensorEventListener {
         for (int y = startY; y != endY; y += stepY) {
             for (int x = startX; x != endX; x += stepX) {
                 if (sandGrid[x][y] == 1) {
-
                     int nextX = x + dropX;
                     int nextY = y + dropY;
 
-                    // 3. Randomize the slide direction so sand organically spreads and forms pyramids
                     boolean coinFlip = Math.random() > 0.5;
                     int slideDir1 = coinFlip ? 1 : -1;
                     int slideDir2 = -slideDir1;
@@ -149,20 +126,13 @@ public class HourglassService extends Service implements SensorEventListener {
                     int slideX2 = x + ((dropX == 0) ? slideDir2 : dropX);
                     int slideY2 = y + ((dropY == 0) ? slideDir2 : dropY);
 
-                    // A. Try straight down (relative to gravity)
                     if (isInsideHourglass(nextX, nextY) && sandGrid[nextX][nextY] == 0 && newGrid[nextX][nextY] == 0) {
                         newGrid[nextX][nextY] = 1;
-                    }
-                    // B. Try primary diagonal slide
-                    else if (isInsideHourglass(slideX1, slideY1) && sandGrid[slideX1][slideY1] == 0 && newGrid[slideX1][slideY1] == 0) {
+                    } else if (isInsideHourglass(slideX1, slideY1) && sandGrid[slideX1][slideY1] == 0 && newGrid[slideX1][slideY1] == 0) {
                         newGrid[slideX1][slideY1] = 1;
-                    }
-                    // C. Try secondary diagonal slide
-                    else if (isInsideHourglass(slideX2, slideY2) && sandGrid[slideX2][slideY2] == 0 && newGrid[slideX2][slideY2] == 0) {
+                    } else if (isInsideHourglass(slideX2, slideY2) && sandGrid[slideX2][slideY2] == 0 && newGrid[slideX2][slideY2] == 0) {
                         newGrid[slideX2][slideY2] = 1;
-                    }
-                    // D. Stay put (hit a wall or floor)
-                    else {
+                    } else {
                         newGrid[x][y] = 1;
                     }
                 }
@@ -184,8 +154,28 @@ public class HourglassService extends Service implements SensorEventListener {
         ComponentName thisWidget = new ComponentName(this, HourglassWidget.class);
         RemoteViews views = new RemoteViews(getPackageName(), R.layout.hourglass_widget);
 
+        // --- THEME LOGIC: Read master switch ---
+        SharedPreferences themePrefs = getSharedPreferences(SnakeWidget.PREFS_NAME, Context.MODE_PRIVATE);
+        boolean isDarkTheme = themePrefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+
+        // Define colors based on the current theme
+        int rootBgColor = isDarkTheme ? Color.parseColor("#151515") : Color.WHITE;
+        int buttonTint = isDarkTheme ? Color.WHITE : Color.parseColor("#222222");
+
+        // Invert the sand colors! Light mode gets dark sand, Dark mode gets light sand.
+        int activeSandColor = isDarkTheme ? Color.parseColor("#E0E0E0") : Color.parseColor("#333333");
+        int emptyGlassColor = isDarkTheme ? Color.parseColor("#333333") : Color.parseColor("#E0E0E0");
+
+        // Apply background and button tints
+        views.setInt(R.id.hourglass_bg_layer, "setColorFilter", rootBgColor);
+        views.setInt(R.id.btn_toggle_hourglass, "setColorFilter", buttonTint);
+
         Bitmap bitmap = Bitmap.createBitmap(420, 420, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
+
+        // Ensure transparent canvas background
+        canvas.drawColor(Color.TRANSPARENT);
+
         Paint paint = new Paint();
         paint.setAntiAlias(true);
 
@@ -199,9 +189,9 @@ public class HourglassService extends Service implements SensorEventListener {
                     float cy = (y * cellSize) + (cellSize / 2f);
 
                     if (sandGrid[x][y] == 1) {
-                        paint.setColor(Color.parseColor("#E0E0E0"));
+                        paint.setColor(activeSandColor);
                     } else {
-                        paint.setColor(Color.parseColor("#333333"));
+                        paint.setColor(emptyGlassColor);
                     }
                     canvas.drawCircle(cx, cy, radius, paint);
                 }

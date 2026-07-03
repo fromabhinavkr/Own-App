@@ -2,8 +2,14 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/snake_bg_rounded"
     android:clipToOutline="true">
+
+    <ImageView
+        android:id="@+id/widget_bg_layer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/snake_bg_rounded"
+        android:scaleType="fitXY" />
 
     <ImageView
         android:id="@+id/widget_image_view"
@@ -19,7 +25,7 @@
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
         android:text="Own's Auto Snake"
-        android:textColor="#FFFFFF"
+        android:textColor="#888888"
         android:textSize="16sp"
         android:textStyle="bold" />
 

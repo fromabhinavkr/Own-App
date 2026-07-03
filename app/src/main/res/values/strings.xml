@@ -3,10 +3,13 @@
     <string name="appwidget_text">Photo Adder</string>
     <string name="add_widget">Add Photo Widget</string>
     <string name="app_widget_description">Add photos on the wallpaper</string>
-    <string name="snake_widget_description">A retro auto-playing snake decoration</string>
+    <string name="snake_widget_description">A retro autoplaying snake</string>
     <string name="water_desc">A tilt-sensitive water glass</string>
     <string name="btn_start">Start</string>
     <string name="btn_stop">Stop</string>
     <string name="hourglass_desc">A tilt-sensitive sand timer</string>
     <string name="coin_widget_desc">Tap to flip a coin</string>
+    <string name="gear_widget_desc">A mechanical gear you can tap</string>
+    <string name="widget_description">A tilt-sensitive maze game</string>
+    <string name="maze_widget_desc">An 8-bit tilt maze you can play right on your home screen!</string>
 </resources>
