@@ -31,6 +31,17 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <activity
+            android:name=".GearClickActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
+
+        <activity
+            android:name=".DrawingActivity"
+            android:exported="false" />
+
         <receiver
             android:name=".Photowidget"
             android:label="Add Photo"
@@ -42,12 +53,6 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/photowidget_info" />
         </receiver>
-
-        <service
-            android:name=".SnakeService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            tools:targetApi="upside_down_cake" />
 
         <receiver
             android:name=".SnakeWidget"
@@ -62,12 +67,6 @@
                 android:resource="@xml/snake_widget_info" />
         </receiver>
 
-        <service
-            android:name=".WaterSensorService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            tools:targetApi="upside_down_cake" />
-
         <receiver
             android:name=".WaterWidgetProvider"
             android:label="Water Widget"
@@ -80,12 +79,6 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/water_widget_info" />
         </receiver>
-
-        <service
-            android:name=".HourglassService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            tools:targetApi="upside_down_cake" />
 
         <receiver
             android:name=".HourglassWidget"
@@ -112,13 +105,6 @@
                 android:resource="@xml/coin_widget_info" />
         </receiver>
 
-        <activity
-            android:name=".GearClickActivity"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:taskAffinity="" />
-
         <receiver
             android:name=".GearWidgetProvider"
             android:label="Fidget Gear Widget"
@@ -131,12 +117,6 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/gear_widget_info" />
         </receiver>
-
-        <service
-            android:name=".MazeGameService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:configChanges="uiMode|orientation|screenSize" />
 
         <receiver
             android:name=".MazeWidgetProvider"
@@ -151,6 +131,44 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/maze_widget_info" />
         </receiver>
+
+        <receiver
+            android:name=".DrawingWidgetProvider"
+            android:label="Drawing Widget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/drawing_widget_info" />
+        </receiver>
+
+        <service
+            android:name=".SnakeService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            tools:targetApi="upside_down_cake" />
+
+        <service
+            android:name=".WaterSensorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            tools:targetApi="upside_down_cake" />
+
+        <service
+            android:name=".HourglassService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            tools:targetApi="upside_down_cake" />
+
+        <service
+            android:name=".MazeGameService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:configChanges="uiMode|orientation|screenSize"
+            tools:targetApi="upside_down_cake" />
+
     </application>
 
 </manifest>

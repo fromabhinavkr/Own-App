@@ -12,4 +12,5 @@
     <string name="gear_widget_desc">A mechanical gear you can tap</string>
     <string name="widget_description">A tilt-sensitive maze game</string>
     <string name="maze_widget_desc">An 8-bit tilt maze you can play right on your home screen!</string>
+    <string name="drawing_widget_description">Hand drawn sticky notes on your home screen</string>
 </resources>

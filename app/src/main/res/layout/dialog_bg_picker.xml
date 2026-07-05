@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialogRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/bg_dialog_rounded">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Select Widget Background"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"/>
+
+    <Button android:id="@+id/btnTrans" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Transparent" android:background="@drawable/modern_button" android:layout_marginBottom="8dp" android:stateListAnimator="@null"/>
+    <Button android:id="@+id/btnWhite" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="White" android:background="@drawable/modern_button" android:layout_marginBottom="8dp" android:stateListAnimator="@null"/>
+    <Button android:id="@+id/btnBlack" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Black" android:background="@drawable/modern_button" android:layout_marginBottom="8dp" android:stateListAnimator="@null"/>
+    <Button android:id="@+id/btnWhiteLined" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="White Lined" android:background="@drawable/modern_button" android:layout_marginBottom="8dp" android:stateListAnimator="@null"/>
+    <Button android:id="@+id/btnBlackLined" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Black Lined" android:background="@drawable/modern_button" android:stateListAnimator="@null"/>
+
+</LinearLayout>
