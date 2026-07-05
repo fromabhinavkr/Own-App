@@ -9,7 +9,7 @@ A personalized Android application featuring a collection of interactive and dec
 * **Retro Auto-Playing Snake Widget:** A dot-matrix style snake game that runs autonomously directly on your home screen.
 * **Unified Modern UI:** Clean, circular floating toggle buttons with dynamic play/pause states that blend beautifully into your launcher.
 * **Modern Background Execution:** Utilizes Android 14+ compatible Foreground Services (`specialUse` type) with silent notifications to ensure widgets run smoothly without being killed by aggressive battery management.
-* * **Advanced Drawing Widget:** Transform your home screen into a dynamic notebook. Features support for multiple independent 3x4 canvases, customizable backgrounds (including dark mode and lined paper), a modern HSV color wheel, and Quadratic Bézier smoothing for natural handwriting.
+* **Advanced Drawing Widget:** Transform your home screen into a dynamic notebook. Features support for multiple independent 3x4 canvases, customizable backgrounds (including dark mode and lined paper), a modern HSV color wheel, and Quadratic Bézier smoothing for natural handwriting.
 * **Interactive Maze Widget:** A fully playable, tilt-sensitive physics game right on your launcher. Features advanced collision detection and optimized rendering for smooth, battery-friendly gameplay.
 * **Coin Flip Widget:** A quick, interactive utility for your home screen to help make those 50/50 decisions instantly with a simple tap.
 * **Hourglass Widget:** An interactive, tilt-sensitive timer featuring falling sand particles in a classic retro dot-matrix style.
