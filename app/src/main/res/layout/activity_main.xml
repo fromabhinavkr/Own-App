@@ -1,24 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:fitsSystemWindows="true">
 
-    <ImageButton
-        android:id="@+id/btn_app_theme_toggle"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentStart="true"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/ic_moon"
-        android:contentDescription="Toggle Dark/Light Mode"
-        android:padding="8dp"
-        android:scaleType="fitCenter" />
+    <RelativeLayout
+        android:id="@+id/top_bar_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true">
+
+        <ImageButton
+            android:id="@+id/btn_app_theme_toggle"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/theme_toggle_desc"
+            android:src="@drawable/ic_moon"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            tools:ignore="ImageContrastCheck" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:orientation="vertical"
+            android:gravity="end">
+
+            <Button
+                android:id="@+id/btnPlaceWidget"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/modern_button"
+                android:text="@string/widget_gallery_button"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:elevation="0dp"
+                android:stateListAnimator="@null" />
+
+            <Button
+                android:id="@+id/btnGames"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/modern_button"
+                android:text="Games Gallery"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:elevation="0dp"
+                android:stateListAnimator="@null" />
+
+        </LinearLayout>
+    </RelativeLayout>
 
     <com.example.ownphotoonwall.GlobeGLSurfaceView
         android:id="@+id/globe_view"
         android:layout_width="320dp"
         android:layout_height="320dp"
         android:layout_centerInParent="true" />
+
 </RelativeLayout>

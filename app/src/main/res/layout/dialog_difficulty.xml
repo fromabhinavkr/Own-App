@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialogRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/bg_dialog_rounded">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/diff_title"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"/>
+
+    <Button android:id="@+id/btnEasy" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/diff_easy" android:background="@drawable/modern_button" android:layout_marginBottom="8dp" android:stateListAnimator="@null"/>
+    <Button android:id="@+id/btnMedium" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/diff_medium" android:background="@drawable/modern_button" android:layout_marginBottom="8dp" android:stateListAnimator="@null"/>
+    <Button android:id="@+id/btnHard" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/diff_hard" android:background="@drawable/modern_button" android:stateListAnimator="@null"/>
+
+</LinearLayout>

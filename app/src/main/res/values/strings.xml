@@ -13,4 +13,12 @@
     <string name="widget_description">A tilt-sensitive maze game</string>
     <string name="maze_widget_desc">An 8-bit tilt maze you can play right on your home screen!</string>
     <string name="drawing_widget_description">Hand drawn sticky notes on your home screen</string>
+    <string name="widget_gallery_button">Widget Gallery</string>
+    <string name="theme_toggle_desc">Toggle Dark/Light Mode</string>
+    <string name="diff_easy">Easy</string>
+    <string name="diff_medium">Medium</string>
+    <string name="diff_hard">Difficult</string>
+    <string name="diff_title">Select Speed</string>
+    <string name="game_pause">Pause</string>
+    <string name="game_resume">Resume</string>
 </resources>

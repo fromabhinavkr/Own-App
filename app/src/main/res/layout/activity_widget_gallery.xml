@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/galleryRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvGalleryTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Widget Collection"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="4dp"
+        android:layout_marginTop="24dp"/>
+
+    <TextView
+        android:id="@+id/tvGallerySubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tap a preview to add it to your home screen."
+        android:textSize="14sp"
+        android:layout_marginBottom="24dp"/>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="none">
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:alignmentMode="alignMargins">
+
+            <LinearLayout android:id="@+id/cardDrawing" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/drawing_preview" />
+                <TextView android:id="@+id/textDrawing" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Drawing" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardMaze" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/maze_preview" />
+                <TextView android:id="@+id/textMaze" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Maze Game" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardSnake" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/snake_preview" />
+                <TextView android:id="@+id/textSnake" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Retro Snake" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardWater" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/water_preview" />
+                <TextView android:id="@+id/textWater" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Water Glass" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardGear" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/gear_preview" />
+                <TextView android:id="@+id/textGear" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Fidget Gear" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardCoin" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/coinflip_preview" />
+                <TextView android:id="@+id/textCoin" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Coin Toss" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardHourglass" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/hourglass_preview" />
+                <TextView android:id="@+id/textHourglass" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hourglass" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardPhoto" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/earth_map" />
+                <TextView android:id="@+id/textPhoto" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Photo Display" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+        </GridLayout>
+    </ScrollView>
+</LinearLayout>
