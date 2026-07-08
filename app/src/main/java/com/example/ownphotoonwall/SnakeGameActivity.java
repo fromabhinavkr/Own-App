@@ -336,7 +336,7 @@ public class SnakeGameActivity extends Activity {
                 if (isNewHighScore) {
                     paint.setColor(Color.parseColor("#4CD964")); // Success Green for new records
                     paint.setTextSize(65f);
-                    canvas.drawText("🏆 New High Scorer! 🏆", getWidth() / 2f, getHeight() / 2f + 160f, paint);
+                    canvas.drawText("🏆 New High Score! 🏆", getWidth() / 2f, getHeight() / 2f + 160f, paint);
                     paint.setColor(textColor); // Revert color for next line
                 }
 

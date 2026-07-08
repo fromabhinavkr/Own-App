@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    tools:ignore="HardcodedText">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Background Remover"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:textColor="@android:color/primary_text_light"/>
+
+    <!-- Tool Selector: Eraser / Repair / Auto Color -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/toggleGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginBottom="16dp"
+        app:singleSelection="true"
+        app:checkedButton="@+id/btnManualEraser">
+
+        <Button
+            android:id="@+id/btnManualEraser"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Eraser" />
+        <Button
+            android:id="@+id/btnRepair"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Repair" />
+        <Button
+            android:id="@+id/btnAutoColor"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Auto Color" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <!-- Slider for manual tools only -->
+    <LinearLayout
+        android:id="@+id/brushSizeContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Brush Size"
+            android:textStyle="bold"
+            android:textColor="@android:color/primary_text_light"/>
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderBrushSize"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:valueFrom="5"
+            android:valueTo="100"
+            android:stepSize="1"
+            android:value="30" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvAutoColorInstructions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Auto Color: Tap a color on the image to remove it."
+        android:textSize="12sp"
+        android:gravity="center"
+        android:visibility="gone"
+        android:layout_marginBottom="24dp"
+        android:textColor="@android:color/primary_text_light"/>
+
+    <Button
+        android:id="@+id/btnApplyBgRemove"
+        style="@style/ModernButtonStyle"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="Apply"
+        android:backgroundTint="#34C759"
+        android:textColor="#FFFFFF"/>
+
+</LinearLayout>

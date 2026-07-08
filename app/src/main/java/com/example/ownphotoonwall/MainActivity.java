@@ -40,29 +40,39 @@ public class MainActivity extends AppCompatActivity {
         // --- 2. MENU BUTTONS LOGIC ---
         Button btnPlaceWidget = findViewById(R.id.btnPlaceWidget);
         Button btnGames = findViewById(R.id.btnGames);
+        Button btnTools = findViewById(R.id.btnTools); // New Tools Button
 
-        if (btnPlaceWidget != null && btnGames != null) {
-            // DYNAMIC THEME SYNC FOR BOTH BUTTONS
+        if (btnPlaceWidget != null && btnGames != null && btnTools != null) {
+            // DYNAMIC THEME SYNC FOR ALL BUTTONS
             if (isDarkTheme) {
                 ColorStateList darkBg = ColorStateList.valueOf(Color.parseColor("#D0BCFF"));
                 int darkText = Color.parseColor("#381E72");
 
                 btnPlaceWidget.setBackgroundTintList(darkBg);
                 btnPlaceWidget.setTextColor(darkText);
+
                 btnGames.setBackgroundTintList(darkBg);
                 btnGames.setTextColor(darkText);
+
+                btnTools.setBackgroundTintList(darkBg);
+                btnTools.setTextColor(darkText);
             } else {
                 ColorStateList lightBg = ColorStateList.valueOf(Color.parseColor("#6750A4"));
                 int lightText = Color.WHITE;
 
                 btnPlaceWidget.setBackgroundTintList(lightBg);
                 btnPlaceWidget.setTextColor(lightText);
+
                 btnGames.setBackgroundTintList(lightBg);
                 btnGames.setTextColor(lightText);
+
+                btnTools.setBackgroundTintList(lightBg);
+                btnTools.setTextColor(lightText);
             }
 
             btnPlaceWidget.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, WidgetGalleryActivity.class)));
             btnGames.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, GamesGalleryActivity.class)));
+            btnTools.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, ToolsGalleryActivity.class))); // Launch Tools Gallery
         }
     }
 

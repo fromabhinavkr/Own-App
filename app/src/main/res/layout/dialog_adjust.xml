@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    tools:ignore="HardcodedText">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Adjust Image"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:textColor="@android:color/primary_text_light"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Brightness" android:textStyle="bold" android:textColor="@android:color/primary_text_light"/>
+    <com.google.android.material.slider.Slider android:id="@+id/slBrightness" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="-100" android:valueTo="100" android:value="0" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Contrast" android:textStyle="bold" android:textColor="@android:color/primary_text_light" android:layout_marginTop="8dp"/>
+    <com.google.android.material.slider.Slider android:id="@+id/slContrast" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0.5" android:valueTo="1.5" android:value="1.0" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Saturation" android:textStyle="bold" android:textColor="@android:color/primary_text_light" android:layout_marginTop="8dp"/>
+    <com.google.android.material.slider.Slider android:id="@+id/slSaturation" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0.0" android:valueTo="2.0" android:value="1.0" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Hue" android:textStyle="bold" android:textColor="@android:color/primary_text_light" android:layout_marginTop="8dp"/>
+    <com.google.android.material.slider.Slider android:id="@+id/slHue" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="-180" android:valueTo="180" android:value="0" />
+
+    <Button
+        android:id="@+id/btnApplyAdjust"
+        style="@style/ModernButtonStyle"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="Apply"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="#34C759"
+        android:textColor="#FFFFFF"/>
+</LinearLayout>

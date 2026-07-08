@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/toolsGalleryRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:ignore="HardcodedText">
+
+    <TextView
+        android:id="@+id/tvToolsTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/tools_gallery_title"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="4dp"
+        android:layout_marginTop="24dp"/>
+
+    <TextView
+        android:id="@+id/tvToolsSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/tools_gallery_subtitle"
+        android:textSize="14sp"
+        android:layout_marginBottom="24dp"/>
+
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="2"
+        android:alignmentMode="alignMargins">
+
+        <!-- Sticker Maker Card -->
+        <LinearLayout
+            android:id="@+id/cardStickerMaker"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:orientation="vertical"
+            android:background="@drawable/bg_gallery_card"
+            android:layout_margin="8dp"
+            android:elevation="2dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:scaleType="centerInside"
+                android:padding="2dp"
+                android:src="@drawable/stickermaker_preview" />
+
+            <TextView
+                android:id="@+id/textStickerMaker"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/whatsapp_sticker_title"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <!-- Image Editor Card -->
+        <LinearLayout
+            android:id="@+id/cardImageEditor"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:orientation="vertical"
+            android:background="@drawable/bg_gallery_card"
+            android:layout_margin="8dp"
+            android:elevation="2dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:scaleType="centerInside"
+                android:padding="3dp"
+                android:src="@drawable/imagestudio_preview" />
+
+            <TextView
+                android:id="@+id/textImageEditor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Image Studio"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+    </GridLayout>
+</LinearLayout>

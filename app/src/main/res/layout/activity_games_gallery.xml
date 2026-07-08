@@ -50,7 +50,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="140dp"
                     android:scaleType="centerCrop"
-                    android:src="@drawable/snake_preview" />
+                    android:src="@drawable/gamesnake_preview" />
 
                 <TextView
                     android:id="@+id/textSnakeGame"

@@ -1,5 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- Existing Widget Styles -->
     <style name="Widget.OwnPhotoONWall.AppWidget.Container" parent="android:Widget">
         <item name="android:id">@android:id/background</item>
         <item name="android:background">?android:attr/colorBackground</item>
@@ -9,4 +11,39 @@
         <item name="android:background">?android:attr/colorBackground</item>
         <item name="android:textColor">?android:attr/textColorPrimary</item>
     </style>
+
+    <!-- Original Editor Tool Button -->
+    <style name="EditorToolBtn">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">45dp</item>
+        <item name="android:layout_marginEnd">8dp</item>
+        <item name="android:background">@drawable/modern_button</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- NEW: Modern Button Style for Image Studio (Android 16/17 Look) -->
+    <style name="ModernButtonStyle" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">45dp</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:layout_marginBottom">12dp</item>
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
+        <item name="backgroundTint">?android:attr/colorAccent</item>
+    </style>
+
+    <!-- NEW: Transparent Dialog Style to allow Custom Rounded Corners -->
+    <style name="ModernDialogStyle" parent="Theme.MaterialComponents.Dialog.Alert">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
 </resources>

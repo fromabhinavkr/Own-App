@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    tools:ignore="HardcodedText">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Brush Settings"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"/>
+
+    <FrameLayout
+        android:id="@+id/colorWheelContainer"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_gravity="center"
+        android:layout_marginBottom="8dp"/>
+
+    <EditText
+        android:id="@+id/etBrushHexCode"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:inputType="text"
+        android:importantForAutofill="no"
+        android:text="#FF0000"
+        android:background="@android:color/transparent"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Brush Size" android:textStyle="bold"/>
+    <SeekBar
+        android:id="@+id/sbBrushSize"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:max="150"
+        android:min="1"
+        android:progress="12" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Brush Opacity (%)" android:textStyle="bold"/>
+    <SeekBar
+        android:id="@+id/sbBrushOpacity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:max="100"
+        android:min="1"
+        android:progress="100" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <!-- FIX: Style matches Apply button for perfect symmetry -->
+        <Button
+            android:id="@+id/btnEraserToggle"
+            style="@style/ModernButtonStyle"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="50dp"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="#E5E5EA"
+            android:textColor="#333333"
+            android:text="Eraser" />
+
+        <Button
+            android:id="@+id/btnBrushApply"
+            style="@style/ModernButtonStyle"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="50dp"
+            android:backgroundTint="#34C759"
+            android:textColor="#FFFFFF"
+            android:text="Apply" />
+    </LinearLayout>
+</LinearLayout>

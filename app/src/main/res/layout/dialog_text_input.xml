@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:scrollbars="none"
+    tools:ignore="HardcodedText">
+
+    <LinearLayout
+        android:id="@+id/dialogTextRoot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/tvDialogTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add Text"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
+
+        <FrameLayout
+            android:id="@+id/textPreviewContainer"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:background="#1A000000"
+            android:layout_marginBottom="16dp" />
+
+        <EditText
+            android:id="@+id/etInputText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Type something..."
+            android:inputType="textMultiLine"
+            android:importantForAutofill="no"
+            android:background="@android:color/transparent"
+            android:textSize="18sp"
+            android:layout_marginBottom="16dp"/>
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/alignToggleGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
+            app:singleSelection="true"
+            app:checkedButton="@+id/btnAlignCenter">
+            <Button android:id="@+id/btnAlignLeft" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Left" />
+            <Button android:id="@+id/btnAlignCenter" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Center" />
+            <Button android:id="@+id/btnAlignRight" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Right" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <FrameLayout
+            android:id="@+id/colorWheelContainerText"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/etTextHexCode"
+            android:layout_width="120dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:text="#FFFFFF"
+            android:inputType="text"
+            android:importantForAutofill="no"
+            android:background="@android:color/transparent"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Letter Spacing" android:textSize="12sp" android:textStyle="bold"/>
+        <com.google.android.material.slider.Slider android:id="@+id/slLetterSpacing" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0.0" android:valueTo="0.5" android:value="0.0"/>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Line Spacing" android:textSize="12sp" android:textStyle="bold"/>
+        <com.google.android.material.slider.Slider android:id="@+id/slLineSpacing" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0.5" android:valueTo="2.5" android:value="1.0"/>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stroke Thickness" android:textSize="12sp" android:textStyle="bold"/>
+        <com.google.android.material.slider.Slider android:id="@+id/slStrokeWidth" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0" android:valueTo="25" android:value="0" android:stepSize="1"/>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Shadow Blur" android:textSize="12sp" android:textStyle="bold"/>
+        <com.google.android.material.slider.Slider android:id="@+id/slShadowRadius" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0" android:valueTo="30" android:value="0" android:stepSize="1"/>
+
+        <Button
+            android:id="@+id/btnPickFont"
+            style="@style/ModernButtonStyle"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="Choose Custom Font (.ttf/.otf)"
+            android:backgroundTint="#4A90E2"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:id="@+id/tvFontName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Default Font Selected"
+            android:gravity="center"
+            android:textSize="12sp"
+            android:layout_marginBottom="16dp"
+            android:textColor="@android:color/darker_gray"/>
+
+        <Button
+            android:id="@+id/btnApplyText"
+            style="@style/ModernButtonStyle"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="Add to Image"
+            android:backgroundTint="#34C759"
+            android:textColor="#FFFFFF"/>
+    </LinearLayout>
+</ScrollView>
