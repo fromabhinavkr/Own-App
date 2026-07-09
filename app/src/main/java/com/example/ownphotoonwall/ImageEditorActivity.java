@@ -1,7 +1,6 @@
 package com.example.ownphotoonwall;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Context;
@@ -11,6 +10,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BitmapShader;
+import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorMatrix;
@@ -36,16 +36,17 @@ import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.text.TextWatcher;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -78,12 +79,13 @@ public class ImageEditorActivity extends AppCompatActivity {
     private PhotoEditorView editorView;
     private View tapToStartView;
     private View rightToolsPanel;
-    private LinearLayout leftLayersPanel, cropToolsBar;
+    private View cropToolsBar;
+    private LinearLayout leftLayersPanel;
 
     private RecyclerView layersRecyclerView;
     private LayerAdapter layerAdapter;
 
-    private Button btnZoom, btnGrid;
+    private Button btnZoom, btnGrid, btnLayerOut;
 
     private boolean isDarkTheme;
     private int panelColor;
@@ -91,31 +93,29 @@ public class ImageEditorActivity extends AppCompatActivity {
     private Typeface currentCustomFont = null;
     private TextView activeFontLabel = null;
 
-    private int textMainColor = Color.WHITE;
-    private int textStrokeColor = Color.BLACK;
-    private int textShadowColor = Color.BLACK;
-
+    private int activeColorTarget = 0;
     private Runnable dialogUpdateRunnable = null;
 
     public interface OnColorChangeListener { void onColorChanged(int color); }
+    public interface EyedropperCallback { void onColorPicked(int color); }
 
     private final ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null)
+                if (result.getResultCode() == RESULT_OK && result.getData() != null)
                     loadImage(result.getData().getData(), false);
             }
     );
 
     private final ActivityResultLauncher<Intent> pickOverlayLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null)
+                if (result.getResultCode() == RESULT_OK && result.getData() != null)
                     loadImage(result.getData().getData(), true);
             }
     );
 
     private final ActivityResultLauncher<Intent> pickFontLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
                     loadCustomFont(result.getData().getData());
                     if (dialogUpdateRunnable != null) dialogUpdateRunnable.run();
                 }
@@ -149,9 +149,7 @@ public class ImageEditorActivity extends AppCompatActivity {
         ItemTouchHelper.Callback callback = new ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) {
             @Override
             public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
-                if (layerAdapter != null) {
-                    layerAdapter.moveItem(viewHolder.getAdapterPosition(), target.getAdapterPosition());
-                }
+                if (layerAdapter != null) layerAdapter.moveItem(viewHolder.getAdapterPosition(), target.getAdapterPosition());
                 return true;
             }
             @Override public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) { }
@@ -175,13 +173,8 @@ public class ImageEditorActivity extends AppCompatActivity {
         editorView.setOnModeChangeListener(this::updateToolButtons);
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                if (editorView.isImageMissing()) {
-                    finish();
-                } else {
-                    showExitDialog();
-                }
+            @Override public void handleOnBackPressed() {
+                if (editorView.isImageMissing()) finish(); else showExitDialog();
             }
         });
 
@@ -194,74 +187,99 @@ public class ImageEditorActivity extends AppCompatActivity {
         Button btnText = findViewById(R.id.btnText);
         Button btnDraw = findViewById(R.id.btnDraw);
         Button btnCopy = findViewById(R.id.btnCopy);
+        Button btnLayerEdit = findViewById(R.id.btnLayerEdit);
         Button btnUndo = findViewById(R.id.btnUndo);
         Button btnClear = findViewById(R.id.btnClear);
         Button btnExport = findViewById(R.id.btnExport);
         Button btnAddOverlay = findViewById(R.id.btnAddOverlay);
+        btnLayerOut = findViewById(R.id.btnLayerOut);
 
         Button btnCropCancel = findViewById(R.id.btnCropCancel);
-        Button btnCrop1to1 = findViewById(R.id.btnCrop1to1);
+        Button btnCropFull = findViewById(R.id.btnCropFull);
         Button btnCropFree = findViewById(R.id.btnCropFree);
+        Button btnCrop1to1 = findViewById(R.id.btnCrop1to1);
+        Button btnCrop16to9 = findViewById(R.id.btnCrop16to9);
+        Button btnCrop9to16 = findViewById(R.id.btnCrop9to16);
+        Button btnCrop4to3 = findViewById(R.id.btnCrop4to3);
+        Button btnCrop4to1 = findViewById(R.id.btnCrop4to1);
+        Button btnCropPerspective = findViewById(R.id.btnCropPerspective);
         Button btnCropCircle = findViewById(R.id.btnCropCircle);
         Button btnCropRotate = findViewById(R.id.btnCropRotate);
         Button btnCropMirror = findViewById(R.id.btnCropMirror);
         Button btnCropApply = findViewById(R.id.btnCropApply);
 
-        ColorStateList btnColor = ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA"));
-        Button[] tools = {btnLoad, btnCrop, btnText, btnDraw, btnClear, btnToggleLayers, btnToggleTools, btnCopy, btnUndo, btnBgRemover, btnAdjust, btnZoom, btnGrid};
-        for (Button b : tools) {
-            if (b != null) { b.setBackgroundTintList(btnColor); b.setTextColor(textColor); }
-        }
+        ColorStateList btnColorState = ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA"));
+        Button[] tools = {btnLoad, btnCrop, btnText, btnDraw, btnClear, btnToggleLayers, btnToggleTools, btnCopy, btnLayerEdit, btnUndo, btnBgRemover, btnAdjust, btnZoom, btnGrid, btnLayerOut};
+        for (Button b : tools) { if (b != null) { b.setBackgroundTintList(btnColorState); b.setTextColor(textColor); } }
 
         if (btnUndo != null) { btnUndo.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF9F0A"))); btnUndo.setTextColor(Color.WHITE); }
         if (btnExport != null) { btnExport.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4CD964"))); btnExport.setTextColor(Color.WHITE); }
         if (btnBgRemover != null) { btnBgRemover.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF3B30"))); btnBgRemover.setTextColor(Color.WHITE); }
         if (btnAdjust != null) { btnAdjust.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#9C27B0"))); btnAdjust.setTextColor(Color.WHITE); }
+        if (btnLayerEdit != null) { btnLayerEdit.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2"))); btnLayerEdit.setTextColor(Color.WHITE); }
 
-        if (tapToStartView != null) tapToStartView.setOnClickListener(v -> launchPicker(false));
-        if (btnLoad != null) btnLoad.setOnClickListener(v -> launchPicker(false));
+        if (tapToStartView != null) tapToStartView.setOnClickListener(btnView -> launchPicker(false));
+        if (btnLoad != null) btnLoad.setOnClickListener(btnView -> launchPicker(false));
 
-        if (btnUndo != null) {
-            btnUndo.setOnClickListener(v -> {
-                if (!editorView.isImageMissing()) editorView.undoLastAction();
+        if (btnLayerOut != null) {
+            btnLayerOut.setText("Layer Out: OFF");
+            btnLayerOut.setOnClickListener(btnView -> {
+                editorView.isLayerOutMode = !editorView.isLayerOutMode;
+                if (editorView.isLayerOutMode) {
+                    btnLayerOut.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#34C759")));
+                    btnLayerOut.setTextColor(Color.WHITE); btnLayerOut.setText("Layer Out: ON");
+                } else {
+                    btnLayerOut.setBackgroundTintList(ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA")));
+                    btnLayerOut.setTextColor(isDarkTheme ? Color.WHITE : Color.parseColor("#333333"));
+                    btnLayerOut.setText("Layer Out: OFF");
+                }
+                editorView.invalidate();
             });
         }
 
-        if (btnGrid != null) {
-            btnGrid.setOnClickListener(v -> editorView.toggleGridMode());
-        }
+        if (btnUndo != null) btnUndo.setOnClickListener(btnView -> { if (!editorView.isImageMissing()) editorView.undoLastAction(); });
+        if (btnGrid != null) btnGrid.setOnClickListener(btnView -> editorView.toggleGridMode());
+        if (btnZoom != null) btnZoom.setOnClickListener(btnView -> {
+            if (editorView.isImageMissing()) return;
+            editorView.toggleZoomMode();
+            if (editorView.isZoomMode) Toast.makeText(this, "Zoom / Pan Active. Pinch to Zoom.", Toast.LENGTH_SHORT).show();
+        });
 
-        if (btnZoom != null) {
-            btnZoom.setOnClickListener(v -> {
-                if (editorView.isImageMissing()) return;
-                editorView.enableZoomMode();
-                Toast.makeText(this, "Zoom / Pan Active. Pinch to Zoom, drag to Pan.", Toast.LENGTH_SHORT).show();
-            });
-        }
+        if (btnAddOverlay != null) btnAddOverlay.setOnClickListener(btnView -> { if (editorView.isImageMissing()) return; launchPicker(true); });
 
-        if (btnAddOverlay != null) {
-            btnAddOverlay.setOnClickListener(v -> {
-                if (editorView.isImageMissing()) { Toast.makeText(this, "Load Base Image first!", Toast.LENGTH_SHORT).show(); return; }
-                launchPicker(true);
-            });
-        }
+        if (btnToggleTools != null) btnToggleTools.setOnClickListener(btnView -> {
+            if (rightToolsPanel != null) rightToolsPanel.setVisibility(rightToolsPanel.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+            if (leftLayersPanel != null) leftLayersPanel.setVisibility(View.GONE);
+        });
 
-        if (btnToggleTools != null) {
-            btnToggleTools.setOnClickListener(v -> {
-                if (rightToolsPanel != null) rightToolsPanel.setVisibility(rightToolsPanel.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
-                if (leftLayersPanel != null) leftLayersPanel.setVisibility(View.GONE);
-            });
-        }
+        if (btnToggleLayers != null) btnToggleLayers.setOnClickListener(btnView -> {
+            if (leftLayersPanel != null) leftLayersPanel.setVisibility(leftLayersPanel.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+            if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE);
+        });
 
-        if (btnToggleLayers != null) {
-            btnToggleLayers.setOnClickListener(v -> {
-                if (leftLayersPanel != null) leftLayersPanel.setVisibility(leftLayersPanel.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+        if (btnText != null) {
+            btnText.setOnClickListener(btnView -> {
+                if (editorView.isImageMissing() || editorView.isCropping) return;
+                editorView.deselectLayer();
                 if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE);
+                showTextAddDialog();
+            });
+        }
+
+        if (btnLayerEdit != null) {
+            btnLayerEdit.setOnClickListener(btnView -> {
+                GraphicLayer layer = editorView.getActiveLayer();
+                if (layer == null) {
+                    Toast.makeText(this, "Select a layer on the canvas first!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE);
+                showLayerEditDialog(layer);
             });
         }
 
         if (btnAdjust != null) {
-            btnAdjust.setOnClickListener(v -> {
+            btnAdjust.setOnClickListener(btnView -> {
                 if (editorView.isImageMissing() || editorView.isCropping) return;
                 editorView.deselectLayer();
                 if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE);
@@ -277,30 +295,22 @@ public class ImageEditorActivity extends AppCompatActivity {
                 Slider slHue = dialogView.findViewById(R.id.slHue);
                 Button btnApplyAdjust = dialogView.findViewById(R.id.btnApplyAdjust);
 
-                slBrightness.setValue(editorView.imgBrightness);
-                slContrast.setValue(editorView.imgContrast);
-                slSaturation.setValue(editorView.imgSaturation);
-                slHue.setValue(editorView.imgHue);
+                slBrightness.setValue(editorView.imgBrightness); slContrast.setValue(editorView.imgContrast);
+                slSaturation.setValue(editorView.imgSaturation); slHue.setValue(editorView.imgHue);
 
                 Slider.OnChangeListener listener = (slider, value, fromUser) -> {
-                    if (fromUser) {
-                        editorView.setAdjustments(slBrightness.getValue(), slContrast.getValue(), slSaturation.getValue(), slHue.getValue());
-                    }
+                    if (fromUser) editorView.setAdjustments(slBrightness.getValue(), slContrast.getValue(), slSaturation.getValue(), slHue.getValue());
                 };
-
-                slBrightness.addOnChangeListener(listener);
-                slContrast.addOnChangeListener(listener);
-                slSaturation.addOnChangeListener(listener);
-                slHue.addOnChangeListener(listener);
+                slBrightness.addOnChangeListener(listener); slContrast.addOnChangeListener(listener);
+                slSaturation.addOnChangeListener(listener); slHue.addOnChangeListener(listener);
 
                 final AlertDialog dialog = createModernRoundedDialog(dialogView);
-                btnApplyAdjust.setOnClickListener(view -> dialog.dismiss());
-                dialog.show();
+                btnApplyAdjust.setOnClickListener(applyBtn -> dialog.dismiss()); dialog.show();
             });
         }
 
         if (btnCrop != null) {
-            btnCrop.setOnClickListener(v -> {
+            btnCrop.setOnClickListener(btnView -> {
                 if (editorView.isImageMissing()) return;
                 editorView.startInteractiveCrop();
                 if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE);
@@ -308,16 +318,22 @@ public class ImageEditorActivity extends AppCompatActivity {
             });
         }
 
-        if (btnCropCancel != null) btnCropCancel.setOnClickListener(v -> { editorView.cancelCrop(); if(cropToolsBar!=null) cropToolsBar.setVisibility(View.GONE); if(rightToolsPanel!=null) rightToolsPanel.setVisibility(View.VISIBLE); });
-        if (btnCrop1to1 != null) btnCrop1to1.setOnClickListener(v -> { editorView.setCropCircle(false); editorView.setCropRatio(1f); });
-        if (btnCropFree != null) btnCropFree.setOnClickListener(v -> { editorView.setCropCircle(false); editorView.setCropRatio(0f); });
-        if (btnCropCircle != null) btnCropCircle.setOnClickListener(v -> editorView.setCropCircle(true));
-        if (btnCropRotate != null) btnCropRotate.setOnClickListener(v -> editorView.rotateImage());
-        if (btnCropMirror != null) btnCropMirror.setOnClickListener(v -> editorView.mirrorImage());
-        if (btnCropApply != null) btnCropApply.setOnClickListener(v -> { editorView.applyCrop(); if(cropToolsBar!=null) cropToolsBar.setVisibility(View.GONE); if(rightToolsPanel!=null) rightToolsPanel.setVisibility(View.VISIBLE); });
+        if (btnCropCancel != null) btnCropCancel.setOnClickListener(btnView -> { editorView.cancelCrop(); if(cropToolsBar!=null) cropToolsBar.setVisibility(View.GONE); if(rightToolsPanel!=null) rightToolsPanel.setVisibility(View.VISIBLE); });
+        if (btnCropFree != null) btnCropFree.setOnClickListener(btnView -> { editorView.setCropCircle(false); editorView.setCropRatio(0f); });
+        if (btnCropFull != null) btnCropFull.setOnClickListener(btnView -> editorView.setCropFull());
+        if (btnCrop1to1 != null) btnCrop1to1.setOnClickListener(btnView -> { editorView.setCropCircle(false); editorView.setCropRatio(1f); });
+        if (btnCrop16to9 != null) btnCrop16to9.setOnClickListener(btnView -> { editorView.setCropCircle(false); editorView.setCropRatio(16f / 9f); });
+        if (btnCrop9to16 != null) btnCrop9to16.setOnClickListener(btnView -> { editorView.setCropCircle(false); editorView.setCropRatio(9f / 16f); });
+        if (btnCrop4to3 != null) btnCrop4to3.setOnClickListener(btnView -> { editorView.setCropCircle(false); editorView.setCropRatio(4f / 3f); });
+        if (btnCrop4to1 != null) btnCrop4to1.setOnClickListener(btnView -> { editorView.setCropCircle(false); editorView.setCropRatio(4f); });
+        if (btnCropPerspective != null) btnCropPerspective.setOnClickListener(btnView -> editorView.startPerspectiveCrop());
+        if (btnCropCircle != null) btnCropCircle.setOnClickListener(btnView -> editorView.setCropCircle(true));
+        if (btnCropRotate != null) btnCropRotate.setOnClickListener(btnView -> editorView.rotateImage());
+        if (btnCropMirror != null) btnCropMirror.setOnClickListener(btnView -> editorView.mirrorImage());
+        if (btnCropApply != null) btnCropApply.setOnClickListener(btnView -> { editorView.applyCrop(); if(cropToolsBar!=null) cropToolsBar.setVisibility(View.GONE); if(rightToolsPanel!=null) rightToolsPanel.setVisibility(View.VISIBLE); });
 
         if (btnBgRemover != null) {
-            btnBgRemover.setOnClickListener(v -> {
+            btnBgRemover.setOnClickListener(btnView -> {
                 if (editorView.isImageMissing() || editorView.isCropping) return;
                 editorView.deselectLayer();
                 if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE);
@@ -346,7 +362,7 @@ public class ImageEditorActivity extends AppCompatActivity {
 
                 final AlertDialog dialog = createModernRoundedDialog(dialogView);
 
-                btnApplyBgRemove.setOnClickListener(view -> {
+                btnApplyBgRemove.setOnClickListener(applyBtn -> {
                     editorView.isDrawMode = false;
                     int checkedId = toggleGroup.getCheckedButtonId();
                     if (checkedId == R.id.btnAutoColor) {
@@ -364,148 +380,10 @@ public class ImageEditorActivity extends AppCompatActivity {
             });
         }
 
-        if (btnCopy != null) {
-            btnCopy.setOnClickListener(v -> {
-                if (editorView.isImageMissing()) return;
-                editorView.copyActiveLayer();
-            });
-        }
-
-        if (btnText != null) {
-            btnText.setOnClickListener(v -> {
-                if (editorView.isImageMissing() || editorView.isCropping) return;
-                if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE);
-
-                LayoutInflater inflater = LayoutInflater.from(this);
-                View dialogView = inflater.inflate(R.layout.dialog_text_input, null);
-                forceDialogBackground(dialogView.findViewById(R.id.dialogTextRoot));
-                setDialogTextColor(dialogView, isDarkTheme ? Color.WHITE : Color.BLACK);
-
-                FrameLayout previewContainer = dialogView.findViewById(R.id.textPreviewContainer);
-                TextPreviewView previewView = new TextPreviewView(this);
-                previewContainer.addView(previewView);
-
-                EditText etInput = dialogView.findViewById(R.id.etInputText);
-                EditText etTextHexCode = dialogView.findViewById(R.id.etTextHexCode);
-                Button btnPickFont = dialogView.findViewById(R.id.btnPickFont);
-                activeFontLabel = dialogView.findViewById(R.id.tvFontName);
-                Button btnApply = dialogView.findViewById(R.id.btnApplyText);
-                FrameLayout colorWheelContainer = dialogView.findViewById(R.id.colorWheelContainerText);
-
-                MaterialButtonToggleGroup alignToggle = dialogView.findViewById(R.id.alignToggleGroup);
-                Slider slLetterSpace = dialogView.findViewById(R.id.slLetterSpacing);
-                Slider slLineSpace = dialogView.findViewById(R.id.slLineSpacing);
-                Slider slStroke = dialogView.findViewById(R.id.slStrokeWidth);
-                Slider slShadow = dialogView.findViewById(R.id.slShadowRadius);
-
-                if (isDarkTheme) {
-                    etInput.setTextColor(Color.WHITE); etInput.setHintTextColor(Color.GRAY);
-                    etTextHexCode.setTextColor(Color.WHITE);
-                } else {
-                    etInput.setTextColor(Color.BLACK); etInput.setHintTextColor(Color.GRAY);
-                    etTextHexCode.setTextColor(Color.BLACK);
-                }
-
-                if (currentCustomFont != null) activeFontLabel.setText("Custom Font Loaded");
-
-                textMainColor = Color.WHITE;
-                textStrokeColor = Color.BLACK;
-                textShadowColor = Color.BLACK;
-                etTextHexCode.setText("#FFFFFF");
-
-                ColorWheelView colorWheel = new ColorWheelView(this);
-                colorWheelContainer.addView(colorWheel);
-
-                dialogUpdateRunnable = () -> {
-                    if (activeFontLabel != null && currentCustomFont != null) {
-                        activeFontLabel.setText("Custom Font Loaded");
-                    }
-                    String input = etInput.getText().toString();
-                    if (input.isEmpty()) input = "Preview Text";
-                    Layout.Alignment align = Layout.Alignment.ALIGN_CENTER;
-                    int aId = alignToggle.getCheckedButtonId();
-                    if (aId == R.id.btnAlignLeft) align = Layout.Alignment.ALIGN_NORMAL;
-                    else if (aId == R.id.btnAlignRight) align = Layout.Alignment.ALIGN_OPPOSITE;
-
-                    previewView.updateParams(input, currentCustomFont, textMainColor, align,
-                            slLetterSpace.getValue(), slLineSpace.getValue(),
-                            slStroke.getValue(), textStrokeColor, slShadow.getValue(), textShadowColor);
-                };
-
-                etInput.addTextChangedListener(new TextWatcher() {
-                    @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-                    @Override public void onTextChanged(CharSequence s, int start, int before, int count) { dialogUpdateRunnable.run(); }
-                    @Override public void afterTextChanged(Editable s) {}
-                });
-
-                alignToggle.addOnButtonCheckedListener((group, checkedId, isChecked) -> { if(isChecked) dialogUpdateRunnable.run(); });
-                slLetterSpace.addOnChangeListener((slider, value, fromUser) -> dialogUpdateRunnable.run());
-                slLineSpace.addOnChangeListener((slider, value, fromUser) -> dialogUpdateRunnable.run());
-                slStroke.addOnChangeListener((slider, value, fromUser) -> dialogUpdateRunnable.run());
-                slShadow.addOnChangeListener((slider, value, fromUser) -> dialogUpdateRunnable.run());
-
-                boolean[] isUpdating = {false};
-                colorWheel.setOnColorChangeListener(color -> {
-                    textMainColor = color;
-                    if (!isUpdating[0]) {
-                        isUpdating[0] = true;
-                        etTextHexCode.setText(String.format("#%06X", (0xFFFFFF & color)));
-                        isUpdating[0] = false;
-                    }
-                    dialogUpdateRunnable.run();
-                });
-
-                etTextHexCode.addTextChangedListener(new TextWatcher() {
-                    @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-                    @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                        if (isUpdating[0]) return;
-                        if (s.length() == 7 && s.toString().startsWith("#")) {
-                            try {
-                                int newC = Color.parseColor(s.toString());
-                                textMainColor = newC;
-                                colorWheel.setColor(newC);
-                                dialogUpdateRunnable.run();
-                            } catch (Exception ignored) {}
-                        }
-                    }
-                    @Override public void afterTextChanged(Editable s) {}
-                });
-
-                final AlertDialog dialog = createModernRoundedDialog(dialogView);
-
-                btnPickFont.setOnClickListener(view -> {
-                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                    intent.addCategory(Intent.CATEGORY_OPENABLE);
-                    intent.setType("*/*");
-                    intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"font/ttf", "font/otf", "application/x-font-ttf", "application/x-font-otf"});
-                    pickFontLauncher.launch(intent);
-                });
-
-                btnApply.setOnClickListener(view -> {
-                    String input = etInput.getText().toString().trim();
-                    if (!input.isEmpty()) {
-                        Layout.Alignment align = Layout.Alignment.ALIGN_CENTER;
-                        int aId = alignToggle.getCheckedButtonId();
-                        if (aId == R.id.btnAlignLeft) align = Layout.Alignment.ALIGN_NORMAL;
-                        else if (aId == R.id.btnAlignRight) align = Layout.Alignment.ALIGN_OPPOSITE;
-
-                        editorView.addAdvancedTextLayer(
-                                input, currentCustomFont, textMainColor, align,
-                                slLetterSpace.getValue(), slLineSpace.getValue(),
-                                slStroke.getValue(), textStrokeColor,
-                                slShadow.getValue(), textShadowColor
-                        );
-                    }
-                    dialog.dismiss();
-                });
-
-                dialogUpdateRunnable.run();
-                dialog.show();
-            });
-        }
+        if (btnCopy != null) btnCopy.setOnClickListener(btnView -> { if (editorView.isImageMissing()) return; editorView.copyActiveLayer(); });
 
         if (btnDraw != null) {
-            btnDraw.setOnClickListener(v -> {
+            btnDraw.setOnClickListener(btnView -> {
                 if (editorView.isImageMissing() || editorView.isCropping) return;
                 editorView.deselectLayer();
                 if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE);
@@ -522,11 +400,7 @@ public class ImageEditorActivity extends AppCompatActivity {
                 Button btnApply = dialogView.findViewById(R.id.btnBrushApply);
                 FrameLayout colorWheelContainer = dialogView.findViewById(R.id.colorWheelContainer);
 
-                if (isDarkTheme) {
-                    etHexCode.setTextColor(Color.WHITE);
-                } else {
-                    etHexCode.setTextColor(Color.BLACK);
-                }
+                if (isDarkTheme) etHexCode.setTextColor(Color.WHITE); else etHexCode.setTextColor(Color.BLACK);
 
                 ColorWheelView colorWheel = new ColorWheelView(this);
                 colorWheelContainer.addView(colorWheel);
@@ -539,6 +413,41 @@ public class ImageEditorActivity extends AppCompatActivity {
                 boolean isEraser = editorView.isDrawEraserMode;
                 btnEraser.setBackgroundTintList(ColorStateList.valueOf(isEraser ? Color.parseColor("#FF3B30") : Color.parseColor("#E5E5EA")));
                 btnEraser.setTextColor(isEraser ? Color.WHITE : Color.parseColor("#333333"));
+
+                final AlertDialog dialog = createModernRoundedDialog(dialogView);
+
+                ViewGroup row = (ViewGroup) btnApply.getParent();
+                row.removeAllViews();
+
+                LinearLayout newRow = new LinearLayout(this);
+                newRow.setOrientation(LinearLayout.HORIZONTAL);
+                newRow.setWeightSum(3f);
+                newRow.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+                LinearLayout.LayoutParams lpBtn = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                lpBtn.setMargins(8, 0, 8, 0);
+
+                Button btnTurnOff = new Button(this);
+                btnTurnOff.setText("Turn OFF");
+                btnTurnOff.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF3B30")));
+                btnTurnOff.setTextColor(Color.WHITE);
+                btnTurnOff.setLayoutParams(lpBtn);
+
+                btnEraser.setLayoutParams(lpBtn);
+                btnApply.setLayoutParams(lpBtn);
+
+                newRow.addView(btnTurnOff);
+                newRow.addView(btnEraser);
+                newRow.addView(btnApply);
+                row.addView(newRow);
+
+                btnTurnOff.setOnClickListener(offBtn -> {
+                    editorView.isDrawMode = false;
+                    editorView.isDrawEraserMode = false;
+                    updateToolButtons();
+                    dialog.dismiss();
+                    Toast.makeText(this, "Draw Tool Disabled", Toast.LENGTH_SHORT).show();
+                });
 
                 boolean[] isUpdating = {false};
                 colorWheel.setOnColorChangeListener(color -> {
@@ -557,68 +466,570 @@ public class ImageEditorActivity extends AppCompatActivity {
                     @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
                         if (isUpdating[0] || editorView.isDrawEraserMode) return;
                         if (s.length() == 7 && s.toString().startsWith("#")) {
-                            try {
-                                int newC = Color.parseColor(s.toString());
-                                editorView.currentBrushColor = newC;
-                                colorWheel.setColor(newC);
-                            } catch (Exception ignored) {}
+                            try { int newC = Color.parseColor(s.toString()); editorView.currentBrushColor = newC; colorWheel.setColor(newC); } catch (Exception ignored) {}
                         }
                     }
                     @Override public void afterTextChanged(Editable s) {}
                 });
 
-                btnEraser.setOnClickListener(view -> {
+                btnEraser.setOnClickListener(eraserBtn -> {
                     editorView.isDrawEraserMode = !editorView.isDrawEraserMode;
                     btnEraser.setBackgroundTintList(ColorStateList.valueOf(editorView.isDrawEraserMode ? Color.parseColor("#FF3B30") : Color.parseColor("#E5E5EA")));
                     btnEraser.setTextColor(editorView.isDrawEraserMode ? Color.WHITE : Color.parseColor("#333333"));
                 });
 
-                final AlertDialog dialog = createModernRoundedDialog(dialogView);
-
-                btnApply.setOnClickListener(view -> {
+                btnApply.setOnClickListener(applyBtn -> {
                     editorView.currentBrushOpacity = (int) ((sbOpacity.getProgress() / 100f) * 255f);
                     editorView.startDrawing(sbSize.getProgress());
+                    updateToolButtons();
                     dialog.dismiss();
                 });
                 dialog.show();
             });
         }
 
-        if (btnClear != null) btnClear.setOnClickListener(v -> { if (editorView.isImageMissing()) return; editorView.clearModifications(); if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE); });
+        if (btnClear != null) btnClear.setOnClickListener(btnView -> { if (editorView.isImageMissing()) return; editorView.clearModifications(); if (rightToolsPanel != null) rightToolsPanel.setVisibility(View.GONE); });
 
         if (btnExport != null) {
-            btnExport.setOnClickListener(v -> {
+            btnExport.setOnClickListener(btnView -> {
                 if (editorView.isImageMissing() || editorView.isCropping) return;
                 editorView.deselectLayer();
                 String[] formats = {"PNG (Preserves Transparency)", "JPG (Standard)", "WEBP (Compressed)"};
-
                 AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle);
                 builder.setTitle("Select Export Format").setItems(formats, (d, which) -> exportImage(which));
                 AlertDialog dialog = builder.create();
                 if (dialog.getWindow() != null) {
                     dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-                    dialog.setOnShowListener(di -> {
-                        forceDialogBackground(dialog.getWindow().getDecorView());
-                        setDialogTextColor(dialog.getWindow().getDecorView(), isDarkTheme ? Color.WHITE : Color.BLACK);
-                    });
+                    dialog.setOnShowListener(di -> { forceDialogBackground(dialog.getWindow().getDecorView()); setDialogTextColor(dialog.getWindow().getDecorView(), isDarkTheme ? Color.WHITE : Color.BLACK); });
                 }
                 dialog.show();
             });
         }
     }
 
+    private Button createToggleButton(String text, boolean active) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setTextSize(10f);
+        b.setPadding(8, 0, 8, 0);
+        b.setMinimumWidth(0);
+        b.setMinimumHeight(0);
+        b.setTextColor(Color.WHITE);
+        b.setBackgroundTintList(ColorStateList.valueOf(active ? Color.parseColor("#4A90E2") : Color.parseColor("#3A3A3C")));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, 100);
+        lp.setMargins(4, 0, 4, 0);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private View createSliderWithLabel(String label, float min, float max, float current, Slider.OnChangeListener listener) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        tv.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        tv.setTextSize(12f);
+        tv.setTypeface(null, Typeface.BOLD);
+        Slider slider = new Slider(this);
+        slider.setValueFrom(min);
+        slider.setValueTo(max);
+        slider.setValue(current);
+        slider.addOnChangeListener(listener);
+        row.addView(tv);
+        row.addView(slider);
+        return row;
+    }
+
+    private void showTextAddDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle);
+        LinearLayout mainLayout = new LinearLayout(this);
+        mainLayout.setOrientation(LinearLayout.VERTICAL);
+        mainLayout.setPadding(40, 40, 40, 40);
+
+        TextView title = new TextView(this);
+        title.setText("Add Text");
+        title.setTextSize(22f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 32);
+        mainLayout.addView(title);
+
+        FrameLayout previewContainer = new FrameLayout(this);
+        previewContainer.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 250));
+        previewContainer.setBackgroundColor(Color.parseColor(isDarkTheme ? "#1C1C1E" : "#E5E5EA"));
+        TextPreviewView previewView = new TextPreviewView(this);
+        previewContainer.addView(previewView);
+        mainLayout.addView(previewContainer);
+
+        EditText etInput = new EditText(this);
+        etInput.setHint("Type your text here...");
+        etInput.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        etInput.setHintTextColor(Color.GRAY);
+        etInput.setPadding(0, 32, 0, 32);
+        mainLayout.addView(etInput);
+
+        LinearLayout alignGroup = new LinearLayout(this);
+        alignGroup.setOrientation(LinearLayout.HORIZONTAL);
+        alignGroup.setGravity(Gravity.CENTER);
+        alignGroup.setPadding(0, 0, 0, 16);
+        Button btnAlignLeft = createToggleButton("Left", false);
+        Button btnAlignCenter = createToggleButton("Center", true);
+        Button btnAlignRight = createToggleButton("Right", false);
+        alignGroup.addView(btnAlignLeft); alignGroup.addView(btnAlignCenter); alignGroup.addView(btnAlignRight);
+        mainLayout.addView(alignGroup);
+
+        LinearLayout targetGroup = new LinearLayout(this);
+        targetGroup.setOrientation(LinearLayout.HORIZONTAL);
+        targetGroup.setGravity(Gravity.CENTER);
+        targetGroup.setPadding(0, 16, 0, 16);
+
+        Button btnTargetMain = createToggleButton("Text", true);
+        Button btnTargetStroke = createToggleButton("Stroke", false);
+        Button btnTargetShadow = createToggleButton("Shadow", false);
+        Button btnTargetInner = createToggleButton("Inner", false);
+
+        targetGroup.addView(btnTargetMain); targetGroup.addView(btnTargetStroke);
+        targetGroup.addView(btnTargetShadow); targetGroup.addView(btnTargetInner);
+        mainLayout.addView(targetGroup);
+
+        ColorWheelView colorWheel = new ColorWheelView(this);
+        LinearLayout.LayoutParams wheelLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 400);
+        colorWheel.setLayoutParams(wheelLp);
+        mainLayout.addView(colorWheel);
+
+        LinearLayout hexRow = new LinearLayout(this);
+        hexRow.setOrientation(LinearLayout.HORIZONTAL);
+        hexRow.setGravity(Gravity.CENTER);
+        hexRow.setPadding(0, 16, 0, 16);
+
+        EditText etHex = new EditText(this);
+        etHex.setText("#FFFFFF");
+        etHex.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+
+        Button btnEyedropper = new Button(this);
+        btnEyedropper.setText("🖌️ Pick");
+        btnEyedropper.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+        btnEyedropper.setTextColor(Color.WHITE);
+        LinearLayout.LayoutParams pickLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        pickLp.setMargins(16, 0, 0, 0);
+        btnEyedropper.setLayoutParams(pickLp);
+
+        hexRow.addView(etHex); hexRow.addView(btnEyedropper);
+        mainLayout.addView(hexRow);
+
+        // CREATE PAGED LAYOUTS
+        LinearLayout pageTint = new LinearLayout(this); pageTint.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout pageStroke = new LinearLayout(this); pageStroke.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout pageShadow = new LinearLayout(this); pageShadow.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout pageInner = new LinearLayout(this); pageInner.setOrientation(LinearLayout.VERTICAL);
+
+        final float[] stateLetter = {0f}; final float[] stateLine = {0f};
+        final float[] stateStroke = {0f}; final float[] stateShadow = {0f}; final float[] stateInner = {0f};
+        final float[] stateShadX = {0f}; final float[] stateShadY = {0f};
+        final float[] stateInnerX = {0f}; final float[] stateInnerY = {0f};
+
+        final int[] textColors = {Color.WHITE, Color.BLACK, Color.BLACK, Color.BLACK};
+        final Layout.Alignment[] currentAlign = {Layout.Alignment.ALIGN_CENTER};
+
+        pageTint.addView(createSliderWithLabel("Letter Spacing", -0.5f, 1f, stateLetter[0], (Slider s, float v, boolean u) -> { stateLetter[0]=v; dialogUpdateRunnable.run(); }));
+        pageTint.addView(createSliderWithLabel("Line Spacing", 0f, 50f, stateLine[0], (Slider s, float v, boolean u) -> { stateLine[0]=v; dialogUpdateRunnable.run(); }));
+
+        Button btnPickFont = new Button(this);
+        btnPickFont.setText("Choose Custom Font (.ttf / .otf)");
+        btnPickFont.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+        btnPickFont.setTextColor(Color.WHITE);
+        pageTint.addView(btnPickFont);
+
+        activeFontLabel = new TextView(this);
+        activeFontLabel.setText(currentCustomFont != null ? "Custom Font Loaded" : "Default Font Selected");
+        activeFontLabel.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        activeFontLabel.setGravity(Gravity.CENTER);
+        activeFontLabel.setPadding(0, 16, 0, 16);
+        pageTint.addView(activeFontLabel);
+
+        pageStroke.addView(createSliderWithLabel("Stroke Thickness", 0f, 50f, stateStroke[0], (Slider s, float v, boolean u) -> { stateStroke[0]=v; dialogUpdateRunnable.run(); }));
+
+        pageShadow.addView(createSliderWithLabel("Shadow Blur", 0f, 50f, stateShadow[0], (Slider s, float v, boolean u) -> { stateShadow[0]=v; dialogUpdateRunnable.run(); }));
+        pageShadow.addView(createSliderWithLabel("Shadow Offset X", -100f, 100f, stateShadX[0], (Slider s, float v, boolean u) -> { stateShadX[0]=v; dialogUpdateRunnable.run(); }));
+        pageShadow.addView(createSliderWithLabel("Shadow Offset Y", -100f, 100f, stateShadY[0], (Slider s, float v, boolean u) -> { stateShadY[0]=v; dialogUpdateRunnable.run(); }));
+
+        pageInner.addView(createSliderWithLabel("Inner Shadow Blur", 0f, 50f, stateInner[0], (Slider s, float v, boolean u) -> { stateInner[0]=v; dialogUpdateRunnable.run(); }));
+        pageInner.addView(createSliderWithLabel("Inner Offset X", -100f, 100f, stateInnerX[0], (Slider s, float v, boolean u) -> { stateInnerX[0]=v; dialogUpdateRunnable.run(); }));
+        pageInner.addView(createSliderWithLabel("Inner Offset Y", -100f, 100f, stateInnerY[0], (Slider s, float v, boolean u) -> { stateInnerY[0]=v; dialogUpdateRunnable.run(); }));
+
+        mainLayout.addView(pageTint);
+        mainLayout.addView(pageStroke);
+        mainLayout.addView(pageShadow);
+        mainLayout.addView(pageInner);
+
+        pageStroke.setVisibility(View.GONE);
+        pageShadow.setVisibility(View.GONE);
+        pageInner.setVisibility(View.GONE);
+
+        Button btnApply = new Button(this);
+        btnApply.setText("Add to Image");
+        btnApply.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#34C759")));
+        btnApply.setTextColor(Color.WHITE);
+        mainLayout.addView(btnApply);
+
+        ScrollView scrollWrapper = new ScrollView(this);
+        scrollWrapper.addView(mainLayout);
+        builder.setView(scrollWrapper);
+
+        final AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+
+        activeColorTarget = 0;
+
+        View.OnClickListener alignListener = aBtn -> {
+            btnAlignLeft.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            btnAlignCenter.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            btnAlignRight.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            aBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+            if (aBtn == btnAlignLeft) currentAlign[0] = Layout.Alignment.ALIGN_NORMAL;
+            else if (aBtn == btnAlignCenter) currentAlign[0] = Layout.Alignment.ALIGN_CENTER;
+            else if (aBtn == btnAlignRight) currentAlign[0] = Layout.Alignment.ALIGN_OPPOSITE;
+            dialogUpdateRunnable.run();
+        };
+        btnAlignLeft.setOnClickListener(alignListener); btnAlignCenter.setOnClickListener(alignListener); btnAlignRight.setOnClickListener(alignListener);
+
+        View.OnClickListener targetListener = tBtn -> {
+            btnTargetMain.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            btnTargetStroke.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            btnTargetShadow.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            btnTargetInner.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            tBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+
+            if (tBtn == btnTargetMain) activeColorTarget = 0;
+            else if (tBtn == btnTargetStroke) activeColorTarget = 1;
+            else if (tBtn == btnTargetShadow) activeColorTarget = 2;
+            else if (tBtn == btnTargetInner) activeColorTarget = 3;
+
+            colorWheel.setColor(textColors[activeColorTarget]);
+            etHex.setText(String.format("#%06X", (0xFFFFFF & textColors[activeColorTarget])));
+
+            pageTint.setVisibility(activeColorTarget == 0 ? View.VISIBLE : View.GONE);
+            pageStroke.setVisibility(activeColorTarget == 1 ? View.VISIBLE : View.GONE);
+            pageShadow.setVisibility(activeColorTarget == 2 ? View.VISIBLE : View.GONE);
+            pageInner.setVisibility(activeColorTarget == 3 ? View.VISIBLE : View.GONE);
+        };
+        btnTargetMain.setOnClickListener(targetListener); btnTargetStroke.setOnClickListener(targetListener);
+        btnTargetShadow.setOnClickListener(targetListener); btnTargetInner.setOnClickListener(targetListener);
+
+        dialogUpdateRunnable = () -> {
+            if (activeFontLabel != null && currentCustomFont != null) activeFontLabel.setText("Custom Font Loaded");
+            String input = etInput.getText().toString(); if (input.isEmpty()) input = "Preview Text";
+
+            GraphicLayer pLayer = new GraphicLayer(input, currentCustomFont, textColors[0], currentAlign[0],
+                    stateLetter[0], stateLine[0], stateStroke[0], textColors[1],
+                    stateShadow[0], textColors[2], stateInner[0], textColors[3], 0, 0);
+            pLayer.shadowOffsetX = stateShadX[0]; pLayer.shadowOffsetY = stateShadY[0];
+            pLayer.innerShadowOffsetX = stateInnerX[0]; pLayer.innerShadowOffsetY = stateInnerY[0];
+            pLayer.isDirty = true;
+
+            previewView.setPreviewLayer(pLayer);
+        };
+
+        boolean[] isUpdating = {false};
+        colorWheel.setOnColorChangeListener(color -> {
+            textColors[activeColorTarget] = color;
+            if (!isUpdating[0]) {
+                isUpdating[0] = true;
+                etHex.setText(String.format("#%06X", (0xFFFFFF & color)));
+                isUpdating[0] = false;
+            }
+            dialogUpdateRunnable.run();
+        });
+
+        etHex.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (isUpdating[0]) return;
+                if (s.length() == 7 && s.toString().startsWith("#")) {
+                    try {
+                        int newC = Color.parseColor(s.toString());
+                        textColors[activeColorTarget] = newC;
+                        colorWheel.setColor(newC); dialogUpdateRunnable.run();
+                    } catch (Exception ignored) {}
+                }
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+
+        etInput.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { dialogUpdateRunnable.run(); }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+
+        btnEyedropper.setOnClickListener(eyeBtn -> {
+            dialog.hide();
+            editorView.startEyedropper(color -> {
+                dialog.show();
+                textColors[activeColorTarget] = color;
+                colorWheel.setColor(color);
+                etHex.setText(String.format("#%06X", (0xFFFFFF & color)));
+                dialogUpdateRunnable.run();
+            });
+        });
+
+        btnPickFont.setOnClickListener(fontBtn -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE); intent.setType("*/*");
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"font/ttf", "font/otf", "application/x-font-ttf", "application/x-font-otf"});
+            pickFontLauncher.launch(intent);
+        });
+
+        btnApply.setOnClickListener(applyBtn -> {
+            String input = etInput.getText().toString().trim();
+            if (!input.isEmpty()) {
+                GraphicLayer newLayer = new GraphicLayer(input, currentCustomFont, textColors[0], currentAlign[0],
+                        stateLetter[0], stateLine[0], stateStroke[0], textColors[1],
+                        stateShadow[0], textColors[2], stateInner[0], textColors[3], 0, 0);
+                newLayer.shadowOffsetX = stateShadX[0]; newLayer.shadowOffsetY = stateShadY[0];
+                newLayer.innerShadowOffsetX = stateInnerX[0]; newLayer.innerShadowOffsetY = stateInnerY[0];
+                newLayer.isDirty = true;
+
+                editorView.deselectLayer();
+                editorView.graphicLayers.add(newLayer); editorView.activeLayer = newLayer;
+                editorView.undoStack.add(new ActionRecord(newLayer));
+                if (editorView.layerListener != null) editorView.layerListener.run();
+                editorView.invalidate();
+            }
+            dialog.dismiss();
+        });
+
+        dialog.setOnShowListener(di -> {
+            if (dialog.getWindow() != null) forceDialogBackground(dialog.getWindow().getDecorView());
+        });
+        dialogUpdateRunnable.run();
+        dialog.show();
+    }
+
+    private void showLayerEditDialog(GraphicLayer layer) {
+        if (layer == null) return;
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle);
+        LinearLayout mainLayout = new LinearLayout(this);
+        mainLayout.setOrientation(LinearLayout.VERTICAL);
+        mainLayout.setPadding(40, 40, 40, 40);
+
+        TextView title = new TextView(this);
+        title.setText("Edit Layer");
+        title.setTextSize(22f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 32);
+        mainLayout.addView(title);
+
+        LinearLayout targetGroup = new LinearLayout(this);
+        targetGroup.setOrientation(LinearLayout.HORIZONTAL);
+        targetGroup.setGravity(Gravity.CENTER);
+        targetGroup.setPadding(0, 0, 0, 16);
+
+        Button btnTargetMain = createToggleButton("Tint", true);
+        Button btnTargetStroke = createToggleButton("Stroke", false);
+        Button btnTargetShadow = createToggleButton("Shadow", false);
+        Button btnTargetInner = createToggleButton("Inner", false);
+
+        targetGroup.addView(btnTargetMain); targetGroup.addView(btnTargetStroke);
+        targetGroup.addView(btnTargetShadow); targetGroup.addView(btnTargetInner);
+        mainLayout.addView(targetGroup);
+
+        ColorWheelView colorWheel = new ColorWheelView(this);
+        LinearLayout.LayoutParams wheelLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 400);
+        colorWheel.setLayoutParams(wheelLp);
+        mainLayout.addView(colorWheel);
+
+        LinearLayout hexRow = new LinearLayout(this);
+        hexRow.setOrientation(LinearLayout.HORIZONTAL);
+        hexRow.setGravity(Gravity.CENTER);
+        hexRow.setPadding(0, 16, 0, 16);
+
+        EditText etHex = new EditText(this);
+        etHex.setText(String.format("#%06X", (0xFFFFFF & layer.color)));
+        etHex.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+
+        Button btnEyedropper = new Button(this);
+        btnEyedropper.setText("🖌️ Pick");
+        btnEyedropper.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+        btnEyedropper.setTextColor(Color.WHITE);
+        LinearLayout.LayoutParams pickLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        pickLp.setMargins(16, 0, 0, 0);
+        btnEyedropper.setLayoutParams(pickLp);
+
+        hexRow.addView(etHex); hexRow.addView(btnEyedropper);
+        mainLayout.addView(hexRow);
+
+        LinearLayout pageTint = new LinearLayout(this); pageTint.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout pageStroke = new LinearLayout(this); pageStroke.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout pageShadow = new LinearLayout(this); pageShadow.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout pageInner = new LinearLayout(this); pageInner.setOrientation(LinearLayout.VERTICAL);
+
+        pageTint.addView(createSliderWithLabel("Transparency", 0, 255, layer.alpha, (Slider s, float v, boolean u) -> { layer.alpha = (int)v; layer.isDirty=true; editorView.invalidate(); }));
+        pageTint.addView(createSliderWithLabel("Rotation", -180, 180, layer.rotation, (Slider s, float v, boolean u) -> { layer.rotation = v; editorView.invalidate(); }));
+
+        LinearLayout mirrorRow = new LinearLayout(this);
+        mirrorRow.setOrientation(LinearLayout.HORIZONTAL);
+        mirrorRow.setGravity(Gravity.CENTER);
+        mirrorRow.setPadding(0, 16, 0, 16);
+
+        Button btnMirrorH = new Button(this); btnMirrorH.setText("Mirror ↔"); btnMirrorH.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF9500"))); btnMirrorH.setTextColor(Color.WHITE);
+        Button btnMirrorV = new Button(this); btnMirrorV.setText("Mirror ↕"); btnMirrorV.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF9500"))); btnMirrorV.setTextColor(Color.WHITE);
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnLp.setMargins(8, 0, 8, 0);
+        btnMirrorH.setLayoutParams(btnLp); btnMirrorV.setLayoutParams(btnLp);
+
+        btnMirrorH.setOnClickListener(btnH -> { layer.flipX = !layer.flipX; layer.isDirty=true; editorView.invalidate(); });
+        btnMirrorV.setOnClickListener(btnV -> { layer.flipY = !layer.flipY; layer.isDirty=true; editorView.invalidate(); });
+
+        mirrorRow.addView(btnMirrorH); mirrorRow.addView(btnMirrorV);
+        pageTint.addView(mirrorRow);
+
+        pageStroke.addView(createSliderWithLabel("Stroke Thickness", 0, 50, layer.strokeWidth, (Slider s, float v, boolean u) -> { layer.strokeWidth = v; layer.isDirty=true; editorView.invalidate(); }));
+
+        pageShadow.addView(createSliderWithLabel("Shadow Blur", 0, 50, layer.shadowRadius, (Slider s, float v, boolean u) -> { layer.shadowRadius = v; layer.isDirty=true; editorView.invalidate(); }));
+        pageShadow.addView(createSliderWithLabel("Shadow Offset X", -100f, 100f, layer.shadowOffsetX, (Slider s, float v, boolean u) -> { layer.shadowOffsetX = v; layer.isDirty=true; editorView.invalidate(); }));
+        pageShadow.addView(createSliderWithLabel("Shadow Offset Y", -100f, 100f, layer.shadowOffsetY, (Slider s, float v, boolean u) -> { layer.shadowOffsetY = v; layer.isDirty=true; editorView.invalidate(); }));
+
+        pageInner.addView(createSliderWithLabel("Inner Shadow Blur", 0, 50, layer.innerShadowRadius, (Slider s, float v, boolean u) -> { layer.innerShadowRadius = v; layer.isDirty=true; editorView.invalidate(); }));
+        pageInner.addView(createSliderWithLabel("Inner Offset X", -100f, 100f, layer.innerShadowOffsetX, (Slider s, float v, boolean u) -> { layer.innerShadowOffsetX = v; layer.isDirty=true; editorView.invalidate(); }));
+        pageInner.addView(createSliderWithLabel("Inner Offset Y", -100f, 100f, layer.innerShadowOffsetY, (Slider s, float v, boolean u) -> { layer.innerShadowOffsetY = v; layer.isDirty=true; editorView.invalidate(); }));
+
+        mainLayout.addView(pageTint);
+        mainLayout.addView(pageStroke);
+        mainLayout.addView(pageShadow);
+        mainLayout.addView(pageInner);
+
+        pageStroke.setVisibility(View.GONE);
+        pageShadow.setVisibility(View.GONE);
+        pageInner.setVisibility(View.GONE);
+
+        Button btnApply = new Button(this);
+        btnApply.setText("Done");
+        btnApply.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#34C759")));
+        btnApply.setTextColor(Color.WHITE);
+        mainLayout.addView(btnApply);
+
+        ScrollView scrollWrapper = new ScrollView(this);
+        scrollWrapper.addView(mainLayout);
+        builder.setView(scrollWrapper);
+
+        final AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+
+        activeColorTarget = 0;
+
+        View.OnClickListener targetListener = tBtn -> {
+            btnTargetMain.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            btnTargetStroke.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            btnTargetShadow.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            btnTargetInner.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
+            tBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+
+            if (tBtn == btnTargetMain) activeColorTarget = 0;
+            else if (tBtn == btnTargetStroke) activeColorTarget = 1;
+            else if (tBtn == btnTargetShadow) activeColorTarget = 2;
+            else if (tBtn == btnTargetInner) activeColorTarget = 3;
+
+            int displayColor = Color.WHITE;
+            if (activeColorTarget == 0) displayColor = layer.color;
+            else if (activeColorTarget == 1) displayColor = layer.strokeColor;
+            else if (activeColorTarget == 2) displayColor = layer.shadowColor;
+            else if (activeColorTarget == 3) displayColor = layer.innerShadowColor;
+
+            colorWheel.setColor(displayColor);
+            etHex.setText(String.format("#%06X", (0xFFFFFF & displayColor)));
+
+            pageTint.setVisibility(activeColorTarget == 0 ? View.VISIBLE : View.GONE);
+            pageStroke.setVisibility(activeColorTarget == 1 ? View.VISIBLE : View.GONE);
+            pageShadow.setVisibility(activeColorTarget == 2 ? View.VISIBLE : View.GONE);
+            pageInner.setVisibility(activeColorTarget == 3 ? View.VISIBLE : View.GONE);
+        };
+        btnTargetMain.setOnClickListener(targetListener); btnTargetStroke.setOnClickListener(targetListener);
+        btnTargetShadow.setOnClickListener(targetListener); btnTargetInner.setOnClickListener(targetListener);
+
+        boolean[] isUpdating = {false};
+        colorWheel.setOnColorChangeListener(color -> {
+            if (activeColorTarget == 0) layer.color = color;
+            else if (activeColorTarget == 1) layer.strokeColor = color;
+            else if (activeColorTarget == 2) layer.shadowColor = color;
+            else if (activeColorTarget == 3) layer.innerShadowColor = color;
+
+            if (!isUpdating[0]) {
+                isUpdating[0] = true;
+                etHex.setText(String.format("#%06X", (0xFFFFFF & color)));
+                isUpdating[0] = false;
+            }
+            layer.isDirty = true;
+            editorView.invalidate();
+        });
+
+        etHex.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (isUpdating[0]) return;
+                if (s.length() == 7 && s.toString().startsWith("#")) {
+                    try {
+                        int newC = Color.parseColor(s.toString());
+                        if (activeColorTarget == 0) layer.color = newC;
+                        else if (activeColorTarget == 1) layer.strokeColor = newC;
+                        else if (activeColorTarget == 2) layer.shadowColor = newC;
+                        else if (activeColorTarget == 3) layer.innerShadowColor = newC;
+                        colorWheel.setColor(newC);
+                        layer.isDirty = true;
+                        editorView.invalidate();
+                    } catch (Exception ignored) {}
+                }
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+
+        btnEyedropper.setOnClickListener(eyeBtn -> {
+            dialog.hide();
+            editorView.startEyedropper(color -> {
+                dialog.show();
+                if (activeColorTarget == 0) layer.color = color;
+                else if (activeColorTarget == 1) layer.strokeColor = color;
+                else if (activeColorTarget == 2) layer.shadowColor = color;
+                else if (activeColorTarget == 3) layer.innerShadowColor = color;
+                colorWheel.setColor(color);
+                etHex.setText(String.format("#%06X", (0xFFFFFF & color)));
+                layer.isDirty = true;
+                editorView.invalidate();
+            });
+        });
+
+        dialog.setOnShowListener(di -> {
+            if (dialog.getWindow() != null) forceDialogBackground(dialog.getWindow().getDecorView());
+        });
+
+        btnApply.setOnClickListener(doneBtn -> dialog.dismiss());
+        dialog.show();
+    }
+
     private void updateToolButtons() {
         if (btnZoom == null || btnGrid == null) return;
-        int activeColor = Color.parseColor("#4A90E2");
+        int activeColor = Color.parseColor("#34C759"); // Green
         int defaultBg = isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA");
         int defaultText = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
 
         btnZoom.setBackgroundTintList(ColorStateList.valueOf(editorView.isZoomMode ? activeColor : defaultBg));
         btnZoom.setTextColor(editorView.isZoomMode ? Color.WHITE : defaultText);
+        btnZoom.setText(editorView.isZoomMode ? "Zoom/Pan: ON" : "Zoom/Pan: OFF");
 
         btnGrid.setBackgroundTintList(ColorStateList.valueOf(editorView.isGridMode ? activeColor : defaultBg));
         btnGrid.setTextColor(editorView.isGridMode ? Color.WHITE : defaultText);
         btnGrid.setText(editorView.isGridMode ? "Grid: ON" : "Grid: OFF");
+
+        Button dBtn = findViewById(R.id.btnDraw);
+        if (dBtn != null) {
+            dBtn.setBackgroundTintList(ColorStateList.valueOf(editorView.isDrawMode ? activeColor : defaultBg));
+            dBtn.setTextColor(editorView.isDrawMode ? Color.WHITE : defaultText);
+            dBtn.setText(editorView.isDrawMode ? "Draw: ON" : "Draw Tool");
+        }
     }
 
     private void setDialogTextColor(View view, int color) {
@@ -644,8 +1055,14 @@ public class ImageEditorActivity extends AppCompatActivity {
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
             dialog.setOnShowListener(di -> {
-                forceDialogBackground(dialog.getWindow().getDecorView());
-                setDialogTextColor(dialog.getWindow().getDecorView(), isDarkTheme ? Color.WHITE : Color.BLACK);
+                if (dialog.getWindow() != null) {
+                    forceDialogBackground(dialog.getWindow().getDecorView());
+                    setDialogTextColor(dialog.getWindow().getDecorView(), isDarkTheme ? Color.WHITE : Color.BLACK);
+                }
+                int buttonTextColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
+                if (dialog.getButton(AlertDialog.BUTTON_POSITIVE) != null) dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(buttonTextColor);
+                if (dialog.getButton(AlertDialog.BUTTON_NEGATIVE) != null) dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(buttonTextColor);
+                if (dialog.getButton(AlertDialog.BUTTON_NEUTRAL) != null) dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(buttonTextColor);
             });
         }
         dialog.show();
@@ -702,21 +1119,44 @@ public class ImageEditorActivity extends AppCompatActivity {
 
     private void loadImage(Uri uri, boolean isOverlay) {
         try {
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
             InputStream is = getContentResolver().openInputStream(uri);
-            if (is != null) {
-                Bitmap bitmap = BitmapFactory.decodeStream(is);
-                is.close();
-                if (bitmap != null) {
-                    if (isOverlay) {
-                        editorView.addImageLayer(bitmap);
-                        if (leftLayersPanel != null) leftLayersPanel.setVisibility(View.VISIBLE);
-                    } else {
-                        if (tapToStartView != null) tapToStartView.setVisibility(View.GONE);
-                        editorView.setImage(bitmap);
-                    }
+            BitmapFactory.decodeStream(is, null, options);
+            if (is != null) is.close();
+
+            int maxDimension = 4096;
+            int srcWidth = options.outWidth;
+            int srcHeight = options.outHeight;
+            int inSampleSize = 1;
+
+            if (srcWidth > maxDimension || srcHeight > maxDimension) {
+                int halfWidth = srcWidth / 2;
+                int halfHeight = srcHeight / 2;
+                while ((halfWidth / inSampleSize) >= maxDimension || (halfHeight / inSampleSize) >= maxDimension) {
+                    inSampleSize *= 2;
                 }
             }
-        } catch (Exception e) { Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show(); }
+
+            options.inJustDecodeBounds = false;
+            options.inSampleSize = inSampleSize;
+
+            is = getContentResolver().openInputStream(uri);
+            Bitmap bitmap = BitmapFactory.decodeStream(is, null, options);
+            if (is != null) is.close();
+
+            if (bitmap != null) {
+                if (isOverlay) {
+                    editorView.addImageLayer(bitmap);
+                    if (leftLayersPanel != null) leftLayersPanel.setVisibility(View.VISIBLE);
+                } else {
+                    if (tapToStartView != null) tapToStartView.setVisibility(View.GONE);
+                    editorView.setImage(bitmap);
+                }
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Failed to load image safely", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void loadCustomFont(Uri uri) {
@@ -742,15 +1182,16 @@ public class ImageEditorActivity extends AppCompatActivity {
             try {
                 String extension, mimeType; Bitmap.CompressFormat compressFormat; int quality = 100;
                 if (formatIndex == 0) { extension = ".png"; mimeType = "image/png"; compressFormat = Bitmap.CompressFormat.PNG; }
-                else if (formatIndex == 1) { extension = ".jpg"; mimeType = "image/jpeg"; compressFormat = Bitmap.CompressFormat.JPEG;quality=85; }
-                else { extension = ".webp"; mimeType = "image/webp"; compressFormat = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ? Bitmap.CompressFormat.WEBP_LOSSY : Bitmap.CompressFormat.WEBP; quality = 80; }
+                else if (formatIndex == 1) { extension = ".jpg"; mimeType = "image/jpeg"; compressFormat = Bitmap.CompressFormat.JPEG;quality=100; }
+                else { extension = ".webp"; mimeType = "image/webp"; compressFormat = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ? Bitmap.CompressFormat.WEBP_LOSSY : Bitmap.CompressFormat.WEBP; quality = 100; }
 
                 String fileName = "Edited_" + System.currentTimeMillis() + extension;
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
                 values.put(MediaStore.Images.Media.MIME_TYPE, mimeType);
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/OwnPhoto");
+                    values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/OWN's Image studio");
                     values.put(MediaStore.Images.Media.IS_PENDING, 1);
                 }
 
@@ -762,7 +1203,7 @@ public class ImageEditorActivity extends AppCompatActivity {
                         values.clear(); values.put(MediaStore.Images.Media.IS_PENDING, 0);
                         getContentResolver().update(uri, values, null, null);
                     }
-                    runOnUiThread(() -> Toast.makeText(this, "Saved to Pictures/OwnPhoto", Toast.LENGTH_LONG).show());
+                    runOnUiThread(() -> Toast.makeText(this, "Saved to Pictures/OWN's Image studio", Toast.LENGTH_LONG).show());
                 }
             } catch (Exception e) { runOnUiThread(() -> Toast.makeText(this, "Export Failed", Toast.LENGTH_SHORT).show()); }
         }).start();
@@ -844,13 +1285,14 @@ public class ImageEditorActivity extends AppCompatActivity {
     }
 
     public static class TextPreviewView extends View {
-        private GraphicLayer previewLayer;
-        public TextPreviewView(Context context) { super(context); }
-        public void updateParams(String text, Typeface typeface, int color, Layout.Alignment align, float letterSpacing, float lineSpacing, float strokeWidth, int strokeColor, float shadowRadius, int shadowColor) {
-            previewLayer = new GraphicLayer(text, typeface, color, align, letterSpacing, lineSpacing, strokeWidth, strokeColor, shadowRadius, shadowColor, 0, 0);
+        public GraphicLayer previewLayer;
+        public TextPreviewView(Context context) { super(context); setLayerType(View.LAYER_TYPE_SOFTWARE, null); }
+        public void setPreviewLayer(GraphicLayer layer) {
+            this.previewLayer = layer;
+            if (previewLayer != null) previewLayer.bake();
             invalidate();
         }
-        @Override protected void onDraw(Canvas canvas) {
+        @Override protected void onDraw(@NonNull Canvas canvas) {
             super.onDraw(canvas);
             if (previewLayer != null) {
                 canvas.save();
@@ -905,47 +1347,79 @@ public class ImageEditorActivity extends AppCompatActivity {
         private int ave(int s, int d, float p) { return s + Math.round(p * (d - s)); }
     }
 
-    private static class GraphicLayer {
+    public static class GraphicLayer {
         int type;
-        float x, y, scale = 1f, rotation = 0f;
+        float x, y, scaleX = 1f, scaleY = 1f, rotation = 0f;
+        int alpha = 255;
+        boolean flipX = false, flipY = false;
         RectF bounds = new RectF();
         String text; Bitmap bitmap;
 
-        Typeface typeface; int color, strokeColor, shadowColor;
-        Layout.Alignment align; float letterSpacing, lineSpacing, strokeWidth, shadowRadius;
+        Typeface typeface; int color, strokeColor, shadowColor, innerShadowColor;
+        Layout.Alignment align; float letterSpacing, lineSpacing, strokeWidth, shadowRadius, innerShadowRadius;
+
+        float shadowOffsetX = 0f, shadowOffsetY = 0f;
+        float innerShadowOffsetX = 0f, innerShadowOffsetY = 0f;
+
         TextPaint textPaint;
         StaticLayout staticLayout;
 
+        Bitmap bakedCache;
+        Bitmap alphaCache;
+        float currentPad = 0f;
+        boolean isDirty = true;
+
+        Paint renderPaint;
+
         GraphicLayer(GraphicLayer src) {
             this.type = src.type; this.x = src.x + 50f; this.y = src.y + 50f;
-            this.scale = src.scale; this.rotation = src.rotation; this.bounds = new RectF(src.bounds);
+            this.scaleX = src.scaleX; this.scaleY = src.scaleY; this.rotation = src.rotation; this.bounds = new RectF(src.bounds);
             this.text = src.text; this.bitmap = src.bitmap;
             this.typeface = src.typeface; this.color = src.color; this.strokeColor = src.strokeColor; this.shadowColor = src.shadowColor;
+            this.innerShadowColor = src.innerShadowColor; this.innerShadowRadius = src.innerShadowRadius;
             this.align = src.align; this.letterSpacing = src.letterSpacing; this.lineSpacing = src.lineSpacing;
             this.strokeWidth = src.strokeWidth; this.shadowRadius = src.shadowRadius;
+            this.alpha = src.alpha; this.flipX = src.flipX; this.flipY = src.flipY;
+            this.shadowOffsetX = src.shadowOffsetX; this.shadowOffsetY = src.shadowOffsetY;
+            this.innerShadowOffsetX = src.innerShadowOffsetX; this.innerShadowOffsetY = src.innerShadowOffsetY;
+
+            renderPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+            renderPaint.setDither(true);
 
             if (src.textPaint != null) this.textPaint = new TextPaint(src.textPaint);
-            if (type == 0) buildStaticLayout();
+            if (type == 0) buildStaticLayout(); else updateBounds();
+            this.currentPad = src.currentPad;
+            this.isDirty = true;
         }
 
-        GraphicLayer(String text, Typeface typeface, int color, Layout.Alignment align, float letterSpacing, float lineSpacing, float strokeWidth, int strokeColor, float shadowRadius, int shadowColor, float x, float y) {
+        GraphicLayer(String text, Typeface typeface, int color, Layout.Alignment align, float letterSpacing, float lineSpacing, float strokeWidth, int strokeColor, float shadowRadius, int shadowColor, float innerShadowRadius, int innerShadowColor, float x, float y) {
             this.type = 0; this.text = text; this.typeface = typeface; this.color = color;
             this.align = align; this.letterSpacing = letterSpacing; this.lineSpacing = lineSpacing;
             this.strokeWidth = strokeWidth; this.strokeColor = strokeColor;
             this.shadowRadius = shadowRadius; this.shadowColor = shadowColor;
+            this.innerShadowRadius = innerShadowRadius; this.innerShadowColor = innerShadowColor;
             this.x = x; this.y = y;
 
+            renderPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+            renderPaint.setDither(true);
+
             textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-            textPaint.setTextSize(100f);
+            textPaint.setTextSize(250f);
             if (typeface != null) textPaint.setTypeface(typeface);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 textPaint.setLetterSpacing(letterSpacing);
             }
             buildStaticLayout();
+            this.isDirty = true;
         }
 
         GraphicLayer(Bitmap bitmap, float x, float y) {
-            this.type = 1; this.bitmap = bitmap; this.x = x; this.y = y; updateBounds();
+            this.type = 1; this.bitmap = bitmap; this.x = x; this.y = y;
+            this.color = Color.WHITE; this.strokeColor = Color.BLACK; this.shadowColor = Color.BLACK; this.innerShadowColor = Color.BLACK;
+            renderPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+            renderPaint.setDither(true);
+            updateBounds();
+            this.isDirty = true;
         }
 
         private void buildStaticLayout() {
@@ -960,31 +1434,192 @@ public class ImageEditorActivity extends AppCompatActivity {
         }
 
         void updateBounds() {
-            if (type == 1 && bitmap != null) bounds.set(-bitmap.getWidth()/2f, -bitmap.getHeight()/2f, bitmap.getWidth()/2f, bitmap.getHeight()/2f);
+            if (type == 1 && bitmap != null) {
+                bounds.set(-bitmap.getWidth()/2f, -bitmap.getHeight()/2f, bitmap.getWidth()/2f, bitmap.getHeight()/2f);
+                if (alphaCache != null && !alphaCache.isRecycled()) alphaCache.recycle();
+                alphaCache = bitmap.extractAlpha();
+            }
+        }
+
+        float getPadding() {
+            float maxOffset = Math.max(Math.max(Math.abs(shadowOffsetX), Math.abs(shadowOffsetY)), Math.max(Math.abs(innerShadowOffsetX), Math.abs(innerShadowOffsetY)));
+            if (type == 0) {
+                return Math.max(strokeWidth, Math.max(shadowRadius, innerShadowRadius)) * 2f + maxOffset + 20f;
+            } else {
+                float imgScaleFactor = Math.max(bitmap.getWidth(), bitmap.getHeight()) / 300f;
+                if (imgScaleFactor < 1f) imgScaleFactor = 1f;
+                return (Math.max(strokeWidth, Math.max(shadowRadius, innerShadowRadius)) * imgScaleFactor * 2f) + (maxOffset * imgScaleFactor) + 20f;
+            }
+        }
+
+        void bake() {
+            if (type == 0 && staticLayout == null) return;
+            if (type == 1 && bitmap == null) return;
+
+            currentPad = getPadding();
+            int bw, bh;
+            if (type == 0) {
+                bw = staticLayout.getWidth() + (int)(currentPad * 2);
+                bh = staticLayout.getHeight() + (int)(currentPad * 2);
+            } else {
+                bw = bitmap.getWidth() + (int)(currentPad * 2);
+                bh = bitmap.getHeight() + (int)(currentPad * 2);
+            }
+
+            if (bw <= 0 || bh <= 0) return;
+
+            if (bakedCache != null && bakedCache.getWidth() == bw && bakedCache.getHeight() == bh) {
+                bakedCache.eraseColor(Color.TRANSPARENT);
+            } else {
+                if (bakedCache != null && !bakedCache.isRecycled()) bakedCache.recycle();
+                try { bakedCache = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888); }
+                catch (OutOfMemoryError e) { return; }
+            }
+
+            Canvas c = new Canvas(bakedCache);
+            c.translate(currentPad, currentPad);
+
+            if (type == 0) {
+                if (shadowRadius > 0.1f || shadowOffsetX != 0 || shadowOffsetY != 0) {
+                    textPaint.setStyle(Paint.Style.FILL);
+                    textPaint.setShadowLayer(shadowRadius > 0 ? shadowRadius : 1f, shadowOffsetX, shadowOffsetY, shadowColor);
+                    textPaint.setColor(color);
+                    textPaint.setAlpha(alpha);
+                    staticLayout.draw(c);
+                    textPaint.clearShadowLayer();
+                }
+
+                if (strokeWidth > 0.1f) {
+                    textPaint.setStyle(Paint.Style.STROKE);
+                    textPaint.setStrokeWidth(strokeWidth * 2f);
+                    textPaint.setColor(strokeColor);
+                    textPaint.setAlpha(alpha);
+                    staticLayout.draw(c);
+                }
+
+                c.saveLayer(null, null);
+                textPaint.setStyle(Paint.Style.FILL);
+                textPaint.setColor(color);
+                textPaint.setAlpha(alpha);
+                staticLayout.draw(c);
+
+                if (innerShadowRadius > 0.1f || innerShadowOffsetX != 0 || innerShadowOffsetY != 0) {
+                    Paint atopPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    atopPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
+                    c.saveLayer(null, atopPaint);
+
+                    Paint shadowFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    shadowFill.setColor(innerShadowColor);
+                    shadowFill.setAlpha(alpha);
+                    c.drawRect(-currentPad * 2, -currentPad * 2, bw + currentPad * 2, bh + currentPad * 2, shadowFill);
+
+                    int oldColor = textPaint.getColor();
+                    int oldAlpha = textPaint.getAlpha();
+                    textPaint.setColor(Color.BLACK);
+                    textPaint.setAlpha(255);
+                    textPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
+                    float blurAmt = innerShadowRadius > 0 ? innerShadowRadius : 0.1f;
+                    textPaint.setMaskFilter(new BlurMaskFilter(blurAmt, BlurMaskFilter.Blur.NORMAL));
+
+                    c.save();
+                    c.translate(innerShadowOffsetX, innerShadowOffsetY);
+                    staticLayout.draw(c);
+                    c.restore();
+
+                    textPaint.setColor(oldColor);
+                    textPaint.setAlpha(oldAlpha);
+                    textPaint.setXfermode(null);
+                    textPaint.setMaskFilter(null);
+                    c.restore();
+                }
+                c.restore();
+
+            } else if (type == 1) {
+                if (alphaCache == null || alphaCache.isRecycled()) alphaCache = bitmap.extractAlpha();
+
+                float imgScaleFactor = Math.max(bitmap.getWidth(), bitmap.getHeight()) / 300f;
+                if (imgScaleFactor < 1f) imgScaleFactor = 1f;
+
+                float sShadow = shadowRadius * imgScaleFactor;
+                float sStroke = strokeWidth * imgScaleFactor;
+                float inShadow = innerShadowRadius * imgScaleFactor;
+
+                float sOffsetX = shadowOffsetX * imgScaleFactor;
+                float sOffsetY = shadowOffsetY * imgScaleFactor;
+                float inOffsetX = innerShadowOffsetX * imgScaleFactor;
+                float inOffsetY = innerShadowOffsetY * imgScaleFactor;
+
+                if (sShadow > 0.1f || sOffsetX != 0 || sOffsetY != 0) {
+                    Paint shadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                    shadowPaint.setColor(shadowColor);
+                    shadowPaint.setAlpha((int)(alpha * 0.8f));
+                    if (sShadow > 0) shadowPaint.setMaskFilter(new BlurMaskFilter(sShadow, BlurMaskFilter.Blur.NORMAL));
+                    c.drawBitmap(alphaCache, sOffsetX, sOffsetY, shadowPaint);
+                }
+
+                if (sStroke > 0.1f) {
+                    Paint strokePaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                    strokePaint.setColor(strokeColor);
+                    strokePaint.setAlpha(alpha);
+                    int steps = 16;
+                    for (int i = 0; i < steps; i++) {
+                        float angle = (float) (i * 2 * Math.PI / steps);
+                        float sdx = (float) Math.cos(angle) * sStroke;
+                        float sdy = (float) Math.sin(angle) * sStroke;
+                        c.drawBitmap(alphaCache, sdx, sdy, strokePaint);
+                    }
+                    if (sStroke > 10) {
+                        for (int i = 0; i < steps; i++) {
+                            float angle = (float) (i * 2 * Math.PI / steps);
+                            float sdx = (float) Math.cos(angle) * (sStroke / 2f);
+                            float sdy = (float) Math.sin(angle) * (sStroke / 2f);
+                            c.drawBitmap(alphaCache, sdx, sdy, strokePaint);
+                        }
+                    }
+                }
+
+                c.saveLayer(null, null);
+                Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                fillPaint.setAlpha(alpha);
+                c.drawBitmap(bitmap, 0, 0, fillPaint);
+
+                if (inShadow > 0.1f || inOffsetX != 0 || inOffsetY != 0) {
+                    Paint atopPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                    atopPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
+                    c.saveLayer(null, atopPaint);
+
+                    Paint innerFill = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                    innerFill.setColor(innerShadowColor);
+                    innerFill.setAlpha(alpha);
+                    c.drawRect(-currentPad * 2, -currentPad * 2, bw + currentPad * 2, bh + currentPad * 2, innerFill);
+
+                    Paint punchPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                    punchPaint.setColor(Color.BLACK);
+                    punchPaint.setAlpha(255);
+                    punchPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
+                    float blurAmt = inShadow > 0 ? inShadow : 0.1f;
+                    punchPaint.setMaskFilter(new BlurMaskFilter(blurAmt, BlurMaskFilter.Blur.NORMAL));
+                    c.drawBitmap(alphaCache, inOffsetX, inOffsetY, punchPaint);
+
+                    c.restore();
+                }
+                c.restore();
+            }
+            isDirty = false;
         }
 
         void drawLayer(Canvas canvas) {
-            if (type == 0 && staticLayout != null) {
-                canvas.save();
-                canvas.translate(-staticLayout.getWidth() / 2f, -staticLayout.getHeight() / 2f);
+            if (isDirty || bakedCache == null || bakedCache.isRecycled()) bake();
 
-                if (strokeWidth > 0) {
-                    textPaint.setStyle(Paint.Style.STROKE);
-                    textPaint.setStrokeWidth(strokeWidth);
-                    textPaint.setColor(strokeColor);
-                    textPaint.clearShadowLayer();
-                    staticLayout.draw(canvas);
-                }
+            canvas.save();
+            canvas.scale(flipX ? -1 : 1, flipY ? -1 : 1);
 
-                textPaint.setStyle(Paint.Style.FILL);
-                textPaint.setColor(color);
-                if (shadowRadius > 0) textPaint.setShadowLayer(shadowRadius, 0, 0, shadowColor);
-                else textPaint.clearShadowLayer();
-                staticLayout.draw(canvas);
+            float cx = type == 0 ? staticLayout.getWidth() / 2f : bitmap.getWidth() / 2f;
+            float cy = type == 0 ? staticLayout.getHeight() / 2f : bitmap.getHeight() / 2f;
 
-                canvas.restore();
-            }
-            else if (type == 1 && bitmap != null) canvas.drawBitmap(bitmap, -bitmap.getWidth()/2f, -bitmap.getHeight()/2f, null);
+            canvas.drawBitmap(bakedCache, -cx - currentPad, -cy - currentPad, renderPaint);
+
+            canvas.restore();
         }
     }
 
@@ -1006,13 +1641,13 @@ public class ImageEditorActivity extends AppCompatActivity {
     private static class PhotoEditorView extends View {
         private Bitmap baseImage;
         private final RectF destRect = new RectF();
-        private final Paint bitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint bitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
         private Bitmap drawLayerBitmap; private Canvas drawLayerCanvas;
         private Bitmap eraseLayerBitmap; private Canvas eraseLayerCanvas;
 
-        private final Paint checkerPaint = new Paint();
-        private final Paint autoPunchPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint checkerPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+        private final Paint autoPunchPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
         public boolean isDrawMode = false;
         public boolean isDrawEraserMode = false;
@@ -1023,6 +1658,14 @@ public class ImageEditorActivity extends AppCompatActivity {
 
         public boolean isZoomMode = false;
         public boolean isGridMode = false;
+
+        public boolean isLayerOutMode = false;
+
+        private boolean isColorPickerMode = false;
+        private EyedropperCallback eyedropperCallback;
+        private float pickerX = 0, pickerY = 0;
+        private int pickerColor = Color.BLACK;
+
         private float viewZoom = 1f, viewPanX = 0f, viewPanY = 0f;
         private final ScaleGestureDetector scaleDetector;
 
@@ -1033,7 +1676,7 @@ public class ImageEditorActivity extends AppCompatActivity {
         public int currentBrushOpacity = 255;
 
         private final Path currentPath = new Path();
-        private final Paint currentDrawPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint currentDrawPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
         private final List<GraphicLayer> graphicLayers = new ArrayList<>();
         private final List<DrawStroke> drawStrokes = new ArrayList<>();
@@ -1049,32 +1692,45 @@ public class ImageEditorActivity extends AppCompatActivity {
         public GraphicLayer getActiveLayer() { return activeLayer; }
 
         private final Paint borderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint borderShadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint handlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint handleShadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint deletePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint deleteXPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint maskPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        private final Matrix mapMatrix = new Matrix();
+        private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint gridShadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        private final Paint pickerBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint pickerFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
         private final Matrix mapInverse = new Matrix();
-        private final float[] mapPoint = new float[2];
         private final Path cropMaskPath = new Path();
 
         private int touchMode = 0;
-        private float initialDist = 0f, initialScale = 1f, initialAngle = 0f, initialRotation = 0f;
+        private float initialDistX = 0f, initialDistY = 0f, initialDist = 0f;
+        private float initialScaleX = 1f, initialScaleY = 1f, initialAngle = 0f, initialRotation = 0f;
         private final PointF lastTouch = new PointF();
         private float bX, bY, lastSegX, lastSegY;
         private final Path segmentPath = new Path();
 
+        private float activeLayerCenterX = 0f;
+        private float activeLayerCenterY = 0f;
+
         private int activePointerId = MotionEvent.INVALID_POINTER_ID;
 
-        public boolean isCropping = false, isCircleCrop = false;
+        public boolean isCropping = false, isCircleCrop = false, isPerspectiveMode = false;
         private final RectF cropRect = new RectF();
         private int activeCropHandle = -1;
         private float lockedRatio = 0f;
 
+        private final float[] perspectiveCorners = new float[8];
+        private int activePerspectiveHandle = -1;
+
         public PhotoEditorView(Context context) {
             super(context);
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
             setupPaints();
             setupCheckerboard();
             scaleDetector = new ScaleGestureDetector(context, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -1086,14 +1742,27 @@ public class ImageEditorActivity extends AppCompatActivity {
         }
 
         private void setupPaints() {
+            bitmapPaint.setDither(true);
             currentDrawPaint.setStyle(Paint.Style.STROKE); currentDrawPaint.setStrokeJoin(Paint.Join.ROUND); currentDrawPaint.setStrokeCap(Paint.Cap.ROUND);
+
+            borderShadowPaint.setColor(Color.BLACK); borderShadowPaint.setStyle(Paint.Style.STROKE); borderShadowPaint.setStrokeWidth(8f);
             borderPaint.setColor(Color.WHITE); borderPaint.setStyle(Paint.Style.STROKE); borderPaint.setStrokeWidth(4f);
+
+            handleShadowPaint.setColor(Color.BLACK); handleShadowPaint.setStyle(Paint.Style.FILL);
             handlePaint.setColor(Color.WHITE); handlePaint.setStyle(Paint.Style.FILL);
+
             deletePaint.setColor(Color.parseColor("#FF3B30")); deletePaint.setStyle(Paint.Style.FILL);
             deleteXPaint.setColor(Color.WHITE); deleteXPaint.setStyle(Paint.Style.STROKE); deleteXPaint.setStrokeWidth(4f);
             maskPaint.setColor(Color.argb(180, 0, 0, 0)); maskPaint.setStyle(Paint.Style.FILL);
-            gridPaint.setColor(Color.argb(150, 255, 255, 255)); gridPaint.setStyle(Paint.Style.STROKE); gridPaint.setStrokeWidth(2f);
+
+            gridShadowPaint.setColor(Color.argb(120, 0, 0, 0)); gridShadowPaint.setStyle(Paint.Style.STROKE); gridShadowPaint.setStrokeWidth(4f);
+            gridPaint.setColor(Color.argb(200, 255, 255, 255)); gridPaint.setStyle(Paint.Style.STROKE); gridPaint.setStrokeWidth(2f);
+
             autoPunchPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
+
+            pickerBorderPaint.setColor(Color.WHITE); pickerBorderPaint.setStyle(Paint.Style.STROKE); pickerBorderPaint.setStrokeWidth(6f);
+            pickerBorderPaint.setShadowLayer(4f, 0, 0, Color.BLACK);
+            pickerFillPaint.setStyle(Paint.Style.FILL);
         }
 
         private void setupCheckerboard() {
@@ -1115,14 +1784,31 @@ public class ImageEditorActivity extends AppCompatActivity {
 
         public boolean isImageMissing() { return baseImage == null; }
 
-        public void enableZoomMode() { disableSpecialModes(); isZoomMode = true; if (modeListener != null) modeListener.onModeChanged(); }
+        public void startEyedropper(EyedropperCallback callback) {
+            disableSpecialModes();
+            isColorPickerMode = true;
+            eyedropperCallback = callback;
+            Toast.makeText(getContext(), "Drag to pick a color, release to select.", Toast.LENGTH_LONG).show();
+            invalidate();
+        }
+
+        public void toggleZoomMode() {
+            if (isZoomMode) {
+                isZoomMode = false;
+            } else {
+                disableSpecialModes();
+                isZoomMode = true;
+            }
+            if (modeListener != null) modeListener.onModeChanged();
+        }
+
         public void toggleGridMode() { isGridMode = !isGridMode; invalidate(); if (modeListener != null) modeListener.onModeChanged(); }
         public void startDrawing(int width) { disableSpecialModes(); isDrawMode = true; currentBrushWidth = width; }
         public void startBgEraser(int width, boolean isRepair) { disableSpecialModes(); isBgRemoverMode = true; isBgRepairMode = isRepair; currentBrushWidth = width; }
         public void enterAutoColorRemovalMode() { disableSpecialModes(); isAutoColorRemovalMode = true; }
 
         private void disableSpecialModes() {
-            isDrawMode = false; isBgRemoverMode = false; isAutoColorRemovalMode = false; isZoomMode = false; activeLayer = null;
+            isDrawMode = false; isBgRemoverMode = false; isAutoColorRemovalMode = false; isZoomMode = false; isColorPickerMode = false; activeLayer = null;
             if (modeListener != null) modeListener.onModeChanged();
         }
 
@@ -1146,9 +1832,9 @@ public class ImageEditorActivity extends AppCompatActivity {
             invalidate();
         }
 
-        public void addAdvancedTextLayer(String text, Typeface typeface, int color, Layout.Alignment align, float letterSpacing, float lineSpacing, float strokeWidth, int strokeColor, float shadowRadius, int shadowColor) {
+        public void addAdvancedTextLayer(String text, Typeface typeface, int color, Layout.Alignment align, float letterSpacing, float lineSpacing, float strokeWidth, int strokeColor, float shadowRadius, int shadowColor, float innerShadowRadius, int innerShadowColor) {
             disableSpecialModes();
-            GraphicLayer layer = new GraphicLayer(text, typeface, color, align, letterSpacing, lineSpacing, strokeWidth, strokeColor, shadowRadius, shadowColor, 0, 0);
+            GraphicLayer layer = new GraphicLayer(text, typeface, color, align, letterSpacing, lineSpacing, strokeWidth, strokeColor, shadowRadius, shadowColor, innerShadowRadius, innerShadowColor, 0, 0);
             graphicLayers.add(layer); activeLayer = layer;
             undoStack.add(new ActionRecord(layer));
             if (layerListener != null) layerListener.run(); invalidate();
@@ -1163,10 +1849,9 @@ public class ImageEditorActivity extends AppCompatActivity {
 
         public void copyActiveLayer() {
             if (activeLayer == null) return;
-            GraphicLayer toCopy = activeLayer; disableSpecialModes();
-            GraphicLayer newLayer = new GraphicLayer(toCopy);
-            graphicLayers.add(newLayer); activeLayer = newLayer;
-            undoStack.add(new ActionRecord(newLayer));
+            GraphicLayer toCopy = new GraphicLayer(activeLayer); disableSpecialModes();
+            graphicLayers.add(toCopy); activeLayer = toCopy;
+            undoStack.add(new ActionRecord(toCopy));
             if (layerListener != null) layerListener.run(); invalidate();
         }
 
@@ -1200,7 +1885,7 @@ public class ImageEditorActivity extends AppCompatActivity {
 
         public void clearModifications() {
             disableSpecialModes(); graphicLayers.clear(); undoStack.clear(); drawStrokes.clear();
-            viewZoom = 1f; viewPanX = 0f; viewPanY = 0f; isCircleCrop = false; isGridMode = false;
+            viewZoom = 1f; viewPanX = 0f; viewPanY = 0f; isCircleCrop = false; isPerspectiveMode = false; isGridMode = false;
             setAdjustments(0, 1, 1, 0);
             if (drawLayerBitmap != null) drawLayerBitmap.eraseColor(Color.TRANSPARENT);
             if (eraseLayerBitmap != null) eraseLayerBitmap.eraseColor(Color.TRANSPARENT);
@@ -1209,10 +1894,42 @@ public class ImageEditorActivity extends AppCompatActivity {
             invalidate();
         }
 
-        public void startInteractiveCrop() { disableSpecialModes(); viewZoom=1f; viewPanX=0f; viewPanY=0f; isCropping = true; cropRect.set(destRect); invalidate(); }
-        public void cancelCrop() { isCropping = false; isCircleCrop = false; invalidate(); }
-        public void setCropRatio(float r) { lockedRatio = r; if(r==1f){ float s=Math.min(cropRect.width(),cropRect.height()); cropRect.set(cropRect.centerX()-s/2,cropRect.centerY()-s/2,cropRect.centerX()+s/2,cropRect.centerY()+s/2); } invalidate(); }
+        public void startInteractiveCrop() { disableSpecialModes(); viewZoom=1f; viewPanX=0f; viewPanY=0f; isCropping = true; isPerspectiveMode = false; cropRect.set(destRect); invalidate(); }
+        public void cancelCrop() { isCropping = false; isCircleCrop = false; isPerspectiveMode = false; invalidate(); }
+
+        public void setCropFull() {
+            isCircleCrop = false;
+            lockedRatio = 0f;
+            cropRect.set(destRect);
+            invalidate();
+        }
+
+        public void setCropRatio(float r) {
+            lockedRatio = r;
+            if (r > 0) {
+                float maxW = destRect.width();
+                float maxH = destRect.height();
+                float w = maxW;
+                float h = w / r;
+                if (h > maxH) { h = maxH; w = h * r; }
+                float cx = destRect.centerX();
+                float cy = destRect.centerY();
+                cropRect.set(cx - w/2, cy - h/2, cx + w/2, cy + h/2);
+            }
+            invalidate();
+        }
+
         public void setCropCircle(boolean isCircle) { this.isCircleCrop = isCircle; if (isCircle) setCropRatio(1f); invalidate(); }
+
+        public void startPerspectiveCrop() {
+            disableSpecialModes(); viewZoom = 1f; viewPanX = 0f; viewPanY = 0f;
+            isPerspectiveMode = true; isCropping = false;
+            perspectiveCorners[0] = destRect.left; perspectiveCorners[1] = destRect.top;
+            perspectiveCorners[2] = destRect.right; perspectiveCorners[3] = destRect.top;
+            perspectiveCorners[4] = destRect.right; perspectiveCorners[5] = destRect.bottom;
+            perspectiveCorners[6] = destRect.left; perspectiveCorners[7] = destRect.bottom;
+            invalidate();
+        }
 
         public void rotateImage() {
             if (baseImage == null) return;
@@ -1231,7 +1948,46 @@ public class ImageEditorActivity extends AppCompatActivity {
         }
 
         public void applyCrop() {
-            if (!isCropping || baseImage == null) return;
+            if (baseImage == null) return;
+
+            if (isPerspectiveMode) {
+                float scaleX = baseImage.getWidth() / destRect.width();
+                float scaleY = baseImage.getHeight() / destRect.height();
+                float[] src = new float[8];
+                for (int i=0; i<8; i+=2) {
+                    src[i] = (perspectiveCorners[i] - destRect.left) * scaleX;
+                    src[i+1] = (perspectiveCorners[i+1] - destRect.top) * scaleY;
+                }
+
+                float wTop = (float) Math.hypot(src[2] - src[0], src[3] - src[1]);
+                float wBot = (float) Math.hypot(src[4] - src[6], src[5] - src[7]);
+                float hLeft = (float) Math.hypot(src[6] - src[0], src[7] - src[1]);
+                float hRight = (float) Math.hypot(src[4] - src[2], src[5] - src[3]);
+
+                int finalW = (int) Math.max(wTop, wBot);
+                int finalH = (int) Math.max(hLeft, hRight);
+
+                if (finalW > 0 && finalH > 0) {
+                    float[] dst = new float[] { 0, 0, finalW, 0, finalW, finalH, 0, finalH };
+                    Matrix matrix = new Matrix();
+                    matrix.setPolyToPoly(src, 0, dst, 0, 4);
+
+                    Bitmap result = Bitmap.createBitmap(finalW, finalH, Bitmap.Config.ARGB_8888);
+                    Canvas c = new Canvas(result);
+                    Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    p.setFilterBitmap(true);
+
+                    Bitmap flattened = getRenderedBitmap(true);
+                    c.drawBitmap(flattened, matrix, p);
+
+                    activeLayer = null;
+                    setImage(result);
+                }
+                isPerspectiveMode = false;
+                return;
+            }
+
+            if (!isCropping) return;
             activeLayer = null; Bitmap flattened = getRenderedBitmap(true);
             float scaleX = flattened.getWidth() / destRect.width(); float scaleY = flattened.getHeight() / destRect.height();
             int bx = (int) ((cropRect.left - destRect.left) * scaleX); int by = (int) ((cropRect.top - destRect.top) * scaleY);
@@ -1241,12 +1997,28 @@ public class ImageEditorActivity extends AppCompatActivity {
             if (bw > 0 && bh > 0) {
                 Bitmap cropped = Bitmap.createBitmap(flattened, bx, by, bw, bh);
                 if (isCircleCrop) {
-                    Bitmap circleBitmap = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888); Canvas c = new Canvas(circleBitmap); Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    Bitmap circleBitmap = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888); Canvas c = new Canvas(circleBitmap); Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
                     c.drawCircle(bw / 2f, bh / 2f, Math.min(bw, bh) / 2f, p);
                     p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN)); c.drawBitmap(cropped, 0, 0, p); setImage(circleBitmap);
                 } else setImage(cropped);
             }
             isCropping = false; isCircleCrop = false;
+        }
+
+        private void drawShadowHandle(Canvas c, float x, float y, boolean isDelete, boolean isStretch) {
+            c.drawCircle(x, y, 34f, handleShadowPaint);
+            if (isStretch) {
+                c.drawCircle(x, y, 30f, handlePaint);
+                c.drawCircle(x, y, 12f, borderShadowPaint);
+                c.drawCircle(x, y, 12f, borderPaint);
+            } else {
+                c.drawCircle(x, y, 30f, isDelete ? deletePaint : handlePaint);
+                c.drawCircle(x, y, 30f, borderPaint);
+                if (isDelete) {
+                    c.drawLine(x-12f, y-12f, x+12f, y+12f, deleteXPaint);
+                    c.drawLine(x+12f, y-12f, x-12f, y+12f, deleteXPaint);
+                }
+            }
         }
 
         @Override protected void onDraw(@NonNull Canvas canvas) {
@@ -1265,7 +2037,10 @@ public class ImageEditorActivity extends AppCompatActivity {
             if (eraseLayerBitmap != null) canvas.drawBitmap(eraseLayerBitmap, null, destRect, autoPunchPaint);
             canvas.restoreToCount(sc);
 
-            if (drawLayerBitmap != null) canvas.drawBitmap(drawLayerBitmap, null, destRect, null);
+            if (drawLayerBitmap != null) {
+                Paint hqPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                canvas.drawBitmap(drawLayerBitmap, null, destRect, hqPaint);
+            }
 
             if (isDrawMode && !isDrawEraserMode && !currentPath.isEmpty()) {
                 canvas.save();
@@ -1277,58 +2052,179 @@ public class ImageEditorActivity extends AppCompatActivity {
 
             for (GraphicLayer layer : graphicLayers) {
                 canvas.save();
+                if (!isLayerOutMode) { canvas.clipRect(destRect); }
+
                 canvas.translate(destRect.centerX(), destRect.centerY());
                 canvas.scale(destRect.width() / baseImage.getWidth(), destRect.height() / baseImage.getHeight());
-                canvas.translate(layer.x, layer.y); canvas.rotate(layer.rotation); canvas.scale(layer.scale, layer.scale);
-                layer.drawLayer(canvas);
+                canvas.translate(layer.x, layer.y);
+                canvas.rotate(layer.rotation);
+                canvas.scale(layer.scaleX, layer.scaleY);
 
-                if (layer == activeLayer && !isCropping) {
-                    float l = layer.bounds.left, t = layer.bounds.top, r = layer.bounds.right, b = layer.bounds.bottom;
-                    canvas.drawRect(l, t, r, b, borderPaint); canvas.drawCircle(l, t, 30f, deletePaint);
-                    canvas.drawLine(l-12f, t-12f, l+12f, t+12f, deleteXPaint); canvas.drawLine(l+12f, t-12f, l-12f, t+12f, deleteXPaint);
-                    canvas.drawCircle(r, b, 30f, handlePaint); canvas.drawCircle(r, b, 30f, borderPaint);
-                    canvas.drawLine(0, b, 0, b+60f, borderPaint); canvas.drawCircle(0, b+60f, 30f, handlePaint); canvas.drawCircle(0, b+60f, 30f, borderPaint);
-                }
+                layer.drawLayer(canvas);
                 canvas.restore();
+
+                if (layer == activeLayer && !isCropping && !isPerspectiveMode && !isColorPickerMode) {
+
+                    Matrix boxMat = new Matrix();
+                    boxMat.postTranslate(destRect.centerX(), destRect.centerY());
+                    boxMat.preScale(destRect.width() / baseImage.getWidth(), destRect.height() / baseImage.getHeight());
+                    boxMat.preTranslate(layer.x, layer.y);
+                    boxMat.preRotate(layer.rotation);
+
+                    float pad = layer.getPadding();
+                    float l = (layer.bounds.left - pad) * layer.scaleX;
+                    float t = (layer.bounds.top - pad) * layer.scaleY;
+                    float r = (layer.bounds.right + pad) * layer.scaleX;
+                    float b = (layer.bounds.bottom + pad) * layer.scaleY;
+                    float cx = (l + r) / 2f;
+                    float cy = (t + b) / 2f;
+
+                    float[] pts = {
+                            l, t,
+                            r, t,
+                            r, b,
+                            l, b,
+                            cx, t - 80f,
+                            cx, t,
+                            r, cy,
+                            cx, b
+                    };
+                    boxMat.mapPoints(pts);
+
+                    Path boxPath = new Path();
+                    boxPath.moveTo(pts[0], pts[1]); boxPath.lineTo(pts[2], pts[3]);
+                    boxPath.lineTo(pts[4], pts[5]); boxPath.lineTo(pts[6], pts[7]); boxPath.close();
+
+                    canvas.drawPath(boxPath, borderShadowPaint);
+                    canvas.drawPath(boxPath, borderPaint);
+
+                    canvas.drawLine(pts[10], pts[11], pts[8], pts[9], borderShadowPaint);
+                    canvas.drawLine(pts[10], pts[11], pts[8], pts[9], borderPaint);
+
+                    drawShadowHandle(canvas, pts[0], pts[1], true, false);
+                    drawShadowHandle(canvas, pts[4], pts[5], false, false);
+                    drawShadowHandle(canvas, pts[8], pts[9], false, false);
+
+                    if (layer.type == 1) {
+                        drawShadowHandle(canvas, pts[12], pts[13], false, true);
+                        drawShadowHandle(canvas, pts[14], pts[15], false, true);
+                    }
+                }
             }
 
-            if (isCropping) {
+            if (isPerspectiveMode) {
+                Path pPath = new Path();
+                pPath.moveTo(perspectiveCorners[0], perspectiveCorners[1]);
+                pPath.lineTo(perspectiveCorners[2], perspectiveCorners[3]);
+                pPath.lineTo(perspectiveCorners[4], perspectiveCorners[5]);
+                pPath.lineTo(perspectiveCorners[6], perspectiveCorners[7]);
+                pPath.close();
+
+                Path pMask = new Path();
+                pMask.addRect(destRect, Path.Direction.CW);
+                pMask.addPath(pPath);
+                pMask.setFillType(Path.FillType.EVEN_ODD);
+                canvas.drawPath(pMask, maskPaint);
+
+                canvas.drawPath(pPath, borderShadowPaint);
+                canvas.drawPath(pPath, borderPaint);
+                for (int i=0; i<8; i+=2) drawShadowHandle(canvas, perspectiveCorners[i], perspectiveCorners[i+1], false, false);
+            }
+            else if (isCropping) {
                 cropMaskPath.reset(); cropMaskPath.addRect(destRect, Path.Direction.CW);
                 if (isCircleCrop) cropMaskPath.addCircle(cropRect.centerX(), cropRect.centerY(), cropRect.width()/2f, Path.Direction.CCW);
                 else cropMaskPath.addRect(cropRect, Path.Direction.CCW);
                 cropMaskPath.setFillType(Path.FillType.EVEN_ODD); canvas.drawPath(cropMaskPath, maskPaint);
 
-                if (isCircleCrop) canvas.drawCircle(cropRect.centerX(), cropRect.centerY(), cropRect.width()/2f, borderPaint);
-                else {
+                if (isCircleCrop) {
+                    canvas.drawCircle(cropRect.centerX(), cropRect.centerY(), cropRect.width()/2f, borderShadowPaint);
+                    canvas.drawCircle(cropRect.centerX(), cropRect.centerY(), cropRect.width()/2f, borderPaint);
+                } else {
+                    canvas.drawRect(cropRect, borderShadowPaint);
                     canvas.drawRect(cropRect, borderPaint);
                     float w3 = cropRect.width() / 3f, h3 = cropRect.height() / 3f;
-                    canvas.drawLine(cropRect.left + w3, cropRect.top, cropRect.left + w3, cropRect.bottom, gridPaint); canvas.drawLine(cropRect.left + w3*2, cropRect.top, cropRect.left + w3*2, cropRect.bottom, gridPaint);
-                    canvas.drawLine(cropRect.left, cropRect.top + h3, cropRect.right, cropRect.top + h3, gridPaint); canvas.drawLine(cropRect.left, cropRect.top + h3*2, cropRect.right, cropRect.top + h3*2, gridPaint);
+
+                    canvas.drawLine(cropRect.left + w3, cropRect.top, cropRect.left + w3, cropRect.bottom, gridShadowPaint);
+                    canvas.drawLine(cropRect.left + w3*2, cropRect.top, cropRect.left + w3*2, cropRect.bottom, gridShadowPaint);
+                    canvas.drawLine(cropRect.left, cropRect.top + h3, cropRect.right, cropRect.top + h3, gridShadowPaint);
+                    canvas.drawLine(cropRect.left, cropRect.top + h3*2, cropRect.right, cropRect.top + h3*2, gridShadowPaint);
+
+                    canvas.drawLine(cropRect.left + w3, cropRect.top, cropRect.left + w3, cropRect.bottom, gridPaint);
+                    canvas.drawLine(cropRect.left + w3*2, cropRect.top, cropRect.left + w3*2, cropRect.bottom, gridPaint);
+                    canvas.drawLine(cropRect.left, cropRect.top + h3, cropRect.right, cropRect.top + h3, gridPaint);
+                    canvas.drawLine(cropRect.left, cropRect.top + h3*2, cropRect.right, cropRect.top + h3*2, gridPaint);
                 }
-                canvas.drawCircle(cropRect.left, cropRect.top, 24f, handlePaint); canvas.drawCircle(cropRect.right, cropRect.top, 24f, handlePaint);
-                canvas.drawCircle(cropRect.left, cropRect.bottom, 24f, handlePaint); canvas.drawCircle(cropRect.right, cropRect.bottom, 24f, handlePaint);
+                drawShadowHandle(canvas, cropRect.left, cropRect.top, false, false);
+                drawShadowHandle(canvas, cropRect.right, cropRect.top, false, false);
+                drawShadowHandle(canvas, cropRect.left, cropRect.bottom, false, false);
+                drawShadowHandle(canvas, cropRect.right, cropRect.bottom, false, false);
             }
 
             if (isGridMode) {
                 float cellWidth = destRect.width() / 9f;
                 float cellHeight = destRect.height() / 9f;
                 for (int i = 1; i < 9; i++) {
+                    canvas.drawLine(destRect.left + (cellWidth * i), destRect.top, destRect.left + (cellWidth * i), destRect.bottom, gridShadowPaint);
+                    canvas.drawLine(destRect.left, destRect.top + (cellHeight * i), destRect.right, destRect.top + (cellHeight * i), gridShadowPaint);
+
                     canvas.drawLine(destRect.left + (cellWidth * i), destRect.top, destRect.left + (cellWidth * i), destRect.bottom, gridPaint);
                     canvas.drawLine(destRect.left, destRect.top + (cellHeight * i), destRect.right, destRect.top + (cellHeight * i), gridPaint);
                 }
+                canvas.drawRect(destRect, gridShadowPaint);
                 canvas.drawRect(destRect, gridPaint);
+            }
+
+            if (isColorPickerMode && pickerX > 0 && pickerY > 0) {
+                pickerFillPaint.setColor(pickerColor);
+                canvas.drawCircle(pickerX, pickerY - 100f, 60f, pickerFillPaint);
+                canvas.drawCircle(pickerX, pickerY - 100f, 60f, pickerBorderPaint);
+                canvas.drawLine(pickerX - 20f, pickerY, pickerX + 20f, pickerY, pickerBorderPaint);
+                canvas.drawLine(pickerX, pickerY - 20f, pickerX, pickerY + 20f, pickerBorderPaint);
             }
         }
 
         private float[] mapTouch(GraphicLayer l, float x, float y) {
-            mapMatrix.reset(); mapMatrix.postTranslate(destRect.centerX(), destRect.centerY());
-            mapMatrix.preScale(destRect.width() / baseImage.getWidth(), destRect.height() / baseImage.getHeight());
-            mapMatrix.preTranslate(l.x, l.y); mapMatrix.preRotate(l.rotation); mapMatrix.preScale(l.scale, l.scale);
-            mapMatrix.invert(mapInverse); mapPoint[0] = x; mapPoint[1] = y; mapInverse.mapPoints(mapPoint); return mapPoint;
+            Matrix fwdMat = new Matrix();
+            fwdMat.postTranslate(destRect.centerX(), destRect.centerY());
+            fwdMat.preScale(destRect.width() / baseImage.getWidth(), destRect.height() / baseImage.getHeight());
+            fwdMat.preTranslate(l.x, l.y);
+            fwdMat.preRotate(l.rotation);
+
+            Matrix inv = new Matrix();
+            fwdMat.invert(inv);
+
+            float[] pt = new float[]{x, y};
+            inv.mapPoints(pt);
+            return pt;
+        }
+
+        private int pickColorFromImage(float x, float y) {
+            if (baseImage == null) return Color.BLACK;
+            int bmpX = (int) ((x - destRect.left) * (baseImage.getWidth() / destRect.width()));
+            int bmpY = (int) ((y - destRect.top) * (baseImage.getHeight() / destRect.height()));
+            bmpX = Math.max(0, Math.min(bmpX, baseImage.getWidth() - 1));
+            bmpY = Math.max(0, Math.min(bmpY, baseImage.getHeight() - 1));
+            return baseImage.getPixel(bmpX, bmpY);
         }
 
         @Override public boolean onTouchEvent(@NonNull MotionEvent event) {
             float x = event.getX(), y = event.getY();
+
+            if (isColorPickerMode) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                    case MotionEvent.ACTION_MOVE:
+                        pickerX = x; pickerY = y;
+                        pickerColor = pickColorFromImage(x, y);
+                        invalidate();
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        isColorPickerMode = false;
+                        if (eyedropperCallback != null) eyedropperCallback.onColorPicked(pickerColor);
+                        invalidate();
+                        return true;
+                }
+            }
 
             if (isZoomMode) {
                 scaleDetector.onTouchEvent(event);
@@ -1345,6 +2241,25 @@ public class ImageEditorActivity extends AppCompatActivity {
                 } return true;
             }
 
+            if (isPerspectiveMode) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        activePerspectiveHandle = -1;
+                        for (int i=0; i<8; i+=2) {
+                            if (Math.hypot(x - perspectiveCorners[i], y - perspectiveCorners[i+1]) < 80f) { activePerspectiveHandle = i; break; }
+                        }
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        if (activePerspectiveHandle != -1) {
+                            perspectiveCorners[activePerspectiveHandle] = Math.max(destRect.left, Math.min(x, destRect.right));
+                            perspectiveCorners[activePerspectiveHandle+1] = Math.max(destRect.top, Math.min(y, destRect.bottom));
+                            invalidate();
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP: activePerspectiveHandle = -1; return true;
+                }
+            }
+
             if (isCropping) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
@@ -1358,19 +2273,39 @@ public class ImageEditorActivity extends AppCompatActivity {
                     case MotionEvent.ACTION_MOVE:
                         if (activeCropHandle != -1) {
                             float dx = x - lastTouch.x, dy = y - lastTouch.y;
-                            if (activeCropHandle == 4) cropRect.offset(dx, dy);
-                            else {
-                                if (activeCropHandle==0){cropRect.left+=dx; cropRect.top+=dy;} else if(activeCropHandle==1){cropRect.right+=dx; cropRect.top+=dy;}
-                                else if (activeCropHandle==2){cropRect.left+=dx; cropRect.bottom+=dy;} else if(activeCropHandle==3){cropRect.right+=dx; cropRect.bottom+=dy;}
-                                if (lockedRatio==1f) {
-                                    float s=Math.max(cropRect.width(),cropRect.height());
-                                    if(activeCropHandle==0){cropRect.left=cropRect.right-s; cropRect.top=cropRect.bottom-s;} else if(activeCropHandle==1){cropRect.right=cropRect.left+s; cropRect.top=cropRect.bottom-s;}
-                                    else if(activeCropHandle==2){cropRect.left=cropRect.right-s; cropRect.bottom=cropRect.top+s;} else if(activeCropHandle==3){cropRect.right=cropRect.left+s; cropRect.bottom=cropRect.top+s;}
+                            RectF oldRect = new RectF(cropRect);
+
+                            if (activeCropHandle == 4) {
+                                cropRect.offset(dx, dy);
+                            } else {
+                                if (activeCropHandle == 0) { cropRect.left += dx; cropRect.top += dy; }
+                                else if (activeCropHandle == 1) { cropRect.right += dx; cropRect.top += dy; }
+                                else if (activeCropHandle == 2) { cropRect.left += dx; cropRect.bottom += dy; }
+                                else if (activeCropHandle == 3) { cropRect.right += dx; cropRect.bottom += dy; }
+
+                                if (lockedRatio > 0f) {
+                                    float w = cropRect.width();
+                                    float h = w / lockedRatio;
+                                    if (activeCropHandle == 0 || activeCropHandle == 1) cropRect.top = cropRect.bottom - h;
+                                    else cropRect.bottom = cropRect.top + h;
                                 }
                             }
-                            if(cropRect.width()<100f) cropRect.right=cropRect.left+100f; if(cropRect.height()<100f) cropRect.bottom=cropRect.top+100f;
-                            if(cropRect.left<destRect.left) cropRect.offset(destRect.left-cropRect.left,0); if(cropRect.top<destRect.top) cropRect.offset(0,destRect.top-cropRect.top);
-                            if(cropRect.right>destRect.right) cropRect.offset(destRect.right-cropRect.right,0); if(cropRect.bottom>destRect.bottom) cropRect.offset(0,destRect.bottom-cropRect.bottom);
+
+                            if (cropRect.width() < 100f || cropRect.height() < 100f) {
+                                cropRect.set(oldRect);
+                            }
+
+                            if (cropRect.left < destRect.left || cropRect.top < destRect.top || cropRect.right > destRect.right || cropRect.bottom > destRect.bottom) {
+                                if (activeCropHandle == 4) {
+                                    if (cropRect.left < destRect.left) cropRect.offset(destRect.left - cropRect.left, 0);
+                                    if (cropRect.top < destRect.top) cropRect.offset(0, destRect.top - cropRect.top);
+                                    if (cropRect.right > destRect.right) cropRect.offset(destRect.right - cropRect.right, 0);
+                                    if (cropRect.bottom > destRect.bottom) cropRect.offset(0, destRect.bottom - cropRect.bottom);
+                                } else {
+                                    cropRect.set(oldRect);
+                                }
+                            }
+
                             lastTouch.set(x,y); invalidate();
                         } return true;
                     case MotionEvent.ACTION_UP: activeCropHandle = -1; return true;
@@ -1451,33 +2386,122 @@ public class ImageEditorActivity extends AppCompatActivity {
                     case MotionEvent.ACTION_DOWN:
                         touchMode = 0;
                         if (activeLayer != null) {
-                            float[] loc = mapTouch(activeLayer, x, y);
-                            if (Math.hypot(loc[0]-activeLayer.bounds.left, loc[1]-activeLayer.bounds.top) < 80f) {
+                            Matrix fwdMat = new Matrix();
+                            fwdMat.postTranslate(destRect.centerX(), destRect.centerY());
+                            fwdMat.preScale(destRect.width() / baseImage.getWidth(), destRect.height() / baseImage.getHeight());
+                            fwdMat.preTranslate(activeLayer.x, activeLayer.y);
+                            fwdMat.preRotate(activeLayer.rotation);
+
+                            float pad = activeLayer.getPadding();
+                            float l = (activeLayer.bounds.left - pad) * activeLayer.scaleX;
+                            float t = (activeLayer.bounds.top - pad) * activeLayer.scaleY;
+                            float r = (activeLayer.bounds.right + pad) * activeLayer.scaleX;
+                            float b = (activeLayer.bounds.bottom + pad) * activeLayer.scaleY;
+                            float cx = (l + r) / 2f;
+                            float cy = (t + b) / 2f;
+
+                            float[] pts = {
+                                    l, t,
+                                    r, b,
+                                    cx, t - 80f,
+                                    r, cy,
+                                    cx, b
+                            };
+                            fwdMat.mapPoints(pts);
+
+                            float[] cPt = new float[]{0f, 0f};
+                            fwdMat.mapPoints(cPt);
+                            activeLayerCenterX = cPt[0];
+                            activeLayerCenterY = cPt[1];
+
+                            float touchRadius = 80f;
+
+                            if (Math.hypot(x - pts[0], y - pts[1]) < touchRadius) {
                                 graphicLayers.remove(activeLayer); activeLayer = null;
                                 if (layerListener != null) layerListener.run(); invalidate(); return true;
-                            } else if (Math.hypot(loc[0]-activeLayer.bounds.right, loc[1]-activeLayer.bounds.bottom) < 80f) {
-                                touchMode = 2; initialDist = (float)Math.hypot(x-destRect.centerX()-activeLayer.x*viewZoom, y-destRect.centerY()-activeLayer.y*viewZoom); initialScale = activeLayer.scale; return true;
-                            } else if (Math.hypot(loc[0], loc[1]-(activeLayer.bounds.bottom+60f)) < 80f) {
-                                touchMode = 3; initialAngle = (float)Math.toDegrees(Math.atan2(y-destRect.centerY()-activeLayer.y*viewZoom, x-destRect.centerX()-activeLayer.x*viewZoom)); initialRotation = activeLayer.rotation; return true;
+                            } else if (Math.hypot(x - pts[2], y - pts[3]) < touchRadius) {
+                                touchMode = 2;
+                                float[] loc = mapTouch(activeLayer, x, y);
+                                initialDist = (float)Math.hypot(loc[0], loc[1]);
+                                initialScaleX = activeLayer.scaleX;
+                                initialScaleY = activeLayer.scaleY;
+                                return true;
+                            } else if (Math.hypot(x - pts[4], y - pts[5]) < touchRadius) {
+                                touchMode = 3;
+                                initialAngle = (float)Math.toDegrees(Math.atan2(y - activeLayerCenterY, x - activeLayerCenterX));
+                                initialRotation = activeLayer.rotation;
+                                return true;
+                            } else if (activeLayer.type == 1 && Math.hypot(x - pts[6], y - pts[7]) < touchRadius) {
+                                touchMode = 4;
+                                float[] loc = mapTouch(activeLayer, x, y);
+                                initialDistX = Math.abs(loc[0]);
+                                initialScaleX = activeLayer.scaleX;
+                                return true;
+                            } else if (activeLayer.type == 1 && Math.hypot(x - pts[8], y - pts[9]) < touchRadius) {
+                                touchMode = 5;
+                                float[] loc = mapTouch(activeLayer, x, y);
+                                initialDistY = Math.abs(loc[1]);
+                                initialScaleY = activeLayer.scaleY;
+                                return true;
                             }
                         }
-                        boolean hit = false;
+
                         for (int i=graphicLayers.size()-1; i>=0; i--) {
-                            GraphicLayer l = graphicLayers.get(i); float[] loc = mapTouch(l, x, y);
-                            if (loc[0]>=l.bounds.left && loc[0]<=l.bounds.right && loc[1]>=l.bounds.top && loc[1]<=l.bounds.bottom) {
-                                activeLayer = l; touchMode = 1; lastTouch.set(x, y); hit = true;
+                            GraphicLayer layer = graphicLayers.get(i);
+                            float[] loc = mapTouch(layer, x, y);
+
+                            float pad = layer.getPadding();
+                            float bl = (layer.bounds.left - pad) * layer.scaleX;
+                            float bt = (layer.bounds.top - pad) * layer.scaleY;
+                            float br = (layer.bounds.right + pad) * layer.scaleX;
+                            float bb = (layer.bounds.bottom + pad) * layer.scaleY;
+
+                            if (loc[0]>=bl && loc[0]<=br && loc[1]>=bt && loc[1]<=bb) {
+                                activeLayer = layer; touchMode = 1; lastTouch.set(x, y);
                                 if (layerListener != null) layerListener.run();
                                 invalidate(); return true;
                             }
                         }
-                        if (!hit) activeLayer = null;
+                        activeLayer = null;
                         if (layerListener != null) layerListener.run();
                         invalidate(); return true;
+
                     case MotionEvent.ACTION_MOVE:
                         if (activeLayer != null) {
-                            if (touchMode == 1) { activeLayer.x += (x - lastTouch.x) * (baseImage.getWidth() / destRect.width()); activeLayer.y += (y - lastTouch.y) * (baseImage.getHeight() / destRect.height()); lastTouch.set(x,y); }
-                            else if (touchMode == 2) { float d = (float)Math.hypot(x-destRect.centerX()-activeLayer.x*viewZoom, y-destRect.centerY()-activeLayer.y*viewZoom); activeLayer.scale = Math.max(0.1f, initialScale*(d/initialDist)); }
-                            else if (touchMode == 3) { float a = (float)Math.toDegrees(Math.atan2(y-destRect.centerY()-activeLayer.y*viewZoom, x-destRect.centerX()-activeLayer.x*viewZoom)); activeLayer.rotation = initialRotation+(a-initialAngle); }
+                            if (touchMode == 1) {
+                                activeLayer.x += (x - lastTouch.x) * (baseImage.getWidth() / destRect.width());
+                                activeLayer.y += (y - lastTouch.y) * (baseImage.getHeight() / destRect.height());
+
+                                if (!isLayerOutMode) {
+                                    float halfW = baseImage.getWidth() / 2f;
+                                    float halfH = baseImage.getHeight() / 2f;
+                                    activeLayer.x = Math.max(-halfW, Math.min(activeLayer.x, halfW));
+                                    activeLayer.y = Math.max(-halfH, Math.min(activeLayer.y, halfH));
+                                }
+
+                                lastTouch.set(x,y);
+                            }
+                            else if (touchMode == 2) {
+                                float[] loc = mapTouch(activeLayer, x, y);
+                                float d = (float)Math.hypot(loc[0], loc[1]);
+                                float factor = d / initialDist;
+                                activeLayer.scaleX = Math.max(0.1f, initialScaleX * factor);
+                                activeLayer.scaleY = Math.max(0.1f, initialScaleY * factor);
+                            }
+                            else if (touchMode == 3) {
+                                float a = (float)Math.toDegrees(Math.atan2(y - activeLayerCenterY, x - activeLayerCenterX));
+                                activeLayer.rotation = initialRotation + (a - initialAngle);
+                            }
+                            else if (touchMode == 4) {
+                                float[] loc = mapTouch(activeLayer, x, y);
+                                float factor = Math.abs(loc[0]) / initialDistX;
+                                activeLayer.scaleX = Math.max(0.1f, initialScaleX * factor);
+                            }
+                            else if (touchMode == 5) {
+                                float[] loc = mapTouch(activeLayer, x, y);
+                                float factor = Math.abs(loc[1]) / initialDistY;
+                                activeLayer.scaleY = Math.max(0.1f, initialScaleY * factor);
+                            }
                             invalidate(); return true;
                         } break;
                     case MotionEvent.ACTION_UP: touchMode = 0; return true;
@@ -1509,15 +2533,27 @@ public class ImageEditorActivity extends AppCompatActivity {
             if (eraseLayerBitmap != null) c.drawBitmap(eraseLayerBitmap, 0, 0, autoPunchPaint);
             c.restoreToCount(sc);
 
-            if (drawLayerBitmap != null) c.drawBitmap(drawLayerBitmap, 0, 0, null);
+            if (drawLayerBitmap != null) {
+                Paint hqPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+                c.drawBitmap(drawLayerBitmap, 0, 0, hqPaint);
+            }
             for (GraphicLayer layer : graphicLayers) {
-                c.save(); c.translate(result.getWidth()/2f, result.getHeight()/2f); c.translate(layer.x, layer.y);
-                c.rotate(layer.rotation); c.scale(layer.scale, layer.scale); layer.drawLayer(c); c.restore();
+                c.save();
+                if (!isLayerOutMode && !isForExport) {
+                    c.clipRect(0, 0, result.getWidth(), result.getHeight());
+                }
+                c.translate(result.getWidth()/2f, result.getHeight()/2f); c.translate(layer.x, layer.y);
+
+                c.rotate(layer.rotation);
+                c.scale(layer.scaleX, layer.scaleY);
+
+                layer.drawLayer(c);
+                c.restore();
             }
 
-            boolean tc = isCropping; GraphicLayer tl = activeLayer;
-            if (isForExport) { isCropping = false; activeLayer = null; }
-            isCropping = tc; activeLayer = tl; return result;
+            boolean tc = isCropping; GraphicLayer tl = activeLayer; boolean tp = isPerspectiveMode;
+            if (isForExport) { isCropping = false; isPerspectiveMode = false; activeLayer = null; }
+            isCropping = tc; activeLayer = tl; isPerspectiveMode = tp; return result;
         }
     }
 }

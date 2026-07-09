@@ -28,7 +28,7 @@
             android:id="@+id/btnExport"
             style="@style/ModernButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
+            android:layout_height="50dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:layout_marginBottom="0dp"
@@ -90,7 +90,6 @@
             android:textColor="#FFFFFF"
             android:text="+ Add Overlay" />
 
-        <!-- UPGRADED: Recycler View allows fluid drag-and-drop -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/layersRecyclerView"
             android:layout_width="match_parent"
@@ -118,7 +117,7 @@
             android:padding="12dp">
 
             <Button android:id="@+id/btnLoad" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Load Base" />
-            <Button android:id="@+id/btnZoom" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Zoom / Pan" />
+            <Button android:id="@+id/btnZoom" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Zoom/Pan: OFF" />
             <Button android:id="@+id/btnGrid" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Grid: OFF" />
             <Button android:id="@+id/btnUndo" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:backgroundTint="#FF9F0A" android:textColor="#FFFFFF" android:text="Undo Last" />
             <Button android:id="@+id/btnCrop" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Crop Base" />
@@ -126,53 +125,50 @@
             <Button android:id="@+id/btnBgRemover" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:backgroundTint="#FF3B30" android:textColor="#FFFFFF" android:text="BG Remover" />
             <Button android:id="@+id/btnText" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Add Text" />
             <Button android:id="@+id/btnDraw" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Draw Tool" />
+
+            <!-- NEW: Layer Edit Button -->
+            <Button android:id="@+id/btnLayerEdit" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:backgroundTint="#4A90E2" android:textColor="#FFFFFF" android:text="Edit Layer" />
+
             <Button android:id="@+id/btnCopy" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Copy Layer" />
+            <Button android:id="@+id/btnLayerOut" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Layer Out: OFF" />
             <Button android:id="@+id/btnClear" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Clear All" />
         </LinearLayout>
     </ScrollView>
 
     <!-- Crop Toolbar -->
-    <LinearLayout
+    <HorizontalScrollView
         android:id="@+id/cropToolsBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/bottomMenuBar"
-        android:gravity="center"
-        android:visibility="gone"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="80dp"
         android:background="#99000000"
-        android:orientation="vertical"
+        android:visibility="gone"
+        android:scrollbars="none"
         android:paddingVertical="8dp">
 
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:scrollbars="none"
-            android:layout_marginBottom="8dp">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
-
-                <Button android:id="@+id/btnCrop1to1" style="@style/ModernButtonStyle" android:layout_width="wrap_content" android:layout_marginEnd="8dp" android:layout_marginBottom="0dp" android:backgroundTint="#4A90E2" android:textColor="#FFFFFF" android:text="1:1" />
-                <Button android:id="@+id/btnCropFree" style="@style/ModernButtonStyle" android:layout_width="wrap_content" android:layout_marginEnd="8dp" android:layout_marginBottom="0dp" android:backgroundTint="#4A90E2" android:textColor="#FFFFFF" android:text="Free" />
-                <Button android:id="@+id/btnCropCircle" style="@style/ModernButtonStyle" android:layout_width="wrap_content" android:layout_marginEnd="8dp" android:layout_marginBottom="0dp" android:backgroundTint="#4A90E2" android:textColor="#FFFFFF" android:text="Circle" />
-                <Button android:id="@+id/btnCropRotate" style="@style/ModernButtonStyle" android:layout_width="wrap_content" android:layout_marginEnd="8dp" android:layout_marginBottom="0dp" android:backgroundTint="#FF9F0A" android:textColor="#FFFFFF" android:text="Rotate" />
-                <Button android:id="@+id/btnCropMirror" style="@style/ModernButtonStyle" android:layout_width="wrap_content" android:layout_marginBottom="0dp" android:backgroundTint="#FF9F0A" android:textColor="#FFFFFF" android:text="Mirror" />
-            </LinearLayout>
-        </HorizontalScrollView>
-
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center">
+            android:paddingHorizontal="12dp"
+            android:gravity="center_vertical">
 
-            <Button android:id="@+id/btnCropCancel" style="@style/ModernButtonStyle" android:layout_width="wrap_content" android:layout_height="40dp" android:layout_marginEnd="16dp" android:layout_marginBottom="0dp" android:backgroundTint="#FF3B30" android:textColor="#FFFFFF" android:text="Cancel" />
-            <Button android:id="@+id/btnCropApply" style="@style/ModernButtonStyle" android:layout_width="wrap_content" android:layout_height="40dp" android:layout_marginBottom="0dp" android:backgroundTint="#34C759" android:textColor="#FFFFFF" android:text="Apply" />
+            <Button android:id="@+id/btnCropCancel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cancel" android:backgroundTint="#FF3B30" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCropFree" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Free" android:backgroundTint="#4A90E2" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCropFull" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Full" android:backgroundTint="#4A90E2" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCrop1to1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1:1" android:backgroundTint="#4A90E2" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCrop16to9" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="16:9" android:backgroundTint="#4A90E2" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCrop9to16" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="9:16" android:backgroundTint="#4A90E2" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCrop4to3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="4:3" android:backgroundTint="#4A90E2" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCrop4to1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="4:1" android:backgroundTint="#4A90E2" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCropCircle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Circle" android:backgroundTint="#4A90E2" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCropPerspective" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Perspective" android:backgroundTint="#9C27B0" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCropRotate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Rotate" android:backgroundTint="#FF9500" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCropMirror" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mirror" android:backgroundTint="#FF9500" android:textColor="#FFF" android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnCropApply" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Apply" android:backgroundTint="#34C759" android:textColor="#FFF"/>
         </LinearLayout>
-    </LinearLayout>
+    </HorizontalScrollView>
 
     <!-- Bottom Menu Navigation -->
     <LinearLayout

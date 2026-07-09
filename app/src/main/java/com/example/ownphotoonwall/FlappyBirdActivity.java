@@ -177,7 +177,12 @@ public class FlappyBirdActivity extends AppCompatActivity {
         private float birdRadius;
 
         // Dynamic Physics Variables
-        private float gravity, jumpStrength, pipeSpeed, pipeWidth, pipeGap, terminalVelocity;
+        private float gravity, jumpStrength, pipeWidth, pipeGap, terminalVelocity;
+
+        // Speed Escalation Variables
+        private float pipeSpeed;
+        private float basePipeSpeed;
+        private float maxPipeSpeed;
 
         private final List<Pipe> pipes = new ArrayList<>();
         private final Random random = new Random();
@@ -216,11 +221,16 @@ public class FlappyBirdActivity extends AppCompatActivity {
             birdRadius = screenH * 0.025f;
             birdX = screenW * 0.3f;
 
-            gravity = screenH * 0.0014f;
-            jumpStrength = screenH * -0.022f;
-            terminalVelocity = screenH * 0.025f;
+            // NEW: Floatier physics for that "slow to fast down" feel
+            gravity = screenH * 0.0008f;       // Greatly reduced gravity for a gentler curve
+            jumpStrength = screenH * -0.015f;  // Balanced jump strength to match the low gravity
+            terminalVelocity = screenH * 0.018f; // Capped max fall speed so it doesn't get out of control
 
-            pipeSpeed = screenW * 0.010f;
+            // Speed Escalation Engine Initialization
+            basePipeSpeed = screenW * 0.006f;  // Very Slow start speed
+            maxPipeSpeed = screenW * 0.015f;   // Medium max speed cap
+            pipeSpeed = basePipeSpeed;
+
             pipeWidth = screenW * 0.18f;
             pipeGap = screenH * 0.28f;
 
@@ -232,6 +242,7 @@ public class FlappyBirdActivity extends AppCompatActivity {
             birdVelocity = 0;
             pipes.clear();
             score = 0;
+            pipeSpeed = basePipeSpeed; // Reset back to slow speed when game restarts
             playing = false;
             paused = false;
             gameOver = false;
@@ -286,6 +297,13 @@ public class FlappyBirdActivity extends AppCompatActivity {
                 if (!p.passed && p.x + pipeWidth < birdX) {
                     p.passed = true;
                     score++;
+
+                    // Gradually increase the game speed based on score
+                    pipeSpeed = basePipeSpeed + (score * (screenW * 0.0004f));
+                    if (pipeSpeed > maxPipeSpeed) {
+                        pipeSpeed = maxPipeSpeed; // Cap the speed at medium
+                    }
+
                     if (listener != null) listener.onScoreUpdated(score);
                 }
             }
