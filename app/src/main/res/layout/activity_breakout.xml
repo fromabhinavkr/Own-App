@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/breakoutRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- The Game Engine Canvas will be injected here -->
+    <FrameLayout
+        android:id="@+id/gameContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Top HUD: Scores and Pause Button -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="24dp"
+        android:elevation="4dp">
+
+        <TextView
+            android:id="@+id/tvHighScore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:text="Best: 0"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvCurrentScore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="0"
+            android:textSize="56sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnPause"
+            style="@style/ModernButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="56dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:paddingHorizontal="24dp"
+            android:backgroundTint="#4A90E2"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:text="Pause" />
+    </RelativeLayout>
+
+    <!-- Pause Overlay -->
+    <RelativeLayout
+        android:id="@+id/pauseOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#99000000"
+        android:visibility="gone"
+        android:elevation="10dp">
+
+        <LinearLayout
+            android:id="@+id/pauseCard"
+            android:layout_width="340dp"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:orientation="vertical"
+            android:padding="32dp"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tvPauseTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PAUSED"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginBottom="24dp" />
+
+            <Button
+                android:id="@+id/btnResume"
+                style="@style/ModernButtonStyle"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:textSize="16sp"
+                android:backgroundTint="#34C759"
+                android:textColor="#FFFFFF"
+                android:text="Resume Game" />
+
+            <Button
+                android:id="@+id/btnQuitFromPause"
+                style="@style/ModernButtonStyle"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:textSize="16sp"
+                android:backgroundTint="#FF3B30"
+                android:textColor="#FFFFFF"
+                android:layout_marginTop="12dp"
+                android:text="Quit to Menu" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- Game Over Overlay -->
+    <RelativeLayout
+        android:id="@+id/gameOverOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#99000000"
+        android:visibility="gone"
+        android:elevation="10dp">
+
+        <LinearLayout
+            android:id="@+id/gameOverCard"
+            android:layout_width="340dp"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:orientation="vertical"
+            android:padding="32dp"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tvGameOverTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="GAME OVER"
+                android:textStyle="bold"
+                android:textSize="32sp"
+                android:gravity="center"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Dedicated High Score Banner -->
+            <TextView
+                android:id="@+id/tvNewHighScoreBanner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🏆 NEW HIGH SCORE! 🏆"
+                android:textColor="#FFD700"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:visibility="gone"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:id="@+id/tvFinalScore"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Score: 0"
+                android:textSize="22sp"
+                android:layout_marginBottom="24dp" />
+
+            <Button
+                android:id="@+id/btnRestart"
+                style="@style/ModernButtonStyle"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:textSize="16sp"
+                android:backgroundTint="#4A90E2"
+                android:textColor="#FFFFFF"
+                android:text="Play Again" />
+
+            <Button
+                android:id="@+id/btnQuit"
+                style="@style/ModernButtonStyle"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:textSize="16sp"
+                android:layout_marginTop="12dp"
+                android:text="Quit" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- Tap to Start Hint -->
+    <TextView
+        android:id="@+id/tvTapToStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:text="Tap to Launch"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:elevation="2dp" />
+
+</RelativeLayout>

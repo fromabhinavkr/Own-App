@@ -71,6 +71,30 @@
             android:screenOrientation="portrait"
             tools:ignore="LockedOrientationActivity" />
 
+        <!-- Flappy Bird Game Activity -->
+        <activity
+            android:name=".FlappyBirdActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.OwnPhotoONWall"
+            tools:ignore="LockedOrientationActivity" />
+
+        <!-- Tetris Game Activity -->
+        <activity
+            android:name=".TetrisActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.OwnPhotoONWall"
+            tools:ignore="LockedOrientationActivity" />
+
+        <!-- NEW: Breakout Game Activity -->
+        <activity
+            android:name=".BreakoutActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.OwnPhotoONWall"
+            tools:ignore="LockedOrientationActivity" />
+
         <activity
             android:name=".ToolsGalleryActivity"
             android:exported="false" />
