@@ -6,6 +6,8 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
+    android:clipToPadding="false"
+    android:clipChildren="false"
     tools:ignore="HardcodedText">
 
     <TextView
@@ -30,7 +32,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:columnCount="2"
-        android:alignmentMode="alignMargins">
+        android:alignmentMode="alignMargins"
+        android:clipToPadding="false"
+        android:clipChildren="false">
 
         <!-- Sticker Maker Card -->
         <LinearLayout
@@ -39,16 +43,25 @@
             android:layout_height="wrap_content"
             android:layout_columnWeight="1"
             android:orientation="vertical"
-            android:background="@drawable/bg_gallery_card"
-            android:layout_margin="8dp"
-            android:elevation="2dp">
+            android:layout_margin="12dp">
 
-            <ImageView
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="120dp"
-                android:scaleType="centerInside"
-                android:padding="2dp"
-                android:src="@drawable/stickermaker_preview" />
+                android:layout_height="120dp">
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_gravity="center"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/stickermaker_preview" />
+            </FrameLayout>
+
+            <!-- THE HORIZONTAL SEPARATOR LINE -->
+            <View
+                android:id="@+id/divStickerMaker"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="0dp" />
 
             <TextView
                 android:id="@+id/textStickerMaker"
@@ -68,16 +81,25 @@
             android:layout_height="wrap_content"
             android:layout_columnWeight="1"
             android:orientation="vertical"
-            android:background="@drawable/bg_gallery_card"
-            android:layout_margin="8dp"
-            android:elevation="2dp">
+            android:layout_margin="12dp">
 
-            <ImageView
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="120dp"
-                android:scaleType="centerInside"
-                android:padding="3dp"
-                android:src="@drawable/imagestudio_preview" />
+                android:layout_height="120dp">
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_gravity="center"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/imagestudio_preview" />
+            </FrameLayout>
+
+            <!-- THE HORIZONTAL SEPARATOR LINE -->
+            <View
+                android:id="@+id/divImageEditor"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="0dp" />
 
             <TextView
                 android:id="@+id/textImageEditor"
@@ -89,5 +111,44 @@
                 android:gravity="center"
                 android:padding="16dp" />
         </LinearLayout>
+
+        <!-- PDF Studio Card -->
+        <LinearLayout
+            android:id="@+id/cardPdfStudio"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:orientation="vertical"
+            android:layout_margin="12dp">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="120dp">
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_gravity="center"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/pdfstudio_preview" />
+            </FrameLayout>
+
+            <!-- THE HORIZONTAL SEPARATOR LINE -->
+            <View
+                android:id="@+id/divPdfStudio"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="0dp" />
+
+            <TextView
+                android:id="@+id/textPdfStudio"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="PDF Studio"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
     </GridLayout>
 </LinearLayout>

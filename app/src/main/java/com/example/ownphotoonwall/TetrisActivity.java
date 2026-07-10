@@ -356,7 +356,7 @@ public class TetrisActivity extends AppCompatActivity {
         public boolean isGameOver() { return gameOver; }
 
         private long getDelay() {
-            return Math.max(150, 700 - (score * 15L)); // Speeds up as score increases
+            return 500L; // Constant speed locked to 500ms
         }
 
         private final Runnable gameLoop = new Runnable() {

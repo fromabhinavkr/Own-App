@@ -3,9 +3,10 @@ package com.example.ownphotoonwall;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -24,6 +25,9 @@ public class ToolsGalleryActivity extends Activity {
         int titleColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
         int subtitleColor = isDarkTheme ? Color.parseColor("#8E8E93") : Color.parseColor("#888888");
 
+        // The color for your new separator lines
+        int dividerColor = isDarkTheme ? Color.parseColor("#33FFFFFF") : Color.parseColor("#1A000000");
+
         // 1. Root and Headers
         LinearLayout rootLayout = findViewById(R.id.toolsGalleryRoot);
         TextView tvTitle = findViewById(R.id.tvToolsTitle);
@@ -36,10 +40,12 @@ public class ToolsGalleryActivity extends Activity {
         // 2. Setup Sticker Maker Card
         LinearLayout cardSticker = findViewById(R.id.cardStickerMaker);
         TextView textSticker = findViewById(R.id.textStickerMaker);
+        View divSticker = findViewById(R.id.divStickerMaker);
 
         if (cardSticker != null) {
-            cardSticker.setBackgroundTintList(ColorStateList.valueOf(cardBgColor));
+            applyModernCardStyle(cardSticker, cardBgColor);
             if (textSticker != null) textSticker.setTextColor(titleColor);
+            if (divSticker != null) divSticker.setBackgroundColor(dividerColor); // Paint the line
 
             cardSticker.setOnClickListener(v -> startActivity(new Intent(this, StickerMakerActivity.class)));
         }
@@ -47,12 +53,37 @@ public class ToolsGalleryActivity extends Activity {
         // 3. Setup Image Editor Card
         LinearLayout cardEditor = findViewById(R.id.cardImageEditor);
         TextView textEditor = findViewById(R.id.textImageEditor);
+        View divEditor = findViewById(R.id.divImageEditor);
 
         if (cardEditor != null) {
-            cardEditor.setBackgroundTintList(ColorStateList.valueOf(cardBgColor));
+            applyModernCardStyle(cardEditor, cardBgColor);
             if (textEditor != null) textEditor.setTextColor(titleColor);
+            if (divEditor != null) divEditor.setBackgroundColor(dividerColor); // Paint the line
 
             cardEditor.setOnClickListener(v -> startActivity(new Intent(this, ImageEditorActivity.class)));
         }
+
+        // 4. Setup PDF Studio Card
+        LinearLayout cardPdf = findViewById(R.id.cardPdfStudio);
+        TextView textPdf = findViewById(R.id.textPdfStudio);
+        View divPdf = findViewById(R.id.divPdfStudio);
+
+        if (cardPdf != null) {
+            applyModernCardStyle(cardPdf, cardBgColor);
+            if (textPdf != null) textPdf.setTextColor(titleColor);
+            if (divPdf != null) divPdf.setBackgroundColor(dividerColor); // Paint the line
+
+            cardPdf.setOnClickListener(v -> startActivity(new Intent(this, PdfStudioActivity.class)));
+        }
+    }
+
+    // Notice we removed the stroke (border) and the elevation (shadow) completely
+    private void applyModernCardStyle(View card, int bgColor) {
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(bgColor);
+        gd.setCornerRadius(50f); // Keeps the smooth rounded corners
+
+        // No stroke and no elevation!
+        card.setBackground(gd);
     }
 }

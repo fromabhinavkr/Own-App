@@ -87,7 +87,7 @@
             android:theme="@style/Theme.OwnPhotoONWall"
             tools:ignore="LockedOrientationActivity" />
 
-        <!-- NEW: Breakout Game Activity -->
+        <!-- Breakout Game Activity -->
         <activity
             android:name=".BreakoutActivity"
             android:exported="false"
@@ -103,10 +103,22 @@
             android:name=".StickerMakerActivity"
             android:exported="false" />
 
-        <!-- FIXED: Image Editor Activity Exported set to true -->
         <activity
             android:name=".ImageEditorActivity"
             android:exported="true" />
+
+        <!-- NEW: PDF Studio Activities -->
+        <activity
+            android:name=".PdfStudioActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
+
+        <activity
+            android:name=".PdfGalleryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
 
         <provider
             android:name=".StickerContentProvider"
