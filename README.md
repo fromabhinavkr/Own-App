@@ -6,7 +6,7 @@ A personalized Android application featuring a collection of interactive and dec
 ## ✨ Features
 
 ###  Interactive Home Screen Widgets
-* **Photo Widget:** The one that started it all—pinning custom photos to the home screen.
+* **Photo Widget:** Custom photos to the home screen.
 * **Drawing Widget:** A dynamic home screen notebook and canvas.
 * **Auto-Playing Snake Widget:** The retro dot-matrix game that plays itself on the launcher.
 * **Water Widget:** Interactive fluid physics right on the home screen.
