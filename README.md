@@ -5,27 +5,47 @@ A personalized Android application featuring a collection of interactive and dec
 
 ## ✨ Features
 
-* **Interactive Water Glass Widget:** Uses real-time accelerometer sensor data and custom canvas physics to simulate a fluid surface that reacts to the physical tilt of your device directly on the home screen.
-* **Retro Auto-Playing Snake Widget:** A dot-matrix style snake game that runs autonomously directly on your home screen.
-* **Unified Modern UI:** Clean, circular floating toggle buttons with dynamic play/pause states that blend beautifully into your launcher.
-* **Modern Background Execution:** Utilizes Android 14+ compatible Foreground Services (`specialUse` type) with silent notifications to ensure widgets run smoothly without being killed by aggressive battery management.
-* **Advanced Drawing Widget:** Transform your home screen into a dynamic notebook. Features support for multiple independent 3x4 canvases, customizable backgrounds (including dark mode and lined paper), a modern HSV color wheel, and Quadratic Bézier smoothing for natural handwriting.
-* **Interactive Maze Widget:** A fully playable, tilt-sensitive physics game right on your launcher. Features advanced collision detection and optimized rendering for smooth, battery-friendly gameplay.
-* **Coin Flip Widget:** A quick, interactive utility for your home screen to help make those 50/50 decisions instantly with a simple tap.
-* **Hourglass Widget:** An interactive, tilt-sensitive timer featuring falling sand particles in a classic retro dot-matrix style.
-* **Photo Display Widget:** A dedicated widget to pin custom photos to your wallpaper.
-* **Edge-to-Edge UI & Responsive Design:** Widgets scale dynamically using Android's native widget resizing properties, paired with a transparent system UI for a clean look.
+###  Interactive Home Screen Widgets
+* **Photo Widget:** The one that started it all—pinning custom photos to the home screen.
+* **Drawing Widget:** A dynamic home screen notebook and canvas.
+* **Auto-Playing Snake Widget:** The retro dot-matrix game that plays itself on the launcher.
+* **Water Widget:** Interactive fluid physics right on the home screen.
+* **Hourglass Widget:** A tilt-sensitive falling sand timer.
+* **Maze Widget:** A fully playable, tilt-sensitive physics labyrinth.
+* **Fidget Gear Widget:** Interactive rotating mechanical gears.
+* **Coin Toss Widget:** A quick 50/50 decision maker.
+
+### Retro Games Gallery
+* **Snake Game:** The classic arcade survival game.
+* **Flappy Bird:** The tap-to-fly physics challenge.
+* **Tetris:** The block-stacking puzzle legend.
+* **Breakout:** The paddle-and-ball brick breaker.
+
+### Creative & Utility Studios
+* **WhatsApp Sticker Maker:** Custom sticker generator with full WhatsApp integration.
+* **PDF Studio:** A dedicated engine to manage and create PDFs.
+* **Image Studio:** A comprehensive, all-in-one image editing suite featuring:
+  * *Base Editor:* Complete with cropping, color adjustments, text overlays, grid alignments, and a smart AI Background Remover.
+  * *Pro Canvas:* A professional drawing workspace with zero-lag pathing, flood fill, live color wheels, and an advanced brush arsenal.
+  * *Clone Tool:* A desktop-class cloning engine featuring multi-touch rotation, Live Ghost Overlays, and perfect pixel-cloning.
 
 ## 📱 Screenshots
 
-<img width="389" height="544" alt="snake_preview" src="https://github.com/user-attachments/assets/76a1bc5f-a4d5-470f-9185-830358b8f533" />
-<img width="411" height="558" alt="hourglass_preview" src="https://github.com/user-attachments/assets/9a9be952-9717-49fe-9987-ae496fc8cd38" />
-<img width="406" height="555" alt="water_preview" src="https://github.com/user-attachments/assets/1b16cd13-668d-4578-8261-908569e0d65b" />
-<img width="597" height="1128" alt="drawing_preview" src="https://github.com/user-attachments/assets/800ecd9d-0af7-4495-936b-f35bba1f5719" />
-<img width="618" height="560" alt="maze_preview" src="https://github.com/user-attachments/assets/567fb690-582b-4c3e-b703-bf22974ae84b" />
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3f540271-5bd9-44f4-9708-c44481aca1fa" width="32%" />
+  <img src="https://github.com/user-attachments/assets/8caac5fb-3971-45b4-826d-0953f08eb579" width="32%" />
+  <img src="https://github.com/user-attachments/assets/c54467a8-2324-4a5e-a043-79b7e64468a3" width="32%" />
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/6176ff9c-f238-44c9-af6b-5529b357bfda" width="32%" />
+  <img src="https://github.com/user-attachments/assets/49fbd912-4615-4e03-9088-c96451b67d2e" width="32%" />
+  <img src="https://github.com/user-attachments/assets/237604e0-7c60-467f-b136-71432eea094e" width="32%" />
+</p>
 
 
-## 🚀 Installation
+
+##  Installation
 
 ### For Regular Users
 If you just want to install and use the app on your Android device:
