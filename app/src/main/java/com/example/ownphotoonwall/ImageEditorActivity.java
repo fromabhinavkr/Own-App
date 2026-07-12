@@ -123,6 +123,53 @@ public class ImageEditorActivity extends AppCompatActivity {
             }
     );
 
+    private final ActivityResultLauncher<Intent> advancedCanvasLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    String outPath = result.getData().getStringExtra("out_path");
+                    boolean saveAsBase = result.getData().getBooleanExtra("save_as_base", false);
+
+                    if (outPath != null && editorView != null) {
+                        Bitmap finishedCanvas = BitmapFactory.decodeFile(outPath);
+                        if (finishedCanvas != null) {
+                            if (saveAsBase) {
+                                editorView.setImage(finishedCanvas);
+                                if (tapToStartView != null) tapToStartView.setVisibility(View.GONE);
+                                Toast.makeText(this, "Canvas saved as Base Image!", Toast.LENGTH_SHORT).show();
+                            } else {
+                                editorView.addImageLayer(finishedCanvas);
+                                Toast.makeText(this, "Canvas added as a new layer!", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+                }
+            }
+    );
+
+    // --- NEW CLONE LAUNCHER ADDED HERE ---
+    private final ActivityResultLauncher<Intent> cloneLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    String outPath = result.getData().getStringExtra("out_path");
+                    boolean saveAsBase = result.getData().getBooleanExtra("save_as_base", false);
+
+                    if (outPath != null && editorView != null) {
+                        Bitmap finishedClone = BitmapFactory.decodeFile(outPath);
+                        if (finishedClone != null) {
+                            if (saveAsBase) {
+                                editorView.setImage(finishedClone);
+                                if (tapToStartView != null) tapToStartView.setVisibility(View.GONE);
+                                Toast.makeText(this, "Cloned image applied to Base!", Toast.LENGTH_SHORT).show();
+                            } else {
+                                editorView.addImageLayer(finishedClone);
+                                Toast.makeText(this, "Cloned image added as a new layer!", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+                }
+            }
+    );
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -189,6 +236,8 @@ public class ImageEditorActivity extends AppCompatActivity {
         Button btnBgRemover = findViewById(R.id.btnBgRemover);
         Button btnText = findViewById(R.id.btnText);
         Button btnDraw = findViewById(R.id.btnDraw);
+        Button btnAdvancedCanvas = findViewById(R.id.btnAdvancedCanvas);
+        Button btnCloneTool = findViewById(R.id.btnCloneTool); // --- ADDED CLONE BUTTON HERE ---
         Button btnCopy = findViewById(R.id.btnCopy);
         Button btnLayerEdit = findViewById(R.id.btnLayerEdit);
         Button btnUndo = findViewById(R.id.btnUndo);
@@ -220,6 +269,9 @@ public class ImageEditorActivity extends AppCompatActivity {
         if (btnBgRemover != null) { btnBgRemover.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF3B30"))); btnBgRemover.setTextColor(Color.WHITE); }
         if (btnAdjust != null) { btnAdjust.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#9C27B0"))); btnAdjust.setTextColor(Color.WHITE); }
         if (btnLayerEdit != null) { btnLayerEdit.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2"))); btnLayerEdit.setTextColor(Color.WHITE); }
+
+        if (btnAdvancedCanvas != null) { btnAdvancedCanvas.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E91E63"))); btnAdvancedCanvas.setTextColor(Color.WHITE); }
+        if (btnCloneTool != null) { btnCloneTool.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF9500"))); btnCloneTool.setTextColor(Color.WHITE); }
 
         if (tapToStartView != null) tapToStartView.setOnClickListener(btnView -> launchPicker(false));
         if (btnLoad != null) btnLoad.setOnClickListener(btnView -> launchPicker(false));
@@ -366,7 +418,7 @@ public class ImageEditorActivity extends AppCompatActivity {
                 final AlertDialog dialog = createModernRoundedDialog(dialogView);
 
                 btnApplyBgRemove.setOnClickListener(applyBtn -> {
-                    editorView.isDrawMode = false;
+                    editorView.drawingManager.isDrawMode = false;
                     int checkedId = toggleGroup.getCheckedButtonId();
                     if (checkedId == R.id.btnAutoColor) {
                         editorView.enterAutoColorRemovalMode();
@@ -408,12 +460,12 @@ public class ImageEditorActivity extends AppCompatActivity {
                 ColorWheelView colorWheel = new ColorWheelView(this);
                 colorWheelContainer.addView(colorWheel);
 
-                sbSize.setProgress((int) editorView.currentBrushWidth);
-                sbOpacity.setProgress((int) ((editorView.currentBrushOpacity / 255f) * 100f));
-                etHexCode.setText(String.format("#%06X", (0xFFFFFF & editorView.currentBrushColor)));
-                colorWheel.setColor(editorView.currentBrushColor);
+                sbSize.setProgress((int) editorView.drawingManager.currentBrushWidth);
+                sbOpacity.setProgress((int) ((editorView.drawingManager.currentBrushOpacity / 255f) * 100f));
+                etHexCode.setText(String.format("#%06X", (0xFFFFFF & editorView.drawingManager.currentBrushColor)));
+                colorWheel.setColor(editorView.drawingManager.currentBrushColor);
 
-                boolean isEraser = editorView.isDrawEraserMode;
+                boolean isEraser = editorView.drawingManager.isDrawEraserMode;
                 btnEraser.setBackgroundTintList(ColorStateList.valueOf(isEraser ? Color.parseColor("#FF3B30") : Color.parseColor("#E5E5EA")));
                 btnEraser.setTextColor(isEraser ? Color.WHITE : Color.parseColor("#333333"));
 
@@ -445,8 +497,8 @@ public class ImageEditorActivity extends AppCompatActivity {
                 row.addView(newRow);
 
                 btnTurnOff.setOnClickListener(offBtn -> {
-                    editorView.isDrawMode = false;
-                    editorView.isDrawEraserMode = false;
+                    editorView.drawingManager.isDrawMode = false;
+                    editorView.drawingManager.isDrawEraserMode = false;
                     updateToolButtons();
                     dialog.dismiss();
                     Toast.makeText(this, "Draw Tool Disabled", Toast.LENGTH_SHORT).show();
@@ -454,8 +506,8 @@ public class ImageEditorActivity extends AppCompatActivity {
 
                 boolean[] isUpdating = {false};
                 colorWheel.setOnColorChangeListener(color -> {
-                    if (!editorView.isDrawEraserMode) {
-                        editorView.currentBrushColor = color;
+                    if (!editorView.drawingManager.isDrawEraserMode) {
+                        editorView.drawingManager.currentBrushColor = color;
                         if (!isUpdating[0]) {
                             isUpdating[0] = true;
                             etHexCode.setText(String.format("#%06X", (0xFFFFFF & color)));
@@ -469,25 +521,134 @@ public class ImageEditorActivity extends AppCompatActivity {
                     @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
                         if (isUpdating[0]) return;
                         if (s.length() == 7 && s.toString().startsWith("#")) {
-                            try { int newC = Color.parseColor(s.toString()); editorView.currentBrushColor = newC; colorWheel.setColor(newC); } catch (Exception ignored) {}
+                            try {
+                                int newC = Color.parseColor(s.toString());
+                                editorView.drawingManager.currentBrushColor = newC;
+                                colorWheel.setColor(newC);
+                            } catch (Exception ignored) {}
                         }
                     }
                     @Override public void afterTextChanged(Editable s) {}
                 });
 
                 btnEraser.setOnClickListener(eraserBtn -> {
-                    editorView.isDrawEraserMode = !editorView.isDrawEraserMode;
-                    btnEraser.setBackgroundTintList(ColorStateList.valueOf(editorView.isDrawEraserMode ? Color.parseColor("#FF3B30") : Color.parseColor("#E5E5EA")));
-                    btnEraser.setTextColor(editorView.isDrawEraserMode ? Color.WHITE : Color.parseColor("#333333"));
+                    editorView.drawingManager.isDrawEraserMode = !editorView.drawingManager.isDrawEraserMode;
+                    btnEraser.setBackgroundTintList(ColorStateList.valueOf(editorView.drawingManager.isDrawEraserMode ? Color.parseColor("#FF3B30") : Color.parseColor("#E5E5EA")));
+                    btnEraser.setTextColor(editorView.drawingManager.isDrawEraserMode ? Color.WHITE : Color.parseColor("#333333"));
                 });
 
                 btnApply.setOnClickListener(applyBtn -> {
-                    editorView.currentBrushOpacity = (int) ((sbOpacity.getProgress() / 100f) * 255f);
+                    editorView.drawingManager.currentBrushOpacity = (int) ((sbOpacity.getProgress() / 100f) * 255f);
                     editorView.startDrawing(sbSize.getProgress());
                     updateToolButtons();
                     dialog.dismiss();
                 });
                 dialog.show();
+            });
+        }
+
+        // --- NEW CLONE TOOL CLICK LISTENER ---
+        if (btnCloneTool != null) {
+            btnCloneTool.setOnClickListener(v -> {
+                if (editorView.isImageMissing()) {
+                    Toast.makeText(this, "Load an image on the canvas first!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                Toast.makeText(this, "Preparing Clone Studio...", Toast.LENGTH_SHORT).show();
+                btnCloneTool.setEnabled(false);
+                btnCloneTool.setText("Loading...");
+
+                new Thread(() -> {
+                    Bitmap currentImage;
+                    GraphicLayer active = editorView.getActiveLayer();
+
+                    // IF A LAYER IS SELECTED, EXTRACT ONLY THAT LAYER
+                    if (active != null) {
+                        if (active.type == 1 && active.bitmap != null) {
+                            currentImage = active.bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                        } else {
+                            active.bake();
+                            currentImage = active.bakedCache != null ? active.bakedCache.copy(Bitmap.Config.ARGB_8888, true) : editorView.getRenderedBitmap(true);
+                        }
+                    } else {
+                        // NO LAYER SELECTED, BAKE ENTIRE SCREEN
+                        currentImage = editorView.getRenderedBitmap(true);
+                    }
+
+                    try {
+                        File tempIn = new File(getCacheDir(), "clone_in.png");
+                        FileOutputStream fos = new FileOutputStream(tempIn);
+                        currentImage.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                        fos.close();
+
+                        runOnUiThread(() -> {
+                            btnCloneTool.setEnabled(true);
+                            btnCloneTool.setText("Clone Tool"); // Reset text
+                            Intent intent = new Intent(ImageEditorActivity.this, CloneActivity.class);
+                            intent.putExtra("image_path", tempIn.getAbsolutePath());
+                            cloneLauncher.launch(intent);
+                        });
+                    } catch (Exception e) {
+                        runOnUiThread(() -> {
+                            btnCloneTool.setEnabled(true);
+                            btnCloneTool.setText("Clone Tool");
+                            Toast.makeText(ImageEditorActivity.this, "Failed to launch Clone Tool", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }).start();
+            });
+        }
+
+        if (btnAdvancedCanvas != null) {
+            btnAdvancedCanvas.setOnClickListener(v -> {
+                if (editorView.isImageMissing()) {
+                    showEmptyCanvasColorPicker();
+                    return;
+                }
+
+                Toast.makeText(this, "Preparing Canvas...", Toast.LENGTH_SHORT).show();
+                btnAdvancedCanvas.setEnabled(false);
+                btnAdvancedCanvas.setText("Loading...");
+
+                new Thread(() -> {
+                    Bitmap currentImage;
+                    GraphicLayer active = editorView.getActiveLayer();
+
+                    // IF A LAYER IS SELECTED, EXTRACT ONLY THAT LAYER
+                    if (active != null) {
+                        if (active.type == 1 && active.bitmap != null) {
+                            currentImage = active.bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                        } else {
+                            active.bake();
+                            currentImage = active.bakedCache != null ? active.bakedCache.copy(Bitmap.Config.ARGB_8888, true) : editorView.getRenderedBitmap(true);
+                        }
+                    } else {
+                        // NO LAYER SELECTED, BAKE ENTIRE SCREEN
+                        currentImage = editorView.getRenderedBitmap(true);
+                    }
+
+                    try {
+                        File tempIn = new File(getCacheDir(), "canvas_in.png");
+                        FileOutputStream fos = new FileOutputStream(tempIn);
+                        currentImage.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                        fos.close();
+
+                        runOnUiThread(() -> {
+                            btnAdvancedCanvas.setEnabled(true);
+                            btnAdvancedCanvas.setText("Pro Canvas");
+                            Intent intent = new Intent(ImageEditorActivity.this, AdvancedCanvasActivity.class);
+                            intent.putExtra("image_path", tempIn.getAbsolutePath());
+                            advancedCanvasLauncher.launch(intent);
+                        });
+                    } catch (Exception e) {
+                        runOnUiThread(() -> {
+                            btnAdvancedCanvas.setEnabled(true);
+                            btnAdvancedCanvas.setText("Pro Canvas");
+                            Toast.makeText(ImageEditorActivity.this, "Failed to launch Canvas", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }).start();
             });
         }
 
@@ -520,6 +681,103 @@ public class ImageEditorActivity extends AppCompatActivity {
                 dialog.show();
             });
         }
+    }
+
+    private void showEmptyCanvasColorPicker() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle);
+        LinearLayout mainLayout = new LinearLayout(this);
+        mainLayout.setOrientation(LinearLayout.VERTICAL);
+        mainLayout.setPadding(40, 40, 40, 40);
+
+        TextView title = new TextView(this);
+        title.setText("Choose Canvas Color");
+        title.setTextSize(20f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 32);
+        mainLayout.addView(title);
+
+        ColorWheelView colorWheel = new ColorWheelView(this);
+        LinearLayout.LayoutParams wheelLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 500);
+        colorWheel.setLayoutParams(wheelLp);
+        mainLayout.addView(colorWheel);
+
+        LinearLayout hexRow = new LinearLayout(this);
+        hexRow.setOrientation(LinearLayout.HORIZONTAL);
+        hexRow.setGravity(Gravity.CENTER);
+        hexRow.setPadding(0, 32, 0, 16);
+
+        TextView hexLabel = new TextView(this);
+        hexLabel.setText("HEX: ");
+        hexLabel.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        hexLabel.setTypeface(null, Typeface.BOLD);
+
+        EditText etHex = new EditText(this);
+        etHex.setText("#FFFFFF");
+        etHex.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        etHex.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        hexRow.addView(hexLabel);
+        hexRow.addView(etHex);
+        mainLayout.addView(hexRow);
+
+        Button btnCreate = new Button(this);
+        btnCreate.setText("Create Canvas");
+        btnCreate.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E91E63")));
+        btnCreate.setTextColor(Color.WHITE);
+
+        final int[] selectedColor = {Color.WHITE};
+        final boolean[] isUpdating = {false};
+
+        colorWheel.setOnColorChangeListener(color -> {
+            selectedColor[0] = color;
+            if (!isUpdating[0]) {
+                isUpdating[0] = true;
+                etHex.setText(String.format("#%06X", (0xFFFFFF & color)));
+                isUpdating[0] = false;
+            }
+        });
+
+        etHex.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (isUpdating[0]) return;
+                if (s.length() == 7 && s.toString().startsWith("#")) {
+                    try {
+                        int newC = Color.parseColor(s.toString());
+                        selectedColor[0] = newC;
+                        isUpdating[0] = true;
+                        colorWheel.setColor(newC);
+                        isUpdating[0] = false;
+                    } catch (Exception ignored) {}
+                }
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnLp.setMargins(0, 32, 0, 0);
+        mainLayout.addView(btnCreate, btnLp);
+
+        builder.setView(mainLayout);
+        final AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+
+        btnCreate.setOnClickListener(v -> {
+            dialog.dismiss();
+            Intent intent = new Intent(ImageEditorActivity.this, AdvancedCanvasActivity.class);
+            intent.putExtra("bg_color", selectedColor[0]);
+            advancedCanvasLauncher.launch(intent);
+        });
+
+        dialog.setOnShowListener(di -> {
+            if (dialog.getWindow() != null) {
+                View decorView = dialog.getWindow().getDecorView();
+                forceDialogBackground(decorView);
+            }
+        });
+        dialog.show();
     }
 
     private Button createToggleButton(String text, boolean active) {
@@ -1114,9 +1372,9 @@ public class ImageEditorActivity extends AppCompatActivity {
 
         Button dBtn = findViewById(R.id.btnDraw);
         if (dBtn != null) {
-            dBtn.setBackgroundTintList(ColorStateList.valueOf(editorView.isDrawMode ? activeColor : defaultBg));
-            dBtn.setTextColor(editorView.isDrawMode ? Color.WHITE : defaultText);
-            dBtn.setText(editorView.isDrawMode ? "Draw: ON" : "Draw Tool");
+            dBtn.setBackgroundTintList(ColorStateList.valueOf(editorView.drawingManager.isDrawMode ? activeColor : defaultBg));
+            dBtn.setTextColor(editorView.drawingManager.isDrawMode ? Color.WHITE : defaultText);
+            dBtn.setText(editorView.drawingManager.isDrawMode ? "Draw: ON" : "Draw Tool");
         }
     }
 
@@ -1156,6 +1414,7 @@ public class ImageEditorActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private void refreshLayersPanel() {
         if (layersRecyclerView == null) return;
         if (layersRecyclerView.getAdapter() == null) {
@@ -1275,17 +1534,19 @@ public class ImageEditorActivity extends AppCompatActivity {
                 int quality = 100;
                 Bitmap exportBmp = finalImage;
 
+                boolean scaleDown = false;
+
                 if (formatIndex == 0) {
                     extension = ".png"; mimeType = "image/png"; compressFormat = Bitmap.CompressFormat.PNG;
                 } else if (formatIndex == 1) {
                     extension = ".png"; mimeType = "image/png"; compressFormat = Bitmap.CompressFormat.PNG;
-                    exportBmp = Bitmap.createScaledBitmap(finalImage, Math.max(1, finalImage.getWidth()/2), Math.max(1, finalImage.getHeight()/2), true);
+                    scaleDown = true;
                 } else if (formatIndex == 2) {
                     extension = ".jpg"; mimeType = "image/jpeg"; compressFormat = Bitmap.CompressFormat.JPEG;
                 } else if (formatIndex == 3) {
                     extension = ".jpg"; mimeType = "image/jpeg"; compressFormat = Bitmap.CompressFormat.JPEG;
                     quality = 60;
-                    exportBmp = Bitmap.createScaledBitmap(finalImage, Math.max(1, finalImage.getWidth()/2), Math.max(1, finalImage.getHeight()/2), true);
+                    scaleDown = true;
                 } else if (formatIndex == 4) {
                     extension = ".webp"; mimeType = "image/webp";
                     compressFormat = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ? Bitmap.CompressFormat.WEBP_LOSSLESS : Bitmap.CompressFormat.WEBP;
@@ -1294,6 +1555,10 @@ public class ImageEditorActivity extends AppCompatActivity {
                     extension = ".webp"; mimeType = "image/webp";
                     compressFormat = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ? Bitmap.CompressFormat.WEBP_LOSSY : Bitmap.CompressFormat.WEBP;
                     quality = 60;
+                    scaleDown = true;
+                }
+
+                if (scaleDown) {
                     exportBmp = Bitmap.createScaledBitmap(finalImage, Math.max(1, finalImage.getWidth()/2), Math.max(1, finalImage.getHeight()/2), true);
                 }
 
@@ -1565,12 +1830,8 @@ public class ImageEditorActivity extends AppCompatActivity {
             }
             int width = (int) maxWidth + 20;
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                staticLayout = StaticLayout.Builder.obtain(text, 0, text.length(), textPaint, Math.max(10, width))
-                        .setAlignment(align).setLineSpacing(lineSpacing, 1.0f).build();
-            } else {
-                staticLayout = new StaticLayout(text, textPaint, Math.max(10, width), align, 1.0f, lineSpacing, false);
-            }
+            staticLayout = StaticLayout.Builder.obtain(text, 0, text.length(), textPaint, Math.max(10, width))
+                    .setAlignment(align).setLineSpacing(lineSpacing, 1.0f).build();
             bounds.set(-staticLayout.getWidth() / 2f, -staticLayout.getHeight() / 2f, staticLayout.getWidth() / 2f, staticLayout.getHeight() / 2f);
         }
 
@@ -1767,16 +2028,9 @@ public class ImageEditorActivity extends AppCompatActivity {
     private static class ActionRecord {
         int type;
         GraphicLayer layer;
-        DrawStroke stroke;
+        DrawingToolManager.DrawStroke stroke;
         ActionRecord(GraphicLayer l) { type = 0; layer = l; }
-        ActionRecord(DrawStroke s) { type = 1; stroke = s; }
-    }
-
-    private static class DrawStroke {
-        Path path; Paint paint; int targetCanvas;
-        DrawStroke(Path p, Paint pt, int tc) {
-            path = new Path(p); paint = new Paint(pt); targetCanvas = tc;
-        }
+        ActionRecord(DrawingToolManager.DrawStroke s) { type = 1; stroke = s; }
     }
 
     private static class PhotoEditorView extends View {
@@ -1784,14 +2038,11 @@ public class ImageEditorActivity extends AppCompatActivity {
         private final RectF destRect = new RectF();
         private final Paint bitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
-        private Bitmap drawLayerBitmap; private Canvas drawLayerCanvas;
-        private Bitmap eraseLayerBitmap; private Canvas eraseLayerCanvas;
+        public final DrawingToolManager drawingManager = new DrawingToolManager();
 
         private final Paint checkerPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
         private final Paint autoPunchPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-
-        public boolean isDrawMode = false;
-        public boolean isDrawEraserMode = false;
+        private final Paint hqPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
         public boolean isBgRemoverMode = false;
         private boolean isAutoColorRemovalMode = false;
@@ -1812,15 +2063,7 @@ public class ImageEditorActivity extends AppCompatActivity {
 
         public float imgBrightness = 0f, imgContrast = 1f, imgSaturation = 1f, imgHue = 0f;
 
-        public int currentBrushColor = Color.RED;
-        public float currentBrushWidth = 12f;
-        public int currentBrushOpacity = 255;
-
-        private final Path currentPath = new Path();
-        private final Paint currentDrawPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-
         private final List<GraphicLayer> graphicLayers = new ArrayList<>();
-        private final List<DrawStroke> drawStrokes = new ArrayList<>();
         private final List<ActionRecord> undoStack = new ArrayList<>();
 
         private GraphicLayer activeLayer = null;
@@ -1853,7 +2096,6 @@ public class ImageEditorActivity extends AppCompatActivity {
 
         private final Paint pickerBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint pickerFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint hqPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
         private final Matrix drawBoxMat = new Matrix();
         private final Path drawBoxPath = new Path();
@@ -1870,8 +2112,6 @@ public class ImageEditorActivity extends AppCompatActivity {
         private float initialDistX = 0f, initialDistY = 0f, initialDist = 0f;
         private float initialScaleX = 1f, initialScaleY = 1f, initialAngle = 0f, initialRotation = 0f;
         private final PointF lastTouch = new PointF();
-        private float bX, bY, lastSegX, lastSegY;
-        private final Path segmentPath = new Path();
 
         private float activeLayerCenterX = 0f;
         private float activeLayerCenterY = 0f;
@@ -1902,7 +2142,6 @@ public class ImageEditorActivity extends AppCompatActivity {
 
         private void setupPaints() {
             bitmapPaint.setDither(true);
-            currentDrawPaint.setStyle(Paint.Style.STROKE); currentDrawPaint.setStrokeJoin(Paint.Join.ROUND); currentDrawPaint.setStrokeCap(Paint.Cap.ROUND);
 
             borderShadowPaint.setColor(Color.BLACK); borderShadowPaint.setStyle(Paint.Style.STROKE); borderShadowPaint.setStrokeWidth(8f);
             borderPaint.setColor(Color.WHITE); borderPaint.setStyle(Paint.Style.STROKE); borderPaint.setStrokeWidth(4f);
@@ -1934,10 +2173,7 @@ public class ImageEditorActivity extends AppCompatActivity {
 
         public void setImage(Bitmap bitmap) {
             this.baseImage = bitmap;
-            drawLayerBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
-            drawLayerCanvas = new Canvas(drawLayerBitmap);
-            eraseLayerBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
-            eraseLayerCanvas = new Canvas(eraseLayerBitmap);
+            drawingManager.initBitmaps(bitmap.getWidth(), bitmap.getHeight());
             clearModifications(); invalidate();
         }
 
@@ -1962,12 +2198,12 @@ public class ImageEditorActivity extends AppCompatActivity {
         }
 
         public void toggleGridMode() { isGridMode = !isGridMode; invalidate(); if (modeListener != null) modeListener.onModeChanged(); }
-        public void startDrawing(int width) { disableSpecialModes(); isDrawMode = true; currentBrushWidth = width; }
-        public void startBgEraser(int width, boolean isRepair) { disableSpecialModes(); isBgRemoverMode = true; isBgRepairMode = isRepair; currentBrushWidth = width; }
+        public void startDrawing(int width) { disableSpecialModes(); drawingManager.isDrawMode = true; drawingManager.currentBrushWidth = width; }
+        public void startBgEraser(int width, boolean isRepair) { disableSpecialModes(); isBgRemoverMode = true; isBgRepairMode = isRepair; drawingManager.currentBrushWidth = width; }
         public void enterAutoColorRemovalMode() { disableSpecialModes(); isAutoColorRemovalMode = true; }
 
         private void disableSpecialModes(boolean keepLayer) {
-            isDrawMode = false; isBgRemoverMode = false; isAutoColorRemovalMode = false; isZoomMode = false; isColorPickerMode = false;
+            drawingManager.isDrawMode = false; isBgRemoverMode = false; isAutoColorRemovalMode = false; isZoomMode = false; isColorPickerMode = false;
             if (!keepLayer) activeLayer = null;
             if (modeListener != null) modeListener.onModeChanged();
         }
@@ -2025,30 +2261,19 @@ public class ImageEditorActivity extends AppCompatActivity {
                 if (activeLayer == lastAction.layer) activeLayer = null;
                 if (layerListener != null) layerListener.run();
             } else if (lastAction.type == 1) {
-                drawStrokes.remove(lastAction.stroke);
-                redrawAllStrokes();
+                drawingManager.removeStroke(lastAction.stroke);
             }
             invalidate();
-        }
-
-        private void redrawAllStrokes() {
-            drawLayerBitmap.eraseColor(Color.TRANSPARENT);
-            eraseLayerBitmap.eraseColor(Color.TRANSPARENT);
-            for (DrawStroke stroke : drawStrokes) {
-                Canvas targetCanvas = (stroke.targetCanvas < 2) ? drawLayerCanvas : eraseLayerCanvas;
-                targetCanvas.drawPath(stroke.path, stroke.paint);
-            }
         }
 
         public void deselectLayer() { activeLayer = null; invalidate(); }
         public void setActiveLayer(GraphicLayer layer) { activeLayer = layer; invalidate(); }
 
         public void clearModifications() {
-            disableSpecialModes(); graphicLayers.clear(); undoStack.clear(); drawStrokes.clear();
+            disableSpecialModes(); graphicLayers.clear(); undoStack.clear();
+            drawingManager.clear();
             viewZoom = 1f; viewPanX = 0f; viewPanY = 0f; isCircleCrop = false; isPerspectiveMode = false; isGridMode = false; isLayerCropping = false;
             setAdjustments(0, 1, 1, 0);
-            if (drawLayerBitmap != null) drawLayerBitmap.eraseColor(Color.TRANSPARENT);
-            if (eraseLayerBitmap != null) eraseLayerBitmap.eraseColor(Color.TRANSPARENT);
             if (layerListener != null) layerListener.run();
             if (modeListener != null) modeListener.onModeChanged();
             invalidate();
@@ -2372,18 +2597,20 @@ public class ImageEditorActivity extends AppCompatActivity {
 
             int sc = canvas.saveLayer(destRect, null);
             canvas.drawBitmap(baseImage, null, destRect, bitmapPaint);
-            if (eraseLayerBitmap != null) canvas.drawBitmap(eraseLayerBitmap, null, destRect, autoPunchPaint);
+            if (drawingManager.getEraseLayerBitmap() != null) {
+                canvas.drawBitmap(drawingManager.getEraseLayerBitmap(), null, destRect, autoPunchPaint);
+            }
             canvas.restoreToCount(sc);
 
-            if (drawLayerBitmap != null) {
-                canvas.drawBitmap(drawLayerBitmap, null, destRect, hqPaint);
+            if (drawingManager.getDrawLayerBitmap() != null) {
+                canvas.drawBitmap(drawingManager.getDrawLayerBitmap(), null, destRect, hqPaint);
             }
 
-            if (isDrawMode && !isDrawEraserMode && !currentPath.isEmpty()) {
+            if (drawingManager.isDrawMode && !drawingManager.isDrawEraserMode && !drawingManager.getCurrentPath().isEmpty()) {
                 canvas.save();
                 canvas.translate(destRect.left, destRect.top);
                 canvas.scale(destRect.width() / baseImage.getWidth(), destRect.height() / baseImage.getHeight());
-                canvas.drawPath(currentPath, currentDrawPaint);
+                canvas.drawPath(drawingManager.getCurrentPath(), drawingManager.getCurrentDrawPaint());
                 canvas.restore();
             }
 
@@ -2614,64 +2841,34 @@ public class ImageEditorActivity extends AppCompatActivity {
                     Toast.makeText(getContext(), "Color removed!", Toast.LENGTH_SHORT).show(); return true;
                 }
             }
-            else if ((isDrawMode || isBgRemoverMode) && baseImage != null) {
+            else if ((drawingManager.isDrawMode || isBgRemoverMode) && baseImage != null) {
                 float imgX = (x - destRect.left) * (baseImage.getWidth() / destRect.width());
                 float imgY = (y - destRect.top) * (baseImage.getHeight() / destRect.height());
-                currentDrawPaint.setStrokeWidth(currentBrushWidth * (baseImage.getWidth() / destRect.width()));
+
+                float scaleFactor = baseImage.getWidth() / destRect.width();
+                drawingManager.configurePaint(scaleFactor, isBgRemoverMode, isBgRepairMode);
 
                 int targetCanvasState;
-                boolean isEraser = isBgRemoverMode || (isDrawMode && isDrawEraserMode);
+                boolean isEraser = isBgRemoverMode || (drawingManager.isDrawMode && drawingManager.isDrawEraserMode);
 
-                if (isDrawMode && drawLayerCanvas != null) {
-                    if (isDrawEraserMode) { currentDrawPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR)); currentDrawPaint.setColor(Color.TRANSPARENT); targetCanvasState = 1; }
-                    else { currentDrawPaint.setXfermode(null); currentDrawPaint.setColor(currentBrushColor); currentDrawPaint.setAlpha(currentBrushOpacity); targetCanvasState = 0; }
-                } else if (isBgRemoverMode && eraseLayerCanvas != null) {
-                    if (isBgRepairMode) { currentDrawPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR)); currentDrawPaint.setColor(Color.TRANSPARENT); targetCanvasState = 3; }
-                    else { currentDrawPaint.setXfermode(null); currentDrawPaint.setColor(Color.BLACK); targetCanvasState = 2; }
+                if (drawingManager.isDrawMode && drawingManager.getDrawLayerCanvas() != null) {
+                    targetCanvasState = drawingManager.isDrawEraserMode ? 1 : 0;
+                } else if (isBgRemoverMode && drawingManager.getEraseLayerCanvas() != null) {
+                    targetCanvasState = isBgRepairMode ? 3 : 2;
                 } else {
                     return true;
                 }
 
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        currentPath.reset();
-                        currentPath.moveTo(imgX, imgY);
-                        bX = imgX; bY = imgY;
-                        lastSegX = imgX; lastSegY = imgY;
+                        drawingManager.onTouchDown(imgX, imgY);
                         return true;
                     case MotionEvent.ACTION_MOVE:
-                        float dx = Math.abs(imgX - bX), dy = Math.abs(imgY - bY);
-                        if (dx >= 2f || dy >= 2f) {
-                            float midX = (imgX + bX)/2, midY = (imgY + bY)/2;
-                            currentPath.quadTo(bX, bY, midX, midY);
-
-                            if (isEraser) {
-                                segmentPath.reset();
-                                segmentPath.moveTo(lastSegX, lastSegY);
-                                segmentPath.quadTo(bX, bY, midX, midY);
-                                if (isDrawMode) drawLayerCanvas.drawPath(segmentPath, currentDrawPaint);
-                                else eraseLayerCanvas.drawPath(segmentPath, currentDrawPaint);
-                            }
-                            bX = imgX; bY = imgY;
-                            lastSegX = midX; lastSegY = midY;
-                        }
+                        drawingManager.onTouchMove(imgX, imgY, isEraser, drawingManager.isDrawMode);
                         break;
                     case MotionEvent.ACTION_UP:
-                        currentPath.lineTo(imgX, imgY);
-                        if (isEraser) {
-                            segmentPath.reset();
-                            segmentPath.moveTo(lastSegX, lastSegY);
-                            segmentPath.lineTo(imgX, imgY);
-                            if (isDrawMode) drawLayerCanvas.drawPath(segmentPath, currentDrawPaint);
-                            else eraseLayerCanvas.drawPath(segmentPath, currentDrawPaint);
-                        } else {
-                            drawLayerCanvas.drawPath(currentPath, currentDrawPaint);
-                        }
-
-                        DrawStroke stroke = new DrawStroke(currentPath, currentDrawPaint, targetCanvasState);
-                        drawStrokes.add(stroke);
+                        DrawingToolManager.DrawStroke stroke = drawingManager.onTouchUp(imgX, imgY, isEraser, drawingManager.isDrawMode, targetCanvasState);
                         undoStack.add(new ActionRecord(stroke));
-                        currentPath.reset();
                         break;
                 }
                 invalidate(); return true;
@@ -2838,18 +3035,19 @@ public class ImageEditorActivity extends AppCompatActivity {
         }
 
         private void applyAutoColorRemoval(int colorToMatch) {
-            if (baseImage == null || eraseLayerCanvas == null) return;
-            int width = eraseLayerBitmap.getWidth(), height = eraseLayerBitmap.getHeight();
+            if (baseImage == null || drawingManager.getEraseLayerCanvas() == null) return;
+            Bitmap eraseBitmap = drawingManager.getEraseLayerBitmap();
+            int width = eraseBitmap.getWidth(), height = eraseBitmap.getHeight();
             int[] maskPixels = new int[width * height];
             int rT = Color.red(colorToMatch), gT = Color.green(colorToMatch), bT = Color.blue(colorToMatch);
-            eraseLayerBitmap.getPixels(maskPixels, 0, width, 0, 0, width, height);
+            eraseBitmap.getPixels(maskPixels, 0, width, 0, 0, width, height);
 
             for (int i=0; i < maskPixels.length; i++) {
                 int bmpC = baseImage.getPixel(i % width, i / width);
                 if (Color.alpha(bmpC) == 0) continue;
                 if (Math.abs(Color.red(bmpC) - rT) <= 25 && Math.abs(Color.green(bmpC) - gT) <= 25 && Math.abs(Color.blue(bmpC) - bT) <= 25) { maskPixels[i] = Color.BLACK; }
             }
-            eraseLayerBitmap.setPixels(maskPixels, 0, width, 0, 0, width, height); invalidate();
+            eraseBitmap.setPixels(maskPixels, 0, width, 0, 0, width, height); invalidate();
         }
 
         public Bitmap getRenderedBitmap(boolean isForExport) {
@@ -2858,12 +3056,13 @@ public class ImageEditorActivity extends AppCompatActivity {
 
             int sc = c.saveLayer(0, 0, result.getWidth(), result.getHeight(), null);
             c.drawBitmap(baseImage, 0, 0, bitmapPaint);
-            if (eraseLayerBitmap != null) c.drawBitmap(eraseLayerBitmap, 0, 0, autoPunchPaint);
+            if (drawingManager.getEraseLayerBitmap() != null) {
+                c.drawBitmap(drawingManager.getEraseLayerBitmap(), 0, 0, autoPunchPaint);
+            }
             c.restoreToCount(sc);
 
-            if (drawLayerBitmap != null) {
-                Paint hqPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-                c.drawBitmap(drawLayerBitmap, 0, 0, hqPaint);
+            if (drawingManager.getDrawLayerBitmap() != null) {
+                c.drawBitmap(drawingManager.getDrawLayerBitmap(), 0, 0, hqPaint);
             }
             for (GraphicLayer layer : graphicLayers) {
                 c.save();

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cloneRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#1C1C1E"
+    android:fitsSystemWindows="true"
+    tools:ignore="HardcodedText,SpUsage,UseCompoundDrawables">
+
+    <!-- Top Source Image View -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#000000">
+
+        <FrameLayout
+            android:id="@+id/sourceViewContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <!-- Flip Button (Perfectly Centered) -->
+        <LinearLayout
+            android:id="@+id/btnFlipSource"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="16dp"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="12dp"
+            android:clickable="true"
+            android:focusable="true">
+            <TextView android:id="@+id/tvFlipIcon" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="◧" android:textColor="#FFFFFF" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvFlipText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Flip" android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold"/>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- Floating Capsule Toolbar -->
+    <LinearLayout
+        android:id="@+id/cloneToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginTop="-32dp"
+        android:layout_marginBottom="-32dp"
+        android:elevation="12dp"
+        android:clipToOutline="true">
+
+        <LinearLayout android:id="@+id/btnCancelClone" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="❌" android:textColor="#FFFFFF" android:textSize="18sp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cancel" android:textColor="#FFFFFF" android:textSize="10sp"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/btnSetTarget" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🖼️" android:textColor="#FFFFFF" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvSetTarget" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Change" android:textColor="#FFFFFF" android:textSize="10sp"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/btnClone" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="#E53935" android:clickable="true" android:focusable="true">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🖌️" android:textColor="#FFFFFF" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvClone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Clone" android:textColor="#FFFFFF" android:textSize="10sp"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/btnRestore" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▤" android:textColor="#FFFFFF" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvRestore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Restore" android:textColor="#FFFFFF" android:textSize="10sp"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/btnAdjust" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⤢" android:textColor="#FFFFFF" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvAdjust" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Adjust" android:textColor="#FFFFFF" android:textSize="10sp"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/btnOptions" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⚙" android:textColor="#FFFFFF" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvOptions" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Options" android:textColor="#FFFFFF" android:textSize="10sp"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/btnSaveClone" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="✅" android:textColor="#FFFFFF" android:textSize="18sp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Save" android:textColor="#FFFFFF" android:textSize="10sp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Bottom Target Image View & Options Overlay -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#000000">
+
+        <FrameLayout
+            android:id="@+id/targetViewContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <!-- Base Label (Perfectly Centered) -->
+        <TextView
+            android:id="@+id/tvBaseLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Base"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingHorizontal="28dp"
+            android:paddingVertical="12dp"
+            android:layout_marginTop="48dp"
+            android:layout_marginStart="16dp"
+            android:layout_gravity="top|start" />
+
+        <!-- Options Panel -->
+        <LinearLayout
+            android:id="@+id/optionsPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#E61C1C1E"
+            android:layout_gravity="bottom"
+            android:padding="16dp"
+            android:visibility="gone"
+            android:elevation="4dp">
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Brush Size" android:textColor="#FFFFFF" android:textStyle="bold"/>
+            <com.google.android.material.slider.Slider android:id="@+id/slCloneSize" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="10.0" android:valueTo="300.0" android:value="80.0"/>
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Opacity" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="8dp"/>
+            <com.google.android.material.slider.Slider android:id="@+id/slCloneOpacity" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="1.0" android:valueTo="100.0" android:value="100.0"/>
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Hardness" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="8dp"/>
+            <com.google.android.material.slider.Slider android:id="@+id/slCloneHardness" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0.0" android:valueTo="100.0" android:value="50.0"/>
+        </LinearLayout>
+    </FrameLayout>
+
+</LinearLayout>

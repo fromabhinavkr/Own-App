@@ -107,6 +107,20 @@
             android:name=".ImageEditorActivity"
             android:exported="true" />
 
+        <!-- NEW: Advanced Canvas Studio -->
+        <activity
+            android:name=".AdvancedCanvasActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
+
+        <!-- NEW: Clone Tool Studio -->
+        <activity
+            android:name=".CloneActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
+
         <!-- NEW: PDF Studio Activities -->
         <activity
             android:name=".PdfStudioActivity"

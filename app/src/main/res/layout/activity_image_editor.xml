@@ -126,7 +126,13 @@
             <Button android:id="@+id/btnText" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Add Text" />
             <Button android:id="@+id/btnDraw" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Draw Tool" />
 
-            <!-- NEW: Layer Edit Button -->
+            <!-- Advanced Canvas Button -->
+            <Button android:id="@+id/btnAdvancedCanvas" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:backgroundTint="#E91E63" android:textColor="#FFFFFF" android:text="Pro Canvas" />
+
+            <!-- NEW: Clone Tool Button -->
+            <Button android:id="@+id/btnCloneTool" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:backgroundTint="#FF9500" android:textColor="#FFFFFF" android:text="Clone Tool" />
+
+            <!-- Layer Edit Button -->
             <Button android:id="@+id/btnLayerEdit" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:backgroundTint="#4A90E2" android:textColor="#FFFFFF" android:text="Edit Layer" />
 
             <Button android:id="@+id/btnCopy" style="@style/ModernButtonStyle" android:layout_width="match_parent" android:text="Copy Layer" />
