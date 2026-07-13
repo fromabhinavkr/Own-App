@@ -1,11 +1,12 @@
 # Own App
-<img width="125" height="125" alt="appicon" src="https://github.com/user-attachments/assets/d6dd078d-cea4-4ec7-9ad5-43e1948f41a8" />
+<img width="125" height="125" alt="appicon" src="https://github.com/user-attachments/assets/587d28d3-2f0f-4c24-9bfd-8b65c29aa2d4" />
+
 
 A personalized Android application featuring a collection of interactive and decorative stuffs, including a retro auto-playing Snake game, a custom photo display and lot more. Built with Java and the modern Android SDK.
 
 ## ✨ Features
 
-###  Interactive Home Screen Widgets
+###  Widget Collection
 * **Photo Widget:** Custom photos to the home screen.
 * **Drawing Widget:** A dynamic home screen notebook and canvas.
 * **Auto-Playing Snake Widget:** The retro dot-matrix game that plays itself on the launcher.
@@ -15,19 +16,22 @@ A personalized Android application featuring a collection of interactive and dec
 * **Fidget Gear Widget:** Interactive rotating mechanical gears.
 * **Coin Toss Widget:** A quick 50/50 decision maker.
 
-### Retro Games Gallery
+### Game Collection
 * **Snake Game:** The classic arcade survival game.
 * **Flappy Bird:** The tap-to-fly physics challenge.
 * **Tetris:** The block-stacking puzzle legend.
 * **Breakout:** The paddle-and-ball brick breaker.
 
-### Creative & Utility Studios
+### Tool Collection
 * **WhatsApp Sticker Maker:** Custom sticker generator with full WhatsApp integration.
 * **PDF Studio:** A dedicated engine to manage and create PDFs.
 * **Image Studio:** A comprehensive, all-in-one image editing suite featuring:
   * *Base Editor:* Complete with cropping, color adjustments, text overlays, grid alignments, and a smart AI Background Remover.
   * *Pro Canvas:* A professional drawing workspace with zero-lag pathing, flood fill, live color wheels, and an advanced brush arsenal.
   * *Clone Tool:* A desktop-class cloning engine featuring multi-touch rotation, Live Ghost Overlays, and perfect pixel-cloning.
+
+### Utility Collection
+* **Private Browser:** Secure browser that respects your privacy, deletes all the data when user closes the browser.
 
 ## 📱 Screenshots
 
@@ -39,7 +43,7 @@ A personalized Android application featuring a collection of interactive and dec
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/6176ff9c-f238-44c9-af6b-5529b357bfda" width="32%" />
-  <img src="https://github.com/user-attachments/assets/49fbd912-4615-4e03-9088-c96451b67d2e" width="32%" />
+  <img src="https://github.com/user-attachments/assets/09be0722-7f88-48cb-b37a-0b55be05bdb7" width="32%"/>
   <img src="https://github.com/user-attachments/assets/237604e0-7c60-467f-b136-71432eea094e" width="32%" />
 </p>
 
