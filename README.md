@@ -26,7 +26,7 @@ A personalized Android application featuring a collection of interactive and dec
 * **WhatsApp Sticker Maker:** Custom sticker generator with full WhatsApp integration.
 * **PDF Studio:** A dedicated engine to manage and create PDFs.
 * **Image Studio:** A comprehensive, all-in-one image editing suite featuring:
-  * *Base Editor:* Complete with cropping, color adjustments, text overlays, grid alignments, and a smart AI Background Remover.
+  * *Base Editor:* Complete with cropping, color adjustments, text overlays, grid alignments, and a smart Background Remover.
   * *Pro Canvas:* A professional drawing workspace with zero-lag pathing, flood fill, live color wheels, and an advanced brush arsenal.
   * *Clone Tool:* A desktop-class cloning engine featuring multi-touch rotation, Live Ghost Overlays, and perfect pixel-cloning.
 
