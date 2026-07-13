@@ -20,16 +20,7 @@
         android:padding="8dp"
         tools:ignore="ImageContrastCheck" />
 
-    <!-- 2. Earth (Globe) - Centered -->
-    <com.example.ownphotoonwall.GlobeGLSurfaceView
-        android:id="@+id/globe_view"
-        android:layout_width="320dp"
-        android:layout_height="320dp"
-        android:layout_below="@id/btn_app_theme_toggle"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="100dp" />
-
-    <!-- 3. The New 2x2 Grid Layout (Anchored to the Bottom) -->
+    <!-- 2. The New 2x2 Grid Layout (Anchored to the Bottom) -->
     <LinearLayout
         android:id="@+id/bottom_button_container"
         android:layout_width="match_parent"
@@ -213,5 +204,19 @@
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
+
+    <!-- 3. Earth (Globe) - Dynamically centered to prevent overlap -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/btn_app_theme_toggle"
+        android:layout_above="@id/bottom_button_container">
+
+        <com.example.ownphotoonwall.GlobeGLSurfaceView
+            android:id="@+id/globe_view"
+            android:layout_width="320dp"
+            android:layout_height="320dp"
+            android:layout_centerInParent="true" />
+    </RelativeLayout>
 
 </RelativeLayout>
