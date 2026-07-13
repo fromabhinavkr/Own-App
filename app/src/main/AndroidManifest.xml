@@ -11,6 +11,9 @@
         </intent>
     </queries>
 
+    <!-- NEW: Required for the Private Browser to access the web -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Suppressed the generic Foreground Service declaration warning -->
@@ -99,6 +102,17 @@
             android:name=".ToolsGalleryActivity"
             android:exported="false" />
 
+        <!-- NEW: Utilities Gallery -->
+        <activity
+            android:name=".UtilitiesGalleryActivity"
+            android:exported="false" />
+
+        <!-- NEW: Hyper-Secure Private Browser Activity -->
+        <activity
+            android:name=".PrivateBrowserActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".StickerMakerActivity"
             android:exported="false" />
@@ -107,21 +121,21 @@
             android:name=".ImageEditorActivity"
             android:exported="true" />
 
-        <!-- NEW: Advanced Canvas Studio -->
+        <!-- Advanced Canvas Studio -->
         <activity
             android:name=".AdvancedCanvasActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             tools:ignore="LockedOrientationActivity" />
 
-        <!-- NEW: Clone Tool Studio -->
+        <!-- Clone Tool Studio -->
         <activity
             android:name=".CloneActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             tools:ignore="LockedOrientationActivity" />
 
-        <!-- NEW: PDF Studio Activities -->
+        <!-- PDF Studio Activities -->
         <activity
             android:name=".PdfStudioActivity"
             android:exported="false"

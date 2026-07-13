@@ -7,8 +7,10 @@ import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.widget.Button;
+import android.view.View;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 
@@ -37,42 +39,64 @@ public class MainActivity extends AppCompatActivity {
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         });
 
-        // --- 2. MENU BUTTONS LOGIC ---
-        Button btnPlaceWidget = findViewById(R.id.btnPlaceWidget);
-        Button btnGames = findViewById(R.id.btnGames);
-        Button btnTools = findViewById(R.id.btnTools); // New Tools Button
+        // --- 2. MENU BUTTONS LOGIC (UPDATED FOR TOOLS-STYLE CARDS) ---
+        LinearLayout btnPlaceWidget = findViewById(R.id.btnPlaceWidget);
+        LinearLayout btnGames = findViewById(R.id.btnGames);
+        LinearLayout btnTools = findViewById(R.id.btnTools);
+        LinearLayout btnUtilities = findViewById(R.id.btnUtilities);
 
-        if (btnPlaceWidget != null && btnGames != null && btnTools != null) {
-            // DYNAMIC THEME SYNC FOR ALL BUTTONS
+        TextView tvWidgetText = findViewById(R.id.tvWidgetText);
+        TextView tvGamesText = findViewById(R.id.tvGamesText);
+        TextView tvToolsText = findViewById(R.id.tvToolsText);
+        TextView tvUtilitiesText = findViewById(R.id.tvUtilitiesText);
+
+        View divWidget = findViewById(R.id.divWidget);
+        View divGames = findViewById(R.id.divGames);
+        View divTools = findViewById(R.id.divTools);
+        View divUtilities = findViewById(R.id.divUtilities);
+
+        if (btnPlaceWidget != null && btnGames != null && btnTools != null && btnUtilities != null) {
+
+            // DYNAMIC THEME SYNC MATCHING THE TOOLS SECTION
+            ColorStateList themeBg;
+            int themeText;
+            int dividerColor;
+
             if (isDarkTheme) {
-                ColorStateList darkBg = ColorStateList.valueOf(Color.parseColor("#D0BCFF"));
-                int darkText = Color.parseColor("#381E72");
-
-                btnPlaceWidget.setBackgroundTintList(darkBg);
-                btnPlaceWidget.setTextColor(darkText);
-
-                btnGames.setBackgroundTintList(darkBg);
-                btnGames.setTextColor(darkText);
-
-                btnTools.setBackgroundTintList(darkBg);
-                btnTools.setTextColor(darkText);
+                themeBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E")); // Dark Grey Card
+                themeText = Color.WHITE; // White Text
+                dividerColor = Color.parseColor("#33FFFFFF"); // Faint White Line
             } else {
-                ColorStateList lightBg = ColorStateList.valueOf(Color.parseColor("#6750A4"));
-                int lightText = Color.WHITE;
-
-                btnPlaceWidget.setBackgroundTintList(lightBg);
-                btnPlaceWidget.setTextColor(lightText);
-
-                btnGames.setBackgroundTintList(lightBg);
-                btnGames.setTextColor(lightText);
-
-                btnTools.setBackgroundTintList(lightBg);
-                btnTools.setTextColor(lightText);
+                themeBg = ColorStateList.valueOf(Color.WHITE); // White Card
+                themeText = Color.parseColor("#333333"); // Dark Text
+                dividerColor = Color.parseColor("#1A000000"); // Faint Dark Line
             }
 
+            // Apply Backgrounds
+            btnPlaceWidget.setBackgroundTintList(themeBg);
+            btnGames.setBackgroundTintList(themeBg);
+            btnTools.setBackgroundTintList(themeBg);
+            btnUtilities.setBackgroundTintList(themeBg);
+
+            // Apply Text Colors
+            tvWidgetText.setTextColor(themeText);
+            tvGamesText.setTextColor(themeText);
+            tvToolsText.setTextColor(themeText);
+            tvUtilitiesText.setTextColor(themeText);
+
+            // Apply Divider Colors
+            divWidget.setBackgroundColor(dividerColor);
+            divGames.setBackgroundColor(dividerColor);
+            divTools.setBackgroundColor(dividerColor);
+            divUtilities.setBackgroundColor(dividerColor);
+
+            // *Note: We specifically DO NOT tint the ImageViews anymore so your new colorful logos display their real colors!*
+
+            // Click Listeners
             btnPlaceWidget.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, WidgetGalleryActivity.class)));
             btnGames.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, GamesGalleryActivity.class)));
-            btnTools.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, ToolsGalleryActivity.class))); // Launch Tools Gallery
+            btnTools.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, ToolsGalleryActivity.class)));
+            btnUtilities.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, UtilitiesGalleryActivity.class)));
         }
     }
 

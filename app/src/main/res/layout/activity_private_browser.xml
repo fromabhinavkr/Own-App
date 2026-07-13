@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/browserRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1C1C1E"
+    tools:ignore="HardcodedText,Autofill,ContentDescription">
+
+    <ProgressBar
+        android:id="@+id/browserProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_alignParentTop="true"
+        android:progressDrawable="@drawable/modern_button"
+        android:visibility="gone"
+        android:elevation="2dp" />
+
+    <FrameLayout
+        android:id="@+id/webViewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/browserProgressBar" />
+
+    <LinearLayout
+        android:id="@+id/searchCapsule"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="24dp"
+        android:background="#2C2C2E"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:elevation="12dp"
+        android:paddingHorizontal="8dp"
+        android:animateLayoutChanges="true">
+
+        <ImageView
+            android:id="@+id/btnBrowserBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="10dp"
+            android:src="@android:drawable/ic_media_previous"
+            android:background="?selectableItemBackgroundBorderless"/>
+
+        <ImageView
+            android:id="@+id/btnBrowserForward"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="10dp"
+            android:src="@android:drawable/ic_media_next"
+            android:background="?selectableItemBackgroundBorderless"/>
+
+        <EditText
+            android:id="@+id/etSearchUrl"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="Search or type URL"
+            android:textColorHint="#888888"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:paddingHorizontal="8dp"
+            android:singleLine="true"
+            android:imeOptions="actionGo"
+            android:inputType="textUri" />
+
+        <ImageView
+            android:id="@+id/btnBrowserGo"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="10dp"
+            android:src="@android:drawable/ic_menu_search"
+            android:background="?selectableItemBackgroundBorderless"/>
+
+        <ImageView
+            android:id="@+id/btnBrowserMenu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="10dp"
+            android:src="@android:drawable/ic_menu_more"
+            android:background="?selectableItemBackgroundBorderless"/>
+
+        <TextView
+            android:id="@+id/btnFullscreenToggle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text=">&lt;"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:background="?selectableItemBackgroundBorderless"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/tabsOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="#1E1A18"
+        android:visibility="gone"
+        android:elevation="20dp"
+        android:padding="16dp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/btnAddNewTab"
+                android:layout_width="60dp"
+                android:layout_height="40dp"
+                android:text="+"
+                android:textSize="24sp"
+                android:textColor="#000000"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:padding="0dp"
+                android:layout_alignParentStart="true"
+                android:background="@drawable/modern_button"
+                android:backgroundTint="#FFB59F"/>
+
+            <ImageView
+                android:id="@+id/btnCloseTabsOverlay"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                app:tint="#FFFFFF"/>
+        </RelativeLayout>
+
+        <!-- Search Tabs Pill REMOVED HERE -->
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="none">
+            <GridLayout
+                android:id="@+id/tabsGrid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="2"
+                android:alignmentMode="alignMargins"/>
+        </ScrollView>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/downloadsOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="#1E1A18"
+        android:visibility="gone"
+        android:elevation="20dp"
+        android:padding="16dp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp">
+
+            <TextView
+                android:id="@+id/tvDownloadsTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Downloads"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"/>
+
+            <ImageView
+                android:id="@+id/btnCloseDownloadsOverlay"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                app:tint="#FFFFFF"/>
+        </RelativeLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/btnAllDownloads"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="36dp"
+                android:minWidth="80dp"
+                android:text="All"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:paddingHorizontal="24dp"
+                android:paddingVertical="8dp"
+                android:background="@drawable/modern_button"
+                android:backgroundTint="#3D322F" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="none">
+            <LinearLayout
+                android:id="@+id/downloadsList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"/>
+        </ScrollView>
+    </LinearLayout>
+
+</RelativeLayout>

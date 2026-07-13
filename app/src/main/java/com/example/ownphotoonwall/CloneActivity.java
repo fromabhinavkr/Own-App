@@ -21,12 +21,14 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,12 +42,14 @@ import com.google.android.material.slider.Slider;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.Locale;
 
 public class CloneActivity extends AppCompatActivity {
 
     public static final int MODE_ADJUST = 0;
     public static final int MODE_CLONE = 1;
     public static final int MODE_RESTORE = 2;
+    private static final String TAG = "CloneActivity";
 
     private boolean isDarkTheme;
     private int currentMode = MODE_CLONE;
@@ -58,6 +62,7 @@ public class CloneActivity extends AppCompatActivity {
 
     private View btnClone, btnRestore, btnAdjust;
     private View optionsPanel;
+    private FrameLayout loadingOverlay;
 
     // Brush Settings
     public float cloneBrushSize = 80f;
@@ -65,6 +70,10 @@ public class CloneActivity extends AppCompatActivity {
     public float cloneHardness = 50f;
 
     public PointF activeTouchPoint = null;
+
+    // Preallocated Paint objects to prevent memory allocation during onDraw
+    private final Paint hudTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint hudBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -87,15 +96,7 @@ public class CloneActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
         isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
         applyTheme();
-
-        String inputImagePath = getIntent().getStringExtra("image_path");
-        if (inputImagePath != null && new File(inputImagePath).exists()) {
-            targetBitmap = BitmapFactory.decodeFile(inputImagePath);
-        } else {
-            Toast.makeText(this, "Error loading target image", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        setupLoadingOverlay();
 
         FrameLayout targetContainer = findViewById(R.id.targetViewContainer);
         targetView = new TargetCloneView(this);
@@ -119,13 +120,65 @@ public class CloneActivity extends AppCompatActivity {
             if (sourceView != null) sourceView.flipHorizontally();
         });
 
-        launchGallery();
+        String inputImagePath = getIntent().getStringExtra("image_path");
+        if (inputImagePath != null && new File(inputImagePath).exists()) {
+            loadingOverlay.setVisibility(View.VISIBLE);
+            new Thread(() -> {
+                try {
+                    BitmapFactory.Options opts = new BitmapFactory.Options();
+                    opts.inMutable = true;
+                    Bitmap loaded = BitmapFactory.decodeFile(inputImagePath, opts);
+
+                    runOnUiThread(() -> {
+                        targetBitmap = loaded;
+                        if (targetView != null) {
+                            targetView.initPaintBitmap();
+                            targetView.invalidate();
+                        }
+                        loadingOverlay.setVisibility(View.GONE);
+                        launchGallery();
+                    });
+                } catch (OutOfMemoryError e) {
+                    Log.e(TAG, "Memory error loading target image", e);
+                    runOnUiThread(() -> {
+                        loadingOverlay.setVisibility(View.GONE);
+                        Toast.makeText(CloneActivity.this, "Image too large for device memory.", Toast.LENGTH_LONG).show();
+                        finish();
+                    });
+                }
+            }).start();
+        } else {
+            Toast.makeText(this, "Error loading target image", Toast.LENGTH_SHORT).show();
+            finish();
+        }
+    }
+
+    private void setupLoadingOverlay() {
+        loadingOverlay = new FrameLayout(this);
+        loadingOverlay.setBackgroundColor(Color.parseColor("#B3000000")); // Dark semi-transparent
+        loadingOverlay.setClickable(true); // Blocks touches
+        loadingOverlay.setFocusable(true);
+        loadingOverlay.setVisibility(View.GONE);
+
+        // Apply a large style to the progress bar so it's not a tiny dot
+        ProgressBar pb = new ProgressBar(this, null, android.R.attr.progressBarStyleLarge);
+        pb.setIndeterminate(true);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                150, 150, Gravity.CENTER);
+        loadingOverlay.addView(pb, params);
+
+        // PERFECT FIX: Add to the absolute window content, NOT the LinearLayout!
+        // This stops the overlay from crushing your images and moving the toolbar.
+        ViewGroup root = findViewById(android.R.id.content);
+        root.addView(loadingOverlay, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
     private void applyCapsuleBackground(View view, int color) {
         if (view == null) return;
 
-        // Save current padding to prevent background application from resetting it!
         int pL = view.getPaddingLeft();
         int pT = view.getPaddingTop();
         int pR = view.getPaddingRight();
@@ -133,19 +186,18 @@ public class CloneActivity extends AppCompatActivity {
 
         GradientDrawable gd = new GradientDrawable();
         gd.setColor(color);
-        gd.setCornerRadius(100f); // Perfect pill shape
+        gd.setCornerRadius(100f);
 
         view.setBackground(gd);
-
-        // Restore padding
         view.setPadding(pL, pT, pR, pB);
 
-        // Force alignment inside the capsule
         if (view instanceof TextView) {
-            ((TextView) view).setGravity(Gravity.CENTER);
-            ((TextView) view).setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+            TextView tv = (TextView) view;
+            tv.setGravity(Gravity.CENTER);
+            tv.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
         } else if (view instanceof LinearLayout) {
-            ((LinearLayout) view).setGravity(Gravity.CENTER);
+            LinearLayout ll = (LinearLayout) view;
+            ll.setGravity(Gravity.CENTER);
         }
     }
 
@@ -162,7 +214,6 @@ public class CloneActivity extends AppCompatActivity {
         toolbarBg.setCornerRadius(100f);
         findViewById(R.id.cloneToolbar).setBackground(toolbarBg);
 
-        // This enforces the background AND keeps the text perfectly centered
         applyCapsuleBackground(findViewById(R.id.tvBaseLabel), labelColor);
         applyCapsuleBackground(findViewById(R.id.btnFlipSource), labelColor);
 
@@ -179,6 +230,13 @@ public class CloneActivity extends AppCompatActivity {
 
         applyTextColor(findViewById(R.id.cloneToolbar), textColor);
         applyTextColor(options, textColor);
+
+        // Initialize HUD Paints once
+        hudTextPaint.setColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        hudTextPaint.setTextSize(45f);
+        hudTextPaint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        hudTextPaint.setTextAlign(Paint.Align.CENTER);
+        hudBgPaint.setColor(isDarkTheme ? Color.argb(200, 0, 0, 0) : Color.argb(200, 255, 255, 255));
     }
 
     private void applyTextColor(View view, int color) {
@@ -196,7 +254,6 @@ public class CloneActivity extends AppCompatActivity {
         galleryLauncher.launch(intent);
     }
 
-    // Prevents cloning from infinitely streaking at the edges!
     private Bitmap addTransparentPadding(Bitmap original) {
         Bitmap padded = Bitmap.createBitmap(original.getWidth() + 2, original.getHeight() + 2, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(padded);
@@ -206,38 +263,49 @@ public class CloneActivity extends AppCompatActivity {
     }
 
     private void loadSourceImage(Uri uri) {
-        try {
-            InputStream is = getContentResolver().openInputStream(uri);
-            if (is == null) return;
+        loadingOverlay.setVisibility(View.VISIBLE);
+        new Thread(() -> {
+            try {
+                InputStream is = getContentResolver().openInputStream(uri);
+                if (is == null) return;
 
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            BitmapFactory.decodeStream(is, null, options);
-            is.close();
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inJustDecodeBounds = true;
+                BitmapFactory.decodeStream(is, null, options);
+                is.close();
 
-            int maxDim = 2048;
-            int scale = 1;
-            while (options.outWidth / scale / 2 >= maxDim && options.outHeight / scale / 2 >= maxDim) {
-                scale *= 2;
-            }
-
-            options.inJustDecodeBounds = false;
-            options.inSampleSize = scale;
-
-            InputStream is2 = getContentResolver().openInputStream(uri);
-            if (is2 != null) {
-                Bitmap decoded = BitmapFactory.decodeStream(is2, null, options);
-                if (decoded != null) {
-                    sourceBitmap = addTransparentPadding(decoded);
-                    if (decoded != sourceBitmap) decoded.recycle();
+                int maxDim = 2048;
+                int scale = 1;
+                while (options.outWidth / scale / 2 >= maxDim && options.outHeight / scale / 2 >= maxDim) {
+                    scale *= 2;
                 }
-                is2.close();
-            }
 
-            sourceView.setBitmap(sourceBitmap);
-        } catch (Exception e) {
-            Toast.makeText(this, "Failed to load source image", Toast.LENGTH_SHORT).show();
-        }
+                options.inJustDecodeBounds = false;
+                options.inSampleSize = scale;
+
+                InputStream is2 = getContentResolver().openInputStream(uri);
+                if (is2 != null) {
+                    Bitmap decoded = BitmapFactory.decodeStream(is2, null, options);
+                    if (decoded != null) {
+                        Bitmap finalBmp = addTransparentPadding(decoded);
+                        if (decoded != finalBmp) decoded.recycle();
+
+                        runOnUiThread(() -> {
+                            sourceBitmap = finalBmp;
+                            sourceView.setBitmap(sourceBitmap);
+                            loadingOverlay.setVisibility(View.GONE);
+                        });
+                    }
+                    is2.close();
+                }
+            } catch (Exception | OutOfMemoryError e) {
+                Log.e(TAG, "Error loading source image", e);
+                runOnUiThread(() -> {
+                    loadingOverlay.setVisibility(View.GONE);
+                    Toast.makeText(CloneActivity.this, "Failed to load source image", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
     }
 
     private void setupToolbar() {
@@ -285,45 +353,57 @@ public class CloneActivity extends AppCompatActivity {
     }
 
     private void saveAndReturn() {
-        Bitmap result = targetView.getFinalBitmap();
-        try {
-            File outFile = new File(getCacheDir(), "clone_out.png");
-            FileOutputStream fos = new FileOutputStream(outFile);
-            result.compress(Bitmap.CompressFormat.PNG, 100, fos);
-            fos.close();
+        if (targetBitmap == null) return;
 
-            Intent data = new Intent();
-            data.putExtra("out_path", outFile.getAbsolutePath());
-            data.putExtra("save_as_base", true);
-            setResult(RESULT_OK, data);
-            finish();
-        } catch (Exception e) {
-            Toast.makeText(this, "Failed to save", Toast.LENGTH_SHORT).show();
-        }
+        // Block UI so user doesn't double-click
+        loadingOverlay.setVisibility(View.VISIBLE);
+        Toast.makeText(this, "Saving High Quality Image...", Toast.LENGTH_LONG).show();
+
+        new Thread(() -> {
+            try {
+                if (targetView.paintBitmap != null) {
+                    Canvas finalCanvas = new Canvas(targetBitmap);
+                    finalCanvas.drawBitmap(targetView.paintBitmap, 0, 0, null);
+                }
+
+                File outFile = new File(getCacheDir(), "clone_out.png");
+                FileOutputStream fos = new FileOutputStream(outFile);
+
+                targetBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                fos.close();
+
+                runOnUiThread(() -> {
+                    loadingOverlay.setVisibility(View.GONE);
+                    Intent data = new Intent();
+                    data.putExtra("out_path", outFile.getAbsolutePath());
+                    data.putExtra("save_as_base", true);
+                    setResult(RESULT_OK, data);
+                    finish();
+                });
+            } catch (Exception | OutOfMemoryError e) {
+                Log.e(TAG, "Save Error", e);
+                runOnUiThread(() -> {
+                    loadingOverlay.setVisibility(View.GONE);
+                    Toast.makeText(CloneActivity.this, "Failed to save. Try freeing memory.", Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
     }
 
     private void drawHUDOverlay(Canvas canvas, float viewZoom, float viewRotation, float width, float height) {
-        Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        textPaint.setColor(isDarkTheme ? Color.WHITE : Color.BLACK);
-        textPaint.setTextSize(45f);
-        textPaint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        textPaint.setTextAlign(Paint.Align.CENTER);
-
-        Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        bgPaint.setColor(isDarkTheme ? Color.argb(200, 0, 0, 0) : Color.argb(200, 255, 255, 255));
-
-        String txt = String.format("%.1fx  |  %.1f°", viewZoom, viewRotation % 360f);
-        float w = textPaint.measureText(txt);
-        Paint.FontMetrics fm = textPaint.getFontMetrics();
+        String txt = String.format(Locale.US, "%.1fx  |  %.1f°", viewZoom, viewRotation % 360f);
+        float w = hudTextPaint.measureText(txt);
+        Paint.FontMetrics fm = hudTextPaint.getFontMetrics();
         float h = fm.bottom - fm.top;
 
         float cx = width / 2f;
         float cy = height / 2f;
 
-        canvas.drawRoundRect(cx - w/2f - 40f, cy - h/2f - 20f, cx + w/2f + 40f, cy + h/2f + 20f, 50f, 50f, bgPaint);
-        canvas.drawText(txt, cx, cy - (fm.ascent + fm.descent) / 2f, textPaint);
+        canvas.drawRoundRect(cx - w/2f - 40f, cy - h/2f - 20f, cx + w/2f + 40f, cy + h/2f + 20f, 50f, 50f, hudBgPaint);
+        canvas.drawText(txt, cx, cy - (fm.ascent + fm.descent) / 2f, hudTextPaint);
     }
 
+    @SuppressWarnings("ClickableViewAccessibility")
     private class SourceCloneView extends View {
         private Bitmap bitmap;
         public final Matrix matrix = new Matrix();
@@ -428,10 +508,8 @@ public class CloneActivity extends AppCompatActivity {
                     lastFocusX = focusX;
                     lastFocusY = focusY;
                     if (activeCount >= 2) {
-                        int p1 = 0, p2 = 1;
-                        if (skipIndex == 0) p1 = 2; else if (skipIndex == 1) p2 = 2;
-                        float dx = event.getX(p2) - event.getX(p1);
-                        float dy = event.getY(p2) - event.getY(p1);
+                        float dx = event.getX(1) - event.getX(0);
+                        float dy = event.getY(1) - event.getY(0);
                         lastDist = (float) Math.hypot(dx, dy);
                         lastAngle = (float) Math.toDegrees(Math.atan2(dy, dx));
                     }
@@ -464,6 +542,7 @@ public class CloneActivity extends AppCompatActivity {
                     isAdjusting = false;
                     activeCount = 0;
                     if (targetView != null) targetView.invalidate();
+                    performClick();
                     break;
             }
             invalidate();
@@ -476,8 +555,9 @@ public class CloneActivity extends AppCompatActivity {
         }
     }
 
+    @SuppressWarnings("ClickableViewAccessibility")
     private class TargetCloneView extends View {
-        private Bitmap paintBitmap;
+        public Bitmap paintBitmap;
         private Canvas paintCanvas;
 
         public final Matrix matrix = new Matrix();
@@ -485,6 +565,7 @@ public class CloneActivity extends AppCompatActivity {
         private final Paint currentPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
         private final Path currentPath = new Path();
         private final Paint indicatorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint ghostPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
 
         private float viewZoom = 1f;
         private float viewPanX = 0f;
@@ -507,6 +588,21 @@ public class CloneActivity extends AppCompatActivity {
             indicatorPaint.setColor(Color.WHITE);
             indicatorPaint.setStrokeWidth(4f);
             indicatorPaint.setShadowLayer(4f, 0, 2f, Color.BLACK);
+
+            ghostPaint.setAlpha(128);
+        }
+
+        public void initPaintBitmap() {
+            if (targetBitmap != null && paintBitmap == null && getWidth() > 0 && getHeight() > 0) {
+                try {
+                    paintBitmap = Bitmap.createBitmap(targetBitmap.getWidth(), targetBitmap.getHeight(), Bitmap.Config.ARGB_8888);
+                    paintCanvas = new Canvas(paintBitmap);
+                    updateMatrix();
+                    invalidate();
+                } catch (OutOfMemoryError e) {
+                    Log.e(TAG, "Paint canvas init error", e);
+                }
+            }
         }
 
         private void updateMatrix() {
@@ -522,11 +618,7 @@ public class CloneActivity extends AppCompatActivity {
 
         @Override protected void onSizeChanged(int w, int h, int oldWidth, int oldHeight) {
             super.onSizeChanged(w, h, oldWidth, oldHeight);
-            if (targetBitmap != null && paintBitmap == null) {
-                paintBitmap = Bitmap.createBitmap(targetBitmap.getWidth(), targetBitmap.getHeight(), Bitmap.Config.ARGB_8888);
-                paintCanvas = new Canvas(paintBitmap);
-                updateMatrix();
-            }
+            initPaintBitmap();
         }
 
         @Override protected void onDraw(@NonNull Canvas canvas) {
@@ -541,8 +633,6 @@ public class CloneActivity extends AppCompatActivity {
             }
 
             if (sourceView != null && sourceView.isAdjusting && sourceBitmap != null) {
-                Paint ghostPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
-                ghostPaint.setAlpha(128);
                 canvas.drawBitmap(sourceBitmap, sourceView.matrix, ghostPaint);
             }
 
@@ -575,7 +665,7 @@ public class CloneActivity extends AppCompatActivity {
                 currentPaint.setAlpha(255);
             } else if (currentMode == MODE_CLONE) {
                 currentPaint.setAlpha(cloneOpacity);
-                if (sourceBitmap != null) {
+                if (sourceBitmap != null && sourceView != null) {
                     BitmapShader shader = new BitmapShader(sourceBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
 
                     Matrix shaderMatrix = new Matrix();
@@ -632,10 +722,8 @@ public class CloneActivity extends AppCompatActivity {
                         lastFocusX = focusX;
                         lastFocusY = focusY;
                         if (activeCount >= 2) {
-                            int p1 = 0, p2 = 1;
-                            if (skipIndex == 0) p1 = 2; else if (skipIndex == 1) p2 = 2;
-                            float dx = event.getX(p2) - event.getX(p1);
-                            float dy = event.getY(p2) - event.getY(p1);
+                            float dx = event.getX(1) - event.getX(0);
+                            float dy = event.getY(1) - event.getY(0);
                             lastDist = (float) Math.hypot(dx, dy);
                             lastAngle = (float) Math.toDegrees(Math.atan2(dy, dx));
                         }
@@ -699,8 +787,10 @@ public class CloneActivity extends AppCompatActivity {
                     break;
                 case MotionEvent.ACTION_UP: case MotionEvent.ACTION_CANCEL:
                     if (isDrawing) {
-                        currentPath.lineTo(imgX, imgY);
-                        paintCanvas.drawPath(currentPath, currentPaint);
+                        if (paintCanvas != null) {
+                            currentPath.lineTo(imgX, imgY);
+                            paintCanvas.drawPath(currentPath, currentPaint);
+                        }
                     }
                     currentPath.reset();
                     isDrawing = false;
@@ -716,14 +806,6 @@ public class CloneActivity extends AppCompatActivity {
         @Override
         public boolean performClick() {
             return super.performClick();
-        }
-
-        public Bitmap getFinalBitmap() {
-            Bitmap result = Bitmap.createBitmap(targetBitmap.getWidth(), targetBitmap.getHeight(), Bitmap.Config.ARGB_8888);
-            Canvas c = new Canvas(result);
-            c.drawBitmap(targetBitmap, 0, 0, null);
-            if (paintBitmap != null) c.drawBitmap(paintBitmap, 0, 0, null);
-            return result;
         }
     }
 }

@@ -30,6 +30,7 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -39,6 +40,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -60,6 +62,7 @@ public class AdvancedCanvasActivity extends Activity {
     private ColorWheelView colorWheel;
     private EditText etHexCode;
     private boolean isUpdatingColor = false;
+    private FrameLayout loadingOverlay;
 
     // Secondary state for Paint Brush Submenu
     public int paintBrushSubStyle = 0;
@@ -109,13 +112,52 @@ public class AdvancedCanvasActivity extends Activity {
             leftPanel.setVisibility(View.GONE);
         });
 
+        setupLoadingOverlay();
+
+        // ASYNC IMAGE LOADING TO PREVENT UI FREEZING (10-20 sec delay fix)
         String inputImagePath = getIntent().getStringExtra("image_path");
-        Bitmap baseBitmap = null;
-
         if (inputImagePath != null && new File(inputImagePath).exists()) {
-            baseBitmap = BitmapFactory.decodeFile(inputImagePath);
+            loadingOverlay.setVisibility(View.VISIBLE);
+            new Thread(() -> {
+                try {
+                    BitmapFactory.Options opts = new BitmapFactory.Options();
+                    opts.inMutable = true; // Crucial for memory-optimized saving
+                    Bitmap loaded = BitmapFactory.decodeFile(inputImagePath, opts);
+                    runOnUiThread(() -> initCanvas(loaded));
+                } catch (OutOfMemoryError e) {
+                    runOnUiThread(() -> {
+                        loadingOverlay.setVisibility(View.GONE);
+                        Toast.makeText(AdvancedCanvasActivity.this, "Image too large for device memory.", Toast.LENGTH_LONG).show();
+                        finish();
+                    });
+                }
+            }).start();
+        } else {
+            initCanvas(null);
         }
+    }
 
+    // Dynamic Loading Screen overlay attached to Absolute Window
+    private void setupLoadingOverlay() {
+        loadingOverlay = new FrameLayout(this);
+        loadingOverlay.setBackgroundColor(Color.parseColor("#B3000000"));
+        loadingOverlay.setClickable(true);
+        loadingOverlay.setFocusable(true);
+        loadingOverlay.setVisibility(View.GONE);
+
+        ProgressBar pb = new ProgressBar(this, null, android.R.attr.progressBarStyleLarge);
+        pb.setIndeterminate(true);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(150, 150, Gravity.CENTER);
+        loadingOverlay.addView(pb, params);
+
+        ViewGroup root = findViewById(android.R.id.content);
+        root.addView(loadingOverlay, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void initCanvas(Bitmap baseBitmap) {
         FrameLayout container = findViewById(R.id.drawingContainer);
         drawingView = new AdvancedDrawingView(this, baseBitmap);
         container.addView(drawingView);
@@ -148,6 +190,7 @@ public class AdvancedCanvasActivity extends Activity {
         });
 
         findViewById(R.id.btnCanvasSave).setOnClickListener(v -> showSaveDialog());
+        loadingOverlay.setVisibility(View.GONE);
     }
 
     private void showSaveDialog() {
@@ -173,22 +216,38 @@ public class AdvancedCanvasActivity extends Activity {
         dialog.show();
     }
 
+    // ASYNC SAVING ENGINE (Prevents "App is Stopping" crashes)
     private void saveAndReturn(boolean saveAsBase) {
-        Bitmap result = drawingView.getFinalBitmap();
-        try {
-            File outFile = new File(getCacheDir(), "canvas_out.png");
-            FileOutputStream fos = new FileOutputStream(outFile);
-            result.compress(Bitmap.CompressFormat.PNG, 100, fos);
-            fos.close();
+        loadingOverlay.setVisibility(View.VISIBLE);
+        Toast.makeText(this, "Saving High Quality Artwork...", Toast.LENGTH_LONG).show();
 
-            Intent data = new Intent();
-            data.putExtra("out_path", outFile.getAbsolutePath());
-            data.putExtra("save_as_base", saveAsBase);
-            setResult(RESULT_OK, data);
-            finish();
-        } catch (Exception e) {
-            Toast.makeText(this, "Failed to save canvas", Toast.LENGTH_SHORT).show();
-        }
+        new Thread(() -> {
+            try {
+                // Retrieves RAM optimized flattened bitmap directly
+                Bitmap result = drawingView.getOptimizedSaveBitmap();
+
+                File outFile = new File(getCacheDir(), "canvas_out.png");
+                FileOutputStream fos = new FileOutputStream(outFile);
+
+                // 100% Quality Output
+                result.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                fos.close();
+
+                runOnUiThread(() -> {
+                    loadingOverlay.setVisibility(View.GONE);
+                    Intent data = new Intent();
+                    data.putExtra("out_path", outFile.getAbsolutePath());
+                    data.putExtra("save_as_base", saveAsBase);
+                    setResult(RESULT_OK, data);
+                    finish();
+                });
+            } catch (Exception | OutOfMemoryError e) {
+                runOnUiThread(() -> {
+                    loadingOverlay.setVisibility(View.GONE);
+                    Toast.makeText(AdvancedCanvasActivity.this, "Failed to save. Try freeing memory.", Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
     }
 
     private void setupBrushButtons() {
@@ -467,7 +526,7 @@ public class AdvancedCanvasActivity extends Activity {
         private Bitmap paintBitmap;
         private Canvas paintCanvas;
 
-        // Smudge Optimization Buffers
+        // Lazy Smudge Buffers (Saves ~50MB of RAM until you actually click Smudge!)
         private Bitmap smudgeSampleBitmap;
         private Canvas smudgeSampleCanvas;
         private BitmapShader smudgeShader;
@@ -500,7 +559,6 @@ public class AdvancedCanvasActivity extends Activity {
 
         private float lastX, lastY;
 
-        // Screen Touch Trackers for precise fill detection
         private float downScreenX, downScreenY;
 
         public boolean isZoomMode = false;
@@ -576,13 +634,13 @@ public class AdvancedCanvasActivity extends Activity {
         protected void onSizeChanged(int w, int h, int oldWidth, int oldHeight) {
             super.onSizeChanged(w, h, oldWidth, oldHeight);
             if (paintBitmap == null && baseBitmap != null) {
-                paintBitmap = Bitmap.createBitmap(baseBitmap.getWidth(), baseBitmap.getHeight(), Bitmap.Config.ARGB_8888);
-                paintCanvas = new Canvas(paintBitmap);
-
-                smudgeSampleBitmap = Bitmap.createBitmap(baseBitmap.getWidth(), baseBitmap.getHeight(), Bitmap.Config.ARGB_8888);
-                smudgeSampleCanvas = new Canvas(smudgeSampleBitmap);
-
-                saveUndoState();
+                try {
+                    paintBitmap = Bitmap.createBitmap(baseBitmap.getWidth(), baseBitmap.getHeight(), Bitmap.Config.ARGB_8888);
+                    paintCanvas = new Canvas(paintBitmap);
+                    saveUndoState();
+                } catch (OutOfMemoryError e) {
+                    Toast.makeText(getContext(), "Canvas initialized with limited memory", Toast.LENGTH_SHORT).show();
+                }
             }
         }
 
@@ -590,6 +648,7 @@ public class AdvancedCanvasActivity extends Activity {
         protected void onDraw(Canvas canvas) {
             canvas.save();
 
+            if (paintBitmap == null) return;
             float wTarget = paintBitmap.getWidth();
             float hTarget = paintBitmap.getHeight();
 
@@ -606,7 +665,6 @@ public class AdvancedCanvasActivity extends Activity {
             if (baseBitmap != null) canvas.drawBitmap(baseBitmap, 0, 0, renderPaint);
             if (paintBitmap != null) canvas.drawBitmap(paintBitmap, 0, 0, renderPaint);
 
-            // LIVE DRAWING PATH - This makes the line appear instantly as you draw!
             if (!currentPath.isEmpty() && !isLongPressFired && brushType != 8 && brushType != 9 && brushType != 10) {
                 canvas.drawPath(currentPath, currentPaint);
             }
@@ -655,16 +713,16 @@ public class AdvancedCanvasActivity extends Activity {
             float finalBlur = 0f;
 
             switch(bType) {
-                case 0: // Pencil
+                case 0:
                     p.setStrokeWidth(size * 0.4f);
                     p.setAlpha((int)(alpha * 0.8f));
                     p.setPathEffect(new DiscretePathEffect(3f, 2f));
                     break;
-                case 1: // Pen
+                case 1:
                     p.setStrokeWidth(size);
                     p.setAlpha(alpha);
                     break;
-                case 2: // Paint Brush
+                case 2:
                     p.setStrokeWidth(size);
                     p.setAlpha((int)(alpha * 0.9f));
                     if (subStyle == 1) {
@@ -677,39 +735,39 @@ public class AdvancedCanvasActivity extends Activity {
                         finalBlur = size * 0.15f;
                     }
                     break;
-                case 3: // Marker
+                case 3:
                     p.setStrokeWidth(size * 1.5f);
                     p.setStrokeCap(Paint.Cap.SQUARE);
                     p.setAlpha((int)(alpha * 0.6f));
                     if (!isPreview) p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DARKEN));
                     break;
-                case 4: // Ink Brush
+                case 4:
                     p.setStrokeWidth(size * 1.2f);
                     p.setAlpha(alpha);
                     p.setPathEffect(new CornerPathEffect(size));
                     break;
-                case 5: // Airbrush
+                case 5:
                     p.setStrokeWidth(size * 2f);
                     p.setAlpha((int)(alpha * 0.25f));
                     finalBlur = size * 0.8f;
                     break;
-                case 6: // Watercolor
+                case 6:
                     p.setStrokeWidth(size * 1.5f);
                     p.setAlpha((int)(alpha * 0.4f));
                     if (!isPreview) p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DARKEN));
                     finalBlur = size * 0.5f;
                     break;
-                case 7: // Oil Brush
+                case 7:
                     p.setStrokeWidth(size);
                     p.setAlpha(alpha);
                     p.setPathEffect(new DiscretePathEffect(10f, 5f));
                     break;
-                case 8: // Smudge Tool
+                case 8:
                     p.setStrokeWidth(size);
                     p.setAlpha((int)(alpha * 0.8f));
                     finalBlur = size * 0.4f;
                     break;
-                case 9: // Eraser
+                case 9:
                     p.setStrokeWidth(size);
                     if (!isPreview) {
                         p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
@@ -752,89 +810,82 @@ public class AdvancedCanvasActivity extends Activity {
             invalidate();
         }
 
-        // --- HIGH-PERFORMANCE PRIMITIVE SCANLINE FLOOD FILL ---
         private void executeFloodFill(int imgX, int imgY) {
             Toast.makeText(getContext(), "Filling Area...", Toast.LENGTH_SHORT).show();
 
             new Thread(() -> {
-                Bitmap merged = getFinalBitmap();
-                int width = merged.getWidth();
-                int height = merged.getHeight();
+                try {
+                    Bitmap merged = getFinalBitmap();
+                    int width = merged.getWidth();
+                    int height = merged.getHeight();
 
-                int px = Math.max(0, Math.min(imgX, width - 1));
-                int py = Math.max(0, Math.min(imgY, height - 1));
+                    int px = Math.max(0, Math.min(imgX, width - 1));
+                    int py = Math.max(0, Math.min(imgY, height - 1));
 
-                int[] mergedPixels = new int[width * height];
-                merged.getPixels(mergedPixels, 0, width, 0, 0, width, height);
-                int targetColor = mergedPixels[py * width + px];
+                    int[] mergedPixels = new int[width * height];
+                    merged.getPixels(mergedPixels, 0, width, 0, 0, width, height);
+                    int targetColor = mergedPixels[py * width + px];
 
-                // Stop if color is already the matching target color to prevent infinite loops
-                if (colorMatch(targetColor, brushColor, 25)) return;
+                    if (colorMatch(targetColor, brushColor, 25)) return;
 
-                int[] paintPixels = new int[width * height];
-                paintBitmap.getPixels(paintPixels, 0, width, 0, 0, width, height);
+                    int[] paintPixels = new int[width * height];
+                    paintBitmap.getPixels(paintPixels, 0, width, 0, 0, width, height);
 
-                // Primitive Flat Coordinate Stack allocation to bypass LinkedList memory garbage allocations
-                int[] stack = new int[width * height];
-                int stackPointer = 0;
+                    int[] stack = new int[width * height];
+                    int stackPointer = 0;
+                    stack[stackPointer++] = py * width + px;
 
-                stack[stackPointer++] = py * width + px;
+                    while (stackPointer > 0) {
+                        int pos = stack[--stackPointer];
+                        int cx = pos % width;
+                        int cy = pos / width;
 
-                while (stackPointer > 0) {
-                    int pos = stack[--stackPointer];
-                    int cx = pos % width;
-                    int cy = pos / width;
+                        if (!colorMatch(mergedPixels[cy * width + cx], targetColor, 25)) continue;
 
-                    if (!colorMatch(mergedPixels[cy * width + cx], targetColor, 25)) continue;
+                        int w = cx;
+                        while (w > 0 && colorMatch(mergedPixels[cy * width + (w - 1)], targetColor, 25)) w--;
+                        int e = cx;
+                        while (e < width - 1 && colorMatch(mergedPixels[cy * width + (e + 1)], targetColor, 25)) e++;
 
-                    int w = cx;
-                    while (w > 0 && colorMatch(mergedPixels[cy * width + (w - 1)], targetColor, 25)) {
-                        w--;
-                    }
+                        boolean scanAbove = false;
+                        boolean scanBelow = false;
 
-                    int e = cx;
-                    while (e < width - 1 && colorMatch(mergedPixels[cy * width + (e + 1)], targetColor, 25)) {
-                        e++;
-                    }
+                        for (int xIdx = w; xIdx <= e; xIdx++) {
+                            int currentIdx = cy * width + xIdx;
+                            paintPixels[currentIdx] = brushColor;
+                            mergedPixels[currentIdx] = brushColor;
 
-                    boolean scanAbove = false;
-                    boolean scanBelow = false;
-
-                    for (int xIdx = w; xIdx <= e; xIdx++) {
-                        int currentIdx = cy * width + xIdx;
-                        paintPixels[currentIdx] = brushColor;
-                        mergedPixels[currentIdx] = brushColor;
-
-                        if (cy > 0) {
-                            int upIdx = (cy - 1) * width + xIdx;
-                            boolean matchAbove = colorMatch(mergedPixels[upIdx], targetColor, 25);
-                            if (matchAbove && !scanAbove) {
-                                stack[stackPointer++] = (cy - 1) * width + xIdx;
-                                scanAbove = true;
-                            } else if (!matchAbove) {
-                                scanAbove = false;
+                            if (cy > 0) {
+                                int upIdx = (cy - 1) * width + xIdx;
+                                boolean matchAbove = colorMatch(mergedPixels[upIdx], targetColor, 25);
+                                if (matchAbove && !scanAbove) {
+                                    stack[stackPointer++] = upIdx;
+                                    scanAbove = true;
+                                } else if (!matchAbove) scanAbove = false;
                             }
-                        }
 
-                        if (cy < height - 1) {
-                            int downIdx = (cy + 1) * width + xIdx;
-                            boolean matchBelow = colorMatch(mergedPixels[downIdx], targetColor, 25);
-                            if (matchBelow && !scanBelow) {
-                                stack[stackPointer++] = (cy + 1) * width + xIdx;
-                                scanBelow = true;
-                            } else if (!matchBelow) {
-                                scanBelow = false;
+                            if (cy < height - 1) {
+                                int downIdx = (cy + 1) * width + xIdx;
+                                boolean matchBelow = colorMatch(mergedPixels[downIdx], targetColor, 25);
+                                if (matchBelow && !scanBelow) {
+                                    stack[stackPointer++] = downIdx;
+                                    scanBelow = true;
+                                } else if (!matchBelow) scanBelow = false;
                             }
                         }
                     }
+
+                    ((Activity)getContext()).runOnUiThread(() -> {
+                        paintBitmap.setPixels(paintPixels, 0, width, 0, 0, width, height);
+                        saveUndoState();
+                        invalidate();
+                        Toast.makeText(getContext(), "Fill Complete!", Toast.LENGTH_SHORT).show();
+                    });
+                } catch (OutOfMemoryError e) {
+                    ((Activity)getContext()).runOnUiThread(() -> {
+                        Toast.makeText(getContext(), "Fill failed: Too much memory needed.", Toast.LENGTH_SHORT).show();
+                    });
                 }
-
-                ((Activity)getContext()).runOnUiThread(() -> {
-                    paintBitmap.setPixels(paintPixels, 0, width, 0, 0, width, height);
-                    saveUndoState();
-                    invalidate();
-                    Toast.makeText(getContext(), "Fill Complete!", Toast.LENGTH_SHORT).show();
-                });
             }).start();
         }
 
@@ -847,6 +898,8 @@ public class AdvancedCanvasActivity extends Activity {
 
         @Override
         public boolean onTouchEvent(MotionEvent event) {
+            if (paintBitmap == null) return false;
+
             float x = event.getX();
             float y = event.getY();
 
@@ -883,15 +936,25 @@ public class AdvancedCanvasActivity extends Activity {
                     downScreenX = x;
                     downScreenY = y;
 
-                    if (brushType == 10) return true; // Bucket Mode
+                    if (brushType == 10) return true;
 
                     isLongPressFired = false;
                     showPickerIndicator = false;
                     downImgX = imgX; downImgY = imgY;
                     postDelayed(longPressRunnable, 500);
 
-                    // SMUDGE ENGINE - COMPLETELY UNTOUCHED AS REQUESTED
+                    // LAZY MEMORY ALLOCATION: Only create massive smudge buffer if Smudge is actually selected
                     if (brushType == 8) {
+                        if (smudgeSampleBitmap == null) {
+                            try {
+                                smudgeSampleBitmap = Bitmap.createBitmap(baseBitmap.getWidth(), baseBitmap.getHeight(), Bitmap.Config.ARGB_8888);
+                                smudgeSampleCanvas = new Canvas(smudgeSampleBitmap);
+                            } catch (OutOfMemoryError e) {
+                                Toast.makeText(getContext(), "Not enough memory for Smudge tool", Toast.LENGTH_SHORT).show();
+                                return true;
+                            }
+                        }
+
                         smudgeSampleBitmap.eraseColor(Color.TRANSPARENT);
                         if (baseBitmap != null) smudgeSampleCanvas.drawBitmap(baseBitmap, 0, 0, null);
                         smudgeSampleCanvas.drawBitmap(paintBitmap, 0, 0, null);
@@ -913,7 +976,7 @@ public class AdvancedCanvasActivity extends Activity {
                     break;
 
                 case MotionEvent.ACTION_MOVE:
-                    if (brushType == 10) return true; // Bucket Mode
+                    if (brushType == 10) return true;
 
                     if (!isLongPressFired && Math.hypot(imgX - downImgX, imgY - downImgY) > (15f / scale)) {
                         removeCallbacks(longPressRunnable);
@@ -924,7 +987,6 @@ public class AdvancedCanvasActivity extends Activity {
                         return true;
                     }
 
-                    // ZERO-LAG INSTANT DRAWING LOGIC
                     float tolerance = 2f / scale;
                     float dX = Math.abs(imgX - lastX);
                     float dY = Math.abs(imgY - lastY);
@@ -933,8 +995,7 @@ public class AdvancedCanvasActivity extends Activity {
                         float midX = (lastX + imgX) / 2f;
                         float midY = (lastY + imgY) / 2f;
 
-                        if (brushType == 8) {
-                            // SMUDGE ENGINE UNTOUCHED AS REQUESTED
+                        if (brushType == 8 && smudgeShader != null) {
                             float dist = (float) Math.hypot(imgX - lastX, imgY - lastY);
                             float spacing = Math.max(1f, brushSize * 0.05f);
 
@@ -957,13 +1018,12 @@ public class AdvancedCanvasActivity extends Activity {
                                     lastY = nextY;
                                 }
                             }
-                        } else if (brushType == 9) { // PERFECTLY SMOOTH CONTINUOUS ERASER
+                        } else if (brushType == 9) {
                             currentPath.quadTo(lastX, lastY, midX, midY);
-                            paintCanvas.drawPath(currentPath, currentPaint); // Live clear execution
+                            paintCanvas.drawPath(currentPath, currentPaint);
                             lastX = imgX;
                             lastY = imgY;
                         } else {
-                            // Lag-free Path Append
                             currentPath.quadTo(lastX, lastY, midX, midY);
                             lastX = imgX;
                             lastY = imgY;
@@ -974,9 +1034,9 @@ public class AdvancedCanvasActivity extends Activity {
                 case MotionEvent.ACTION_UP:
                     performClick();
 
-                    if (brushType == 10) { // Bucket Mode Triggered
+                    if (brushType == 10) {
                         float moved = (float) Math.hypot(x - downScreenX, event.getY() - downScreenY);
-                        if (moved < 25f) { // Precise Screen-Pixel Tap Detection!
+                        if (moved < 25f) {
                             executeFloodFill((int)imgX, (int)imgY);
                         }
                         return true;
@@ -990,7 +1050,6 @@ public class AdvancedCanvasActivity extends Activity {
                         return true;
                     }
 
-                    // Stroke permanently baked instantly to canvas!
                     if (brushType != 8 && brushType != 10) {
                         currentPath.lineTo(imgX, imgY);
                         paintCanvas.drawPath(currentPath, currentPaint);
@@ -1005,22 +1064,10 @@ public class AdvancedCanvasActivity extends Activity {
 
         @Override public boolean performClick() { return super.performClick(); }
 
-        public void setBrushSize(float size) {
-            this.brushSize = size;
-        }
-
-        public void setBrushOpacity(int alpha) {
-            this.brushOpacity = alpha;
-        }
-
-        public void setBrushColor(int color) {
-            this.brushColor = color;
-        }
-
-        public void setBrushHardness(float hardness) {
-            this.brushHardness = hardness;
-        }
-
+        public void setBrushSize(float size) { this.brushSize = size; }
+        public void setBrushOpacity(int alpha) { this.brushOpacity = alpha; }
+        public void setBrushColor(int color) { this.brushColor = color; }
+        public void setBrushHardness(float hardness) { this.brushHardness = hardness; }
         public void setBrushType(int type) {
             this.brushType = type;
             if (getContext() instanceof AdvancedCanvasActivity) {
@@ -1028,10 +1075,15 @@ public class AdvancedCanvasActivity extends Activity {
             }
         }
 
+        // DYNAMIC MEMORY OOM PREVENTION
         private void saveUndoState() {
-            if (rasterUndoStack.size() >= 10) rasterUndoStack.remove(0);
-            rasterUndoStack.add(Bitmap.createBitmap(paintBitmap));
-            rasterRedoStack.clear();
+            try {
+                if (rasterUndoStack.size() >= 5) rasterUndoStack.remove(0); // Lowered to 5 to save RAM
+                rasterUndoStack.add(Bitmap.createBitmap(paintBitmap));
+                rasterRedoStack.clear();
+            } catch (OutOfMemoryError e) {
+                if (!rasterUndoStack.isEmpty()) rasterUndoStack.remove(0); // Clear history if memory gets too tight
+            }
         }
 
         public void undo() {
@@ -1054,12 +1106,23 @@ public class AdvancedCanvasActivity extends Activity {
             }
         }
 
+        // ORIGINAL TEMP BUFFER (Used exclusively for the Flood Fill scanner safely)
         public Bitmap getFinalBitmap() {
             Bitmap result = Bitmap.createBitmap(paintBitmap.getWidth(), paintBitmap.getHeight(), Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(result);
             if (baseBitmap != null) c.drawBitmap(baseBitmap, 0, 0, null);
             c.drawBitmap(paintBitmap, 0, 0, null);
             return result;
+        }
+
+        // NEW FLATTEN ENGINE (Saves 50MB of RAM by painting directly onto base image when saving)
+        public Bitmap getOptimizedSaveBitmap() {
+            if (baseBitmap != null && paintBitmap != null) {
+                Canvas c = new Canvas(baseBitmap);
+                c.drawBitmap(paintBitmap, 0, 0, null);
+                return baseBitmap;
+            }
+            return paintBitmap != null ? paintBitmap : baseBitmap;
         }
     }
 }
