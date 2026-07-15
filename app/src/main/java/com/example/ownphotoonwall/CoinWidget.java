@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.*;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -22,9 +23,11 @@ public class CoinWidget extends AppWidgetProvider {
         for (int id : appWidgetIds) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.coin_widget);
 
-            // Draw initial coin (Heads/Lion) so it's not blank
+            // Draw initial coin (Heads/Lion) using the high-quality XML vector
             Bitmap initialCoin = getStaticCoinBitmap(context, true);
-            views.setImageViewBitmap(R.id.coin_image_view, initialCoin);
+            if (initialCoin != null) {
+                views.setImageViewBitmap(R.id.coin_image_view, initialCoin);
+            }
 
             Intent intent = new Intent(context, CoinWidget.class);
             intent.setAction("TOSS_COIN");
@@ -38,34 +41,21 @@ public class CoinWidget extends AppWidgetProvider {
         }
     }
 
-    // Helper method to draw the initial state
+    // Helper method to cleanly convert your amazing XML vectors to High-Res Bitmaps
+    private Bitmap getBitmapFromVectorDrawable(Context context, int drawableId) {
+        Drawable drawable = context.getDrawable(drawableId);
+        if (drawable == null) return null;
+
+        Bitmap bitmap = Bitmap.createBitmap(800, 800, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+        return bitmap;
+    }
+
+    // Helper method to draw the static state
     private Bitmap getStaticCoinBitmap(Context context, boolean showHeads) {
-        Bitmap b = Bitmap.createBitmap(800, 800, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(b);
-        Paint p = new Paint();
-        p.setAntiAlias(true);
-        p.setFilterBitmap(true);
-
-        float cx = 400, cy = 400;
-        float currentRadius = 385;
-
-        // Draw Edge
-        p.setColor(Color.parseColor("#4A4A55"));
-        c.drawCircle(cx, cy, currentRadius, p);
-
-        // Draw Face
-        Shader silverSweep = new SweepGradient(cx, cy,
-                new int[]{Color.parseColor("#E4E4E9"), Color.parseColor("#FFFFFF"), Color.parseColor("#B4B4B9"), Color.parseColor("#E4E4E9")}, null);
-        p.setShader(silverSweep);
-        c.drawCircle(cx, cy, currentRadius - 5, p);
-        p.setShader(null);
-
-        // Draw Icon
-        Bitmap icon = BitmapFactory.decodeResource(context.getResources(), showHeads ? R.drawable.icon_lion : R.drawable.icon_torch);
-        RectF iconRect = new RectF(cx - currentRadius + 5, cy - currentRadius + 5, cx + currentRadius - 5, cy + currentRadius - 5);
-        c.drawBitmap(icon, null, iconRect, p);
-
-        return b;
+        return getBitmapFromVectorDrawable(context, showHeads ? R.drawable.ic_coin_heads : R.drawable.ic_coin_tails);
     }
 
     @Override
@@ -78,12 +68,21 @@ public class CoinWidget extends AppWidgetProvider {
             final PendingResult pendingResult = goAsync();
             final Handler handler = new Handler(Looper.getMainLooper());
 
-            final Bitmap iconLion = BitmapFactory.decodeResource(appContext.getResources(), R.drawable.icon_lion);
-            final Bitmap iconTorch = BitmapFactory.decodeResource(appContext.getResources(), R.drawable.icon_torch);
+            // Pre-render the new metallic XML vectors into bitmaps to prevent memory stutters
+            final Bitmap headsBitmap = getBitmapFromVectorDrawable(appContext, R.drawable.ic_coin_heads);
+            final Bitmap tailsBitmap = getBitmapFromVectorDrawable(appContext, R.drawable.ic_coin_tails);
+
+            final Paint p = new Paint();
+            p.setAntiAlias(true);
+            p.setFilterBitmap(true);
+            final RectF destRect = new RectF();
+
+            // Darkest metal shade for a realistic 3D spinning edge
+            final int colorEdge = Color.parseColor("#1A1A20");
 
             handler.post(new Runnable() {
                 int frames = 0;
-                final int TOTAL_FRAMES = 32;
+                final int TOTAL_FRAMES = 45;
                 final boolean isHeadsResult = new Random().nextBoolean();
                 final int halfSpins = isHeadsResult ? 6 : 7;
                 final float totalRotation = halfSpins * (float) Math.PI;
@@ -94,16 +93,25 @@ public class CoinWidget extends AppWidgetProvider {
                     boolean isFlipping = frames < TOTAL_FRAMES;
                     int animFrame = Math.min(frames, TOTAL_FRAMES);
 
+                    // PHYSICS EASING: Cubic Ease-Out
+                    float progress = animFrame / (float) TOTAL_FRAMES;
+                    float ease = 1.0f - (float) Math.pow(1.0f - progress, 3.0);
+
                     Bitmap b = Bitmap.createBitmap(800, 800, Bitmap.Config.ARGB_8888);
                     Canvas c = new Canvas(b);
-                    Paint p = new Paint();
-                    p.setAntiAlias(true);
-                    p.setFilterBitmap(true);
 
                     float cx = 400, cy = 400;
-                    float currentRadius = 385;
-                    float angle = (animFrame / (float)TOTAL_FRAMES) * totalRotation;
+
+                    // PERFECT ALIGNMENT: 350px exactly matches the inner diameter of the XML rim
+                    float currentRadius = 350;
+                    float angle = ease * totalRotation;
                     float absScaleX = Math.abs((float) Math.cos(angle));
+
+                    // Force perfect, sharp alignment on the exact final frame
+                    if (!isFlipping) {
+                        absScaleX = 1.0f;
+                        angle = totalRotation;
+                    }
 
                     float thickness = 35;
                     float zOffset = (float) Math.sin(angle) * thickness;
@@ -112,41 +120,34 @@ public class CoinWidget extends AppWidgetProvider {
                     boolean frontIsVisible = Math.cos(angle) >= 0;
                     float visibleX = frontIsVisible ? frontX : backX;
 
-                    // Edge
+                    // Draw the 3D metal thickness (Edge)
+                    p.setColor(colorEdge);
                     for (int i = 0; i <= 25; i++) {
                         float t = i / 25.0f;
                         float sliceX = backX + (frontX - backX) * t;
-                        p.setColor(Color.parseColor("#2D2D35"));
                         c.drawOval(sliceX - (currentRadius * absScaleX), cy - currentRadius,
                                 sliceX + (currentRadius * absScaleX), cy + currentRadius, p);
                     }
 
-                    // Face
-                    Shader silverSweep = new SweepGradient(visibleX, cy,
-                            new int[]{Color.parseColor("#E4E4E9"), Color.parseColor("#FFFFFF"), Color.parseColor("#9999A0"), Color.parseColor("#E4E4E9")}, null);
-                    Matrix matrix = new Matrix();
-                    matrix.setScale(absScaleX, 1.0f, visibleX, cy);
-                    matrix.postRotate(frames * 20, visibleX, cy);
-                    silverSweep.setLocalMatrix(matrix);
-                    p.setShader(silverSweep);
-                    c.drawOval(visibleX - (currentRadius * absScaleX), cy - (currentRadius),
-                            visibleX + (currentRadius * absScaleX), cy + (currentRadius), p);
-                    p.setShader(null);
-
-                    // Icon
+                    // Draw the beautiful XML Vector Face
                     c.save();
                     c.scale(absScaleX, 1.0f, visibleX, cy);
-                    Bitmap currentIcon = frontIsVisible ? iconLion : iconTorch;
-                    RectF iconRect = new RectF(visibleX - currentRadius, cy - currentRadius, visibleX + currentRadius, cy + currentRadius);
-                    c.drawBitmap(currentIcon, null, iconRect, p);
+                    Bitmap currentFace = frontIsVisible ? headsBitmap : tailsBitmap;
+
+                    // We stretch the 800x800 bitmap to cover the exact center coordinate
+                    destRect.set(visibleX - 400, cy - 400, visibleX + 400, cy + 400);
+                    if (currentFace != null) {
+                        c.drawBitmap(currentFace, null, destRect, p);
+                    }
                     c.restore();
 
                     RemoteViews v = new RemoteViews(appContext.getPackageName(), R.layout.coin_widget);
                     v.setImageViewBitmap(R.id.coin_image_view, b);
                     appWidgetManager.updateAppWidget(id, v);
 
-                    if (isFlipping) handler.postDelayed(this, 35);
-                    else {
+                    if (isFlipping) {
+                        handler.postDelayed(this, 25);
+                    } else {
                         triggerVibration(appContext);
                         pendingResult.finish();
                     }

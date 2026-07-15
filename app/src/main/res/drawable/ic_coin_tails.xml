@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 1. Global Drop Shadow -->
+    <path
+        android:pathData="M12,1a11,11 0 1,0 0,22a11,11 0 1,0 0,-22"
+        android:fillColor="#66000000"
+        android:translateY="0.5" />
+
+    <!-- 2. Outer Raised Rim (3D Bevel Highlight) -->
+    <path
+        android:pathData="M12,1.5a10.5,10.5 0 1,0 0,21a10.5,10.5 0 1,0 0,-21"
+        android:strokeWidth="1">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="1" android:startY="1" android:endX="23" android:endY="23">
+                <item android:offset="0" android:color="#FFFFFF" />
+                <item android:offset="0.5" android:color="#8A8A92" />
+                <item android:offset="1" android:color="#1A1A20" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 3. Main Coin Face (PERFECT MATCH: 9-Stop Spun Metal Sweep Gradient) -->
+    <path android:pathData="M12,2a10,10 0 1,0 0,20a10,10 0 1,0 0,-20">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="sweep" android:centerX="12" android:centerY="12">
+                <item android:offset="0.0" android:color="#5A5A62" />
+                <item android:offset="0.15" android:color="#FFFFFF" />
+                <item android:offset="0.3" android:color="#35353E" />
+                <item android:offset="0.45" android:color="#D4D4D9" />
+                <item android:offset="0.5" android:color="#8A8A92" />
+                <item android:offset="0.65" android:color="#FFFFFF" />
+                <item android:offset="0.8" android:color="#35353E" />
+                <item android:offset="0.9" android:color="#E0E0E5" />
+                <item android:offset="1.0" android:color="#5A5A62" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 4. Inner Trench Bevel (Inverted gradient to look sunken) -->
+    <path
+        android:pathData="M12,2.5a9.5,9.5 0 1,0 0,19a9.5,9.5 0 1,0 0,-19"
+        android:strokeWidth="0.5">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="2.5" android:startY="2.5" android:endX="21.5" android:endY="21.5">
+                <item android:offset="0" android:color="#1A1A20" />
+                <item android:offset="1" android:color="#FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ========================================== -->
+    <!-- 3D METALLIC TAILS DESIGN (DIAMOND & RIVETS) -->
+    <!-- ========================================== -->
+
+    <!-- MASTER SCALING GROUP: EXACT SAME 0.75 SCALE AS THE LION HEAD -->
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:scaleX="0.75"
+        android:scaleY="0.75">
+
+        <!-- 5. Embossed Drop Shadows -->
+        <group
+            android:translateX="0.3"
+            android:translateY="0.5">
+
+            <!-- Diamond Shadow (Expanded to match Lion's physical footprint) -->
+            <path
+                android:fillColor="#88000000"
+                android:strokeLineJoin="round"
+                android:strokeWidth="0.5"
+                android:strokeColor="#88000000"
+                android:pathData="M 12,2.5 L 21.5,12 L 12,21.5 L 2.5,12 Z" />
+
+            <!-- 4 Corner Rivets Shadows -->
+            <path
+                android:fillColor="#88000000"
+                android:pathData="M 5.5,4.3 a1.2,1.2 0 1,0 0,2.4 a1.2,1.2 0 1,0 0,-2.4 M 18.5,4.3 a1.2,1.2 0 1,0 0,2.4 a1.2,1.2 0 1,0 0,-2.4 M 5.5,17.3 a1.2,1.2 0 1,0 0,2.4 a1.2,1.2 0 1,0 0,-2.4 M 18.5,17.3 a1.2,1.2 0 1,0 0,2.4 a1.2,1.2 0 1,0 0,-2.4" />
+        </group>
+
+        <!-- 6. Raised Center Diamond (Expanded to match Lion's physical footprint) -->
+        <path
+            android:strokeLineJoin="round"
+            android:strokeWidth="0.4"
+            android:pathData="M 12,2.5 L 21.5,12 L 12,21.5 L 2.5,12 Z">
+            <aapt:attr name="android:fillColor">
+                <!-- High Contrast 5-stop Chrome Gradient matching the Lion Head perfectly -->
+                <gradient android:type="linear" android:startX="2.5" android:startY="2.5" android:endX="21.5" android:endY="21.5">
+                    <item android:offset="0.0" android:color="#FFFFFF" />
+                    <item android:offset="0.3" android:color="#4A4A55" />
+                    <item android:offset="0.6" android:color="#C4C4C9" />
+                    <item android:offset="0.8" android:color="#2D2D35" />
+                    <item android:offset="1.0" android:color="#70707C" />
+                </gradient>
+            </aapt:attr>
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="2.5" android:startY="2.5" android:endX="21.5" android:endY="21.5">
+                    <item android:offset="0" android:color="#FFFFFF" />
+                    <item android:offset="1" android:color="#1A1A20" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 7. Raised Corner Rivets -->
+        <path
+            android:strokeWidth="0.2"
+            android:pathData="M 5.5,4.3 a1.2,1.2 0 1,0 0,2.4 a1.2,1.2 0 1,0 0,-2.4 M 18.5,4.3 a1.2,1.2 0 1,0 0,2.4 a1.2,1.2 0 1,0 0,-2.4 M 5.5,17.3 a1.2,1.2 0 1,0 0,2.4 a1.2,1.2 0 1,0 0,-2.4 M 18.5,17.3 a1.2,1.2 0 1,0 0,2.4 a1.2,1.2 0 1,0 0,-2.4">
+            <aapt:attr name="android:fillColor">
+                <!-- Shiny Metallic Gradient for the Rivets -->
+                <gradient android:type="linear" android:startX="2" android:startY="2" android:endX="22" android:endY="22">
+                    <item android:offset="0" android:color="#FFFFFF" />
+                    <item android:offset="0.5" android:color="#B4B4BC" />
+                    <item android:offset="1" android:color="#35353E" />
+                </gradient>
+            </aapt:attr>
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="2" android:startY="2" android:endX="22" android:endY="22">
+                    <item android:offset="0" android:color="#FFFFFF" />
+                    <item android:offset="1" android:color="#1A1A20" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+
+</vector>

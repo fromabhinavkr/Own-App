@@ -35,44 +35,76 @@
             android:columnCount="2"
             android:alignmentMode="alignMargins">
 
+            <!-- 1. Drawing Card -->
             <LinearLayout android:id="@+id/cardDrawing" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
-                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/drawing_preview" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:src="@drawable/drawing_preview" />
+                </FrameLayout>
+                <View android:id="@+id/divDrawing" android:layout_width="match_parent" android:layout_height="1dp" />
                 <TextView android:id="@+id/textDrawing" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Drawing" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
             </LinearLayout>
 
+            <!-- 2. Photo Card (Moved here) -->
+            <LinearLayout android:id="@+id/cardPhoto" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:src="@drawable/earth_map" />
+                </FrameLayout>
+                <View android:id="@+id/divPhoto" android:layout_width="match_parent" android:layout_height="1dp" />
+                <TextView android:id="@+id/textPhoto" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Photo Display" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+            <!-- 3. Maze Card -->
             <LinearLayout android:id="@+id/cardMaze" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
-                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/maze_preview" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerInside" android:src="@drawable/maze_preview" />
+                </FrameLayout>
+                <View android:id="@+id/divMaze" android:layout_width="match_parent" android:layout_height="1dp" />
                 <TextView android:id="@+id/textMaze" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Maze Game" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
             </LinearLayout>
 
+            <!-- 4. Snake Card -->
             <LinearLayout android:id="@+id/cardSnake" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
-                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/snake_preview" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerInside" android:src="@drawable/snake_preview" />
+                </FrameLayout>
+                <View android:id="@+id/divSnake" android:layout_width="match_parent" android:layout_height="1dp" />
                 <TextView android:id="@+id/textSnake" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Retro Snake" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
             </LinearLayout>
 
+            <!-- 5. Water Card -->
             <LinearLayout android:id="@+id/cardWater" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
-                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/water_preview" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerInside" android:src="@drawable/water_preview" />
+                </FrameLayout>
+                <View android:id="@+id/divWater" android:layout_width="match_parent" android:layout_height="1dp" />
                 <TextView android:id="@+id/textWater" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Water Glass" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
             </LinearLayout>
 
+            <!-- 6. Gear Card -->
             <LinearLayout android:id="@+id/cardGear" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
-                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/gear_preview" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:src="@drawable/gear_preview" />
+                </FrameLayout>
+                <View android:id="@+id/divGear" android:layout_width="match_parent" android:layout_height="1dp" />
                 <TextView android:id="@+id/textGear" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Fidget Gear" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
             </LinearLayout>
 
+            <!-- 7. Coin Card -->
             <LinearLayout android:id="@+id/cardCoin" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
-                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/coinflip_preview" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerInside" android:src="@drawable/coinflip_preview" />
+                </FrameLayout>
+                <View android:id="@+id/divCoin" android:layout_width="match_parent" android:layout_height="1dp" />
                 <TextView android:id="@+id/textCoin" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Coin Toss" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
             </LinearLayout>
 
+            <!-- 8. Hourglass Card -->
             <LinearLayout android:id="@+id/cardHourglass" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
-                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/hourglass_preview" />
+                <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerInside" android:src="@drawable/hourglass_preview" />
+                </FrameLayout>
+                <View android:id="@+id/divHourglass" android:layout_width="match_parent" android:layout_height="1dp" />
                 <TextView android:id="@+id/textHourglass" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hourglass" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
-            </LinearLayout>
-
-            <LinearLayout android:id="@+id/cardPhoto" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
-                <ImageView android:layout_width="match_parent" android:layout_height="140dp" android:scaleType="centerCrop" android:src="@drawable/earth_map" />
-                <TextView android:id="@+id/textPhoto" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Photo Display" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
             </LinearLayout>
 
         </GridLayout>

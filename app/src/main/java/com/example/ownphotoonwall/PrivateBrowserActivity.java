@@ -12,13 +12,16 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
+import android.transition.TransitionManager;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
@@ -46,6 +49,9 @@ import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -93,6 +99,14 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_private_browser);
 
+        // --- ADAPTABLE SCREEN INSETS ENGINE ---
+        View rootLayout = findViewById(R.id.browserRoot);
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
+
         try {
             StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
             StrictMode.setVmPolicy(builder.build());
@@ -129,6 +143,31 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         applyTheme();
         setupModernBackGesture();
 
+        // --- NEW: DYNAMIC SEARCH BAR MOVEMENT ENGINE ---
+        etSearchUrl.setOnFocusChangeListener((v, hasFocus) -> {
+            // Smoothly animate the jump from bottom to top!
+            TransitionManager.beginDelayedTransition((ViewGroup) rootLayout);
+            RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams();
+
+            // Calculate 24dp margin in exact pixels for the current phone
+            int margin24dp = (int) (24 * getResources().getDisplayMetrics().density);
+
+            if (hasFocus) {
+                // Move to Top
+                params.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+                params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+                params.topMargin = margin24dp;
+                params.bottomMargin = 0;
+            } else {
+                // Move back to Bottom
+                params.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
+                params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+                params.topMargin = 0;
+                params.bottomMargin = margin24dp;
+            }
+            searchCapsule.setLayoutParams(params);
+        });
+
         btnBack.setOnClickListener(v -> { if (getCurrentWeb() != null && getCurrentWeb().canGoBack()) getCurrentWeb().goBack(); });
         btnForward.setOnClickListener(v -> { if (getCurrentWeb() != null && getCurrentWeb().canGoForward()) getCurrentWeb().goForward(); });
         btnGo.setOnClickListener(v -> loadUrlOrSearch());
@@ -145,6 +184,27 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         });
 
         createNewTab("https://duckduckgo.com/");
+    }
+
+    // --- NEW: TOUCH INTERCEPTOR ---
+    // Instantly drops the search bar back down and hides the keyboard if you tap outside of it
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            View v = getCurrentFocus();
+            if (v instanceof EditText && searchCapsule != null) {
+                Rect outRect = new Rect();
+                searchCapsule.getGlobalVisibleRect(outRect);
+                if (!outRect.contains((int) event.getRawX(), (int) event.getRawY())) {
+                    v.clearFocus();
+                    InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) {
+                        imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+                    }
+                }
+            }
+        }
+        return super.dispatchTouchEvent(event);
     }
 
     private void styleDialogButtons(AlertDialog dialog) {
@@ -180,6 +240,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     // --- FULLSCREEN ENGINE ---
     private void toggleFullscreenCapsule() {
+        etSearchUrl.clearFocus(); // Ensure it drops back to the bottom before shrinking
         isFullscreen = !isFullscreen;
         int visibility = isFullscreen ? View.GONE : View.VISIBLE;
 
@@ -231,6 +292,8 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         if (index < 0 || index >= tabs.size()) return;
         currentTabIndex = index;
 
+        etSearchUrl.clearFocus(); // Drop the bar back down when switching tabs
+
         for (int i = 0; i < tabs.size(); i++) {
             tabs.get(i).webView.setVisibility(i == currentTabIndex ? View.VISIBLE : View.GONE);
         }
@@ -278,6 +341,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     }
 
     private void openVisualTabSwitcher() {
+        etSearchUrl.clearFocus(); // Drop bar
         captureCurrentTabPreview();
         renderVisualTabsGrid();
         tabsOverlay.setVisibility(View.VISIBLE);
@@ -352,6 +416,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     // --- CUSTOM ROUNDED POPUP MENU ---
     private void showRoundedMenu(View anchor) {
+        etSearchUrl.clearFocus();
         LinearLayout menuLayout = new LinearLayout(this);
         menuLayout.setOrientation(LinearLayout.VERTICAL);
 
@@ -406,6 +471,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     // --- VISUAL DOWNLOADS MANAGER ---
     private void openVisualDownloadsManager() {
+        etSearchUrl.clearFocus();
         downloadsList.removeAllViews();
         downloadsOverlay.setVisibility(View.VISIBLE);
 
@@ -510,7 +576,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         styleDialogButtons(dialog);
     }
 
-    // --- DOWNLOAD INTERCEPTOR (FIX FOR .BIN IMAGES AND .MP4 VIDEOS) ---
+    // --- DOWNLOAD INTERCEPTOR ---
     private void triggerAskBeforeDownload(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
         String fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
 
@@ -589,7 +655,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     }
 
     // --- LONG PRESS CONTEXT MENUS & JS ENGINE ---
-
     private class JavascriptBridge {
         @JavascriptInterface
         @SuppressWarnings("unused")
@@ -769,6 +834,8 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void loadUrlOrSearch() {
         String query = etSearchUrl.getText().toString().trim();
+        etSearchUrl.clearFocus(); // Drop the bar back down after hitting go
+
         if (query.isEmpty() || getCurrentWeb() == null) return;
 
         InputMethodManager imm = getSystemService(InputMethodManager.class);
@@ -793,6 +860,8 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         int buttonBgColor = isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE;
         int accentBgColor = isDarkTheme ? Color.parseColor("#FFB59F") : Color.parseColor("#6750A4");
         int accentTextColor = isDarkTheme ? Color.parseColor("#000000") : Color.WHITE;
+
+        getWindow().setStatusBarColor(bgColor);
 
         // Base Views
         findViewById(R.id.browserRoot).setBackgroundColor(bgColor);

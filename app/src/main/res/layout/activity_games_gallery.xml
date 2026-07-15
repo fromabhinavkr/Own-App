@@ -10,7 +10,7 @@
         android:id="@+id/tvGamesTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Games Collection"
+        android:text="Game Collection"
         android:textSize="32sp"
         android:textStyle="bold"
         android:layout_marginBottom="4dp"

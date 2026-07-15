@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 1. Global Drop Shadow -->
+    <path
+        android:pathData="M12,1a11,11 0 1,0 0,22a11,11 0 1,0 0,-22"
+        android:fillColor="#66000000"
+        android:translateY="0.5" />
+
+    <!-- 2. Outer Raised Rim (3D Bevel Highlight) -->
+    <path
+        android:pathData="M12,1.5a10.5,10.5 0 1,0 0,21a10.5,10.5 0 1,0 0,-21"
+        android:strokeWidth="1">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="1" android:startY="1" android:endX="23" android:endY="23">
+                <item android:offset="0" android:color="#FFFFFF" />
+                <item android:offset="0.5" android:color="#8A8A92" />
+                <item android:offset="1" android:color="#1A1A20" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 3. Main Coin Face (Realistic Spun/Machined Metal Sweep) -->
+    <path android:pathData="M12,2a10,10 0 1,0 0,20a10,10 0 1,0 0,-20">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="sweep" android:centerX="12" android:centerY="12">
+                <item android:offset="0.0" android:color="#5A5A62" />
+                <item android:offset="0.15" android:color="#FFFFFF" />
+                <item android:offset="0.3" android:color="#35353E" />
+                <item android:offset="0.45" android:color="#D4D4D9" />
+                <item android:offset="0.5" android:color="#8A8A92" />
+                <item android:offset="0.65" android:color="#FFFFFF" />
+                <item android:offset="0.8" android:color="#35353E" />
+                <item android:offset="0.9" android:color="#E0E0E5" />
+                <item android:offset="1.0" android:color="#5A5A62" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 4. Inner Trench Bevel (Inverted gradient to look sunken) -->
+    <path
+        android:pathData="M12,2.5a9.5,9.5 0 1,0 0,19a9.5,9.5 0 1,0 0,-19"
+        android:strokeWidth="0.5">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="2.5" android:startY="2.5" android:endX="21.5" android:endY="21.5">
+                <item android:offset="0" android:color="#1A1A20" />
+                <item android:offset="1" android:color="#FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ========================================== -->
+    <!-- 3D GEOMETRIC LOW-POLY LION HEAD DESIGN     -->
+    <!-- ========================================== -->
+
+    <!-- MASTER SCALING GROUP: Fits the geometry perfectly inside the coin rim -->
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:scaleX="0.75"
+        android:scaleY="0.75">
+
+        <!-- 5. Embossed Drop Shadow for the entire Lion Head Silhouette -->
+        <path
+            android:fillColor="#88000000"
+            android:translateY="0.4"
+            android:translateX="0.2"
+            android:pathData="M 12,2 L 8.5,3 L 7,4.5 L 3.5,6.5 L 3,10 L 6,11.5 L 4.5,15.5 L 6,17.5 L 8.5,19 L 12,21.5 L 15.5,19 L 18,17.5 L 19.5,15.5 L 18,11.5 L 21,10 L 20.5,6.5 L 17,4.5 L 15.5,3 Z" />
+
+        <!-- LEFT SIDE FACETS (Catching Light - Bright Silver Metals) -->
+        <group>
+            <!-- 1L. Top Mane / Crown -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,2 L 8.5,3 L 12,4.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="8.5" android:startY="2" android:endX="12" android:endY="4.5"><item android:offset="0" android:color="#E0E0E5" /><item android:offset="1" android:color="#9999A0" /></gradient></aapt:attr>
+            </path>
+            <!-- 2L. Forehead Plate -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,4.5 L 8.5,3 L 7,4.5 L 8.5,6 L 12,8 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="7" android:startY="4.5" android:endX="12" android:endY="8"><item android:offset="0" android:color="#FFFFFF" /><item android:offset="1" android:color="#C4C4C9" /></gradient></aapt:attr>
+            </path>
+            <!-- 3L. Outer Ear / Upper Mane -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 7,4.5 L 3.5,6.5 L 7,8 L 8.5,6 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="3.5" android:startY="4.5" android:endX="8.5" android:endY="8"><item android:offset="0" android:color="#E0E0E5" /><item android:offset="1" android:color="#70707C" /></gradient></aapt:attr>
+            </path>
+            <!-- 4L. Side Mane Left -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 3.5,6.5 L 3,10 L 6,11.5 L 7,8 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="3" android:startY="6.5" android:endX="7" android:endY="11.5"><item android:offset="0" android:color="#9999A0" /><item android:offset="1" android:color="#5A5A62" /></gradient></aapt:attr>
+            </path>
+            <!-- 5L. Mid Cheek Outer -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 7,8 L 6,11.5 L 8,11.5 L 8.5,9.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="6" android:startY="8" android:endX="8.5" android:endY="11.5"><item android:offset="0" android:color="#E0E0E5" /><item android:offset="1" android:color="#9999A0" /></gradient></aapt:attr>
+            </path>
+            <!-- 6L. Inner Brow -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,8 L 8.5,6 L 8.5,9.5 L 10.5,10 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="8.5" android:startY="6" android:endX="12" android:endY="10"><item android:offset="0" android:color="#FFFFFF" /><item android:offset="1" android:color="#9999A0" /></gradient></aapt:attr>
+            </path>
+            <!-- 7L. Deep Sunken Eye -->
+            <path android:strokeWidth="0.05" android:strokeColor="#1A1A20" android:pathData="M 8.5,9.5 L 10.5,10 L 9.5,10.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="8.5" android:startY="9.5" android:endX="10.5" android:endY="10.5"><item android:offset="0" android:color="#1A1A20" /><item android:offset="1" android:color="#2D2D35" /></gradient></aapt:attr>
+            </path>
+            <!-- 8L. Nose Bridge High -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,8 L 10.5,10 L 12,12.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="10.5" android:startY="8" android:endX="12" android:endY="12.5"><item android:offset="0" android:color="#FFFFFF" /><item android:offset="1" android:color="#C4C4C9" /></gradient></aapt:attr>
+            </path>
+            <!-- 9L. Mid Cheek Inner -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 8.5,9.5 L 9.5,10.5 L 10.5,13 L 8,11.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="8" android:startY="9.5" android:endX="10.5" android:endY="13"><item android:offset="0" android:color="#C4C4C9" /><item android:offset="1" android:color="#70707C" /></gradient></aapt:attr>
+            </path>
+            <!-- 10L. Nose Bridge Low -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,12.5 L 10.5,10 L 9.5,10.5 L 10.5,13 L 12,13.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="9.5" android:startY="10" android:endX="12" android:endY="13.5"><item android:offset="0" android:color="#E0E0E5" /><item android:offset="1" android:color="#9999A0" /></gradient></aapt:attr>
+            </path>
+            <!-- 11L. Upper Snout Plate -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,13.5 L 10.5,13 L 9.5,14 L 12,15 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="9.5" android:startY="13" android:endX="12" android:endY="15"><item android:offset="0" android:color="#9999A0" /><item android:offset="1" android:color="#70707C" /></gradient></aapt:attr>
+            </path>
+            <!-- 12L. Mouth Slit -->
+            <path android:strokeWidth="0.05" android:strokeColor="#1A1A20" android:pathData="M 12,14 L 10.5,14.5 L 12,15 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="10.5" android:startY="14" android:endX="12" android:endY="15"><item android:offset="0" android:color="#1A1A20" /><item android:offset="1" android:color="#2D2D35" /></gradient></aapt:attr>
+            </path>
+            <!-- 13L. Lower Jaw/Chin -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,15 L 9.5,14 L 9.5,15.5 L 12,16.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="9.5" android:startY="14" android:endX="12" android:endY="16.5"><item android:offset="0" android:color="#C4C4C9" /><item android:offset="1" android:color="#70707C" /></gradient></aapt:attr>
+            </path>
+            <!-- 14L. Lower Cheek Connect -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 10.5,13 L 8,11.5 L 4.5,15.5 L 8.5,17 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="4.5" android:startY="11.5" android:endX="10.5" android:endY="17"><item android:offset="0" android:color="#9999A0" /><item android:offset="1" android:color="#5A5A62" /></gradient></aapt:attr>
+            </path>
+            <!-- 15L. Upper Mane Bottom -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 9.5,15.5 L 8.5,17 L 4.5,15.5 L 6,17.5 L 8.5,19 L 12,16.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="4.5" android:startY="15.5" android:endX="12" android:endY="19"><item android:offset="0" android:color="#70707C" /><item android:offset="1" android:color="#35353E" /></gradient></aapt:attr>
+            </path>
+            <!-- 16L. Lower Mane Bottom (Deepest Steel) -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,16.5 L 8.5,19 L 12,21.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="8.5" android:startY="16.5" android:endX="12" android:endY="21.5"><item android:offset="0" android:color="#5A5A62" /><item android:offset="1" android:color="#2D2D35" /></gradient></aapt:attr>
+            </path>
+        </group>
+
+        <!-- RIGHT SIDE FACETS (In Shadow - Darker Steel Metals) -->
+        <group>
+            <!-- 1R. Top Mane / Crown -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,2 L 15.5,3 L 12,4.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="2" android:endX="15.5" android:endY="4.5"><item android:offset="0" android:color="#9999A0" /><item android:offset="1" android:color="#5A5A62" /></gradient></aapt:attr>
+            </path>
+            <!-- 2R. Forehead Plate -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,4.5 L 15.5,3 L 17,4.5 L 15.5,6 L 12,8 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="4.5" android:endX="17" android:endY="8"><item android:offset="0" android:color="#C4C4C9" /><item android:offset="1" android:color="#70707C" /></gradient></aapt:attr>
+            </path>
+            <!-- 3R. Outer Ear / Upper Mane -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 17,4.5 L 20.5,6.5 L 17,8 L 15.5,6 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="15.5" android:startY="4.5" android:endX="20.5" android:endY="8"><item android:offset="0" android:color="#9999A0" /><item android:offset="1" android:color="#4A4A55" /></gradient></aapt:attr>
+            </path>
+            <!-- 4R. Side Mane Right -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 20.5,6.5 L 21,10 L 18,11.5 L 17,8 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="17" android:startY="6.5" android:endX="21" android:endY="11.5"><item android:offset="0" android:color="#70707C" /><item android:offset="1" android:color="#35353E" /></gradient></aapt:attr>
+            </path>
+            <!-- 5R. Mid Cheek Outer -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 17,8 L 18,11.5 L 16,11.5 L 15.5,9.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="15.5" android:startY="8" android:endX="18" android:endY="11.5"><item android:offset="0" android:color="#9999A0" /><item android:offset="1" android:color="#5A5A62" /></gradient></aapt:attr>
+            </path>
+            <!-- 6R. Inner Brow -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,8 L 15.5,6 L 15.5,9.5 L 13.5,10 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="6" android:endX="15.5" android:endY="10"><item android:offset="0" android:color="#9999A0" /><item android:offset="1" android:color="#4A4A55" /></gradient></aapt:attr>
+            </path>
+            <!-- 7R. Deep Sunken Eye -->
+            <path android:strokeWidth="0.05" android:strokeColor="#1A1A20" android:pathData="M 15.5,9.5 L 13.5,10 L 14.5,10.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="13.5" android:startY="9.5" android:endX="15.5" android:endY="10.5"><item android:offset="0" android:color="#1A1A20" /><item android:offset="1" android:color="#2D2D35" /></gradient></aapt:attr>
+            </path>
+            <!-- 8R. Nose Bridge High -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,8 L 13.5,10 L 12,12.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="8" android:endX="13.5" android:endY="12.5"><item android:offset="0" android:color="#C4C4C9" /><item android:offset="1" android:color="#70707C" /></gradient></aapt:attr>
+            </path>
+            <!-- 9R. Mid Cheek Inner -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 15.5,9.5 L 14.5,10.5 L 13.5,13 L 16,11.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="13.5" android:startY="9.5" android:endX="16" android:endY="13"><item android:offset="0" android:color="#70707C" /><item android:offset="1" android:color="#35353E" /></gradient></aapt:attr>
+            </path>
+            <!-- 10R. Nose Bridge Low -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,12.5 L 13.5,10 L 14.5,10.5 L 13.5,13 L 12,13.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="10" android:endX="14.5" android:endY="13.5"><item android:offset="0" android:color="#9999A0" /><item android:offset="1" android:color="#5A5A62" /></gradient></aapt:attr>
+            </path>
+            <!-- 11R. Upper Snout Plate -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,13.5 L 13.5,13 L 14.5,14 L 12,15 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="13" android:endX="14.5" android:endY="15"><item android:offset="0" android:color="#70707C" /><item android:offset="1" android:color="#4A4A55" /></gradient></aapt:attr>
+            </path>
+            <!-- 12R. Mouth Slit -->
+            <path android:strokeWidth="0.05" android:strokeColor="#1A1A20" android:pathData="M 12,14 L 13.5,14.5 L 12,15 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="14" android:endX="13.5" android:endY="15"><item android:offset="0" android:color="#1A1A20" /><item android:offset="1" android:color="#2D2D35" /></gradient></aapt:attr>
+            </path>
+            <!-- 13R. Lower Jaw/Chin -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,15 L 14.5,14 L 14.5,15.5 L 12,16.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="14" android:endX="14.5" android:endY="16.5"><item android:offset="0" android:color="#70707C" /><item android:offset="1" android:color="#35353E" /></gradient></aapt:attr>
+            </path>
+            <!-- 14R. Lower Cheek Connect -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 13.5,13 L 16,11.5 L 19.5,15.5 L 15.5,17 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="13.5" android:startY="11.5" android:endX="19.5" android:endY="17"><item android:offset="0" android:color="#5A5A62" /><item android:offset="1" android:color="#2D2D35" /></gradient></aapt:attr>
+            </path>
+            <!-- 15R. Upper Mane Bottom -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 14.5,15.5 L 15.5,17 L 19.5,15.5 L 18,17.5 L 15.5,19 L 12,16.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="15.5" android:endX="19.5" android:endY="19"><item android:offset="0" android:color="#35353E" /><item android:offset="1" android:color="#1A1A20" /></gradient></aapt:attr>
+            </path>
+            <!-- 16R. Lower Mane Bottom (Deepest Steel) -->
+            <path android:strokeWidth="0.05" android:strokeColor="#2D2D35" android:pathData="M 12,16.5 L 15.5,19 L 12,21.5 Z">
+                <aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="12" android:startY="16.5" android:endX="15.5" android:endY="21.5"><item android:offset="0" android:color="#2D2D35" /><item android:offset="1" android:color="#0D0D12" /></gradient></aapt:attr>
+            </path>
+        </group>
+
+    </group>
+
+</vector>

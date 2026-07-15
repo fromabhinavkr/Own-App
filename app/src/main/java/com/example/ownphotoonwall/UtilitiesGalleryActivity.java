@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -26,7 +27,7 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
 
         LinearLayout cardBrowser = findViewById(R.id.cardPrivateBrowser);
         TextView textBrowser = findViewById(R.id.textPrivateBrowser);
-        ImageView ivBrowserPreview = findViewById(R.id.ivBrowserPreview);
+        View divBrowser = findViewById(R.id.divPrivateBrowser); // Added the new divider line
 
         if (isDarkTheme) {
             root.setBackgroundColor(Color.parseColor("#1C1C1E"));
@@ -35,7 +36,7 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
 
             cardBrowser.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#2C2C2E")));
             textBrowser.setTextColor(Color.WHITE);
-            // REMOVED ivBrowserPreview.setColorFilter() SO LOGO KEEPS ITS COLORS!
+            divBrowser.setBackgroundColor(Color.parseColor("#33FFFFFF")); // Faint White Line
         } else {
             root.setBackgroundColor(Color.parseColor("#F2F2F7"));
             title.setTextColor(Color.BLACK);
@@ -43,7 +44,7 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
 
             cardBrowser.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
             textBrowser.setTextColor(Color.BLACK);
-            // REMOVED ivBrowserPreview.setColorFilter() SO LOGO KEEPS ITS COLORS!
+            divBrowser.setBackgroundColor(Color.parseColor("#1A000000")); // Faint Dark Line
         }
 
         cardBrowser.setOnClickListener(v -> startActivity(new Intent(UtilitiesGalleryActivity.this, PrivateBrowserActivity.class)));

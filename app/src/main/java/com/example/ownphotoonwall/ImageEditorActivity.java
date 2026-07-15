@@ -72,7 +72,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@SuppressWarnings("FieldCanBeLocal")
+@SuppressWarnings({"FieldCanBeLocal", "unused"})
 @SuppressLint({"SetTextI18n", "ClickableViewAccessibility", "DefaultLocale", "InflateParams"})
 public class ImageEditorActivity extends AppCompatActivity {
 
@@ -146,7 +146,6 @@ public class ImageEditorActivity extends AppCompatActivity {
             }
     );
 
-    // --- NEW CLONE LAUNCHER ADDED HERE ---
     private final ActivityResultLauncher<Intent> cloneLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (result.getResultCode() == RESULT_OK && result.getData() != null) {
@@ -237,7 +236,7 @@ public class ImageEditorActivity extends AppCompatActivity {
         Button btnText = findViewById(R.id.btnText);
         Button btnDraw = findViewById(R.id.btnDraw);
         Button btnAdvancedCanvas = findViewById(R.id.btnAdvancedCanvas);
-        Button btnCloneTool = findViewById(R.id.btnCloneTool); // --- ADDED CLONE BUTTON HERE ---
+        Button btnCloneTool = findViewById(R.id.btnCloneTool);
         Button btnCopy = findViewById(R.id.btnCopy);
         Button btnLayerEdit = findViewById(R.id.btnLayerEdit);
         Button btnUndo = findViewById(R.id.btnUndo);
@@ -404,14 +403,85 @@ public class ImageEditorActivity extends AppCompatActivity {
                 TextView tvAutoColorInstructions = dialogView.findViewById(R.id.tvAutoColorInstructions);
                 Button btnApplyBgRemove = dialogView.findViewById(R.id.btnApplyBgRemove);
 
+                com.google.android.material.button.MaterialButton btnEraserBase = dialogView.findViewById(R.id.btnManualEraser);
+
+                com.google.android.material.button.MaterialButton btnSmooth = new com.google.android.material.button.MaterialButton(
+                        dialogView.getContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+                int smoothBtnId = View.generateViewId();
+                btnSmooth.setId(smoothBtnId);
+                btnSmooth.setText("SMOOTH");
+                btnSmooth.setStrokeWidth(0);
+                toggleGroup.addView(btnSmooth);
+
+                for (int i = 0; i < toggleGroup.getChildCount(); i++) {
+                    View child = toggleGroup.getChildAt(i);
+                    if (child instanceof com.google.android.material.button.MaterialButton) {
+                        com.google.android.material.button.MaterialButton btn = (com.google.android.material.button.MaterialButton) child;
+                        btn.setTextSize(10f);
+                        btn.setPadding(0, btn.getPaddingTop(), 0, btn.getPaddingBottom());
+                        btn.setMaxLines(1);
+
+                        if (btnEraserBase != null) {
+                            btn.setTextColor(btnEraserBase.getTextColors());
+                            btn.setBackgroundTintList(btnEraserBase.getBackgroundTintList());
+                            btn.setStrokeColor(btnEraserBase.getStrokeColor());
+                        }
+
+                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+                        btn.setLayoutParams(lp);
+                    }
+                }
+
+                LinearLayout smoothContainer = new LinearLayout(this);
+                smoothContainer.setOrientation(LinearLayout.VERTICAL);
+                smoothContainer.setVisibility(View.GONE);
+                smoothContainer.setPadding(0, 32, 0, 0);
+
+                TextView tvSmoothLabel = new TextView(this);
+                tvSmoothLabel.setText("Smooth Edge Level (0 - 5)");
+                tvSmoothLabel.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+                tvSmoothLabel.setTypeface(null, Typeface.BOLD);
+                tvSmoothLabel.setPadding(0, 0, 0, 16);
+
+                Slider sliderSmooth = new Slider(this);
+                sliderSmooth.setValueFrom(0f);
+                sliderSmooth.setValueTo(5f);
+                sliderSmooth.setStepSize(1f);
+
+                sliderSmooth.setValue(editorView.currentSmoothLevel);
+
+                smoothContainer.addView(tvSmoothLabel);
+                smoothContainer.addView(sliderSmooth);
+
+                ViewGroup parentGroup = (ViewGroup) brushSizeContainer.getParent();
+                parentGroup.addView(smoothContainer, parentGroup.indexOfChild(brushSizeContainer) + 1);
+
                 toggleGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
                     if (!isChecked) return;
-                    if (checkedId == R.id.btnAutoColor) {
-                        brushSizeContainer.setVisibility(View.GONE);
-                        tvAutoColorInstructions.setVisibility(View.VISIBLE);
-                    } else {
-                        brushSizeContainer.setVisibility(View.VISIBLE);
-                        tvAutoColorInstructions.setVisibility(View.GONE);
+
+                    brushSizeContainer.setVisibility(checkedId == R.id.btnManualEraser || checkedId == R.id.btnRepair ? View.VISIBLE : View.GONE);
+                    tvAutoColorInstructions.setVisibility(checkedId == R.id.btnAutoColor ? View.VISIBLE : View.GONE);
+                    smoothContainer.setVisibility(checkedId == smoothBtnId ? View.VISIBLE : View.GONE);
+
+                    if (checkedId == smoothBtnId) {
+                        Bitmap currentMask = editorView.drawingManager.getEraseLayerBitmap();
+                        if (currentMask != null && editorView.rawEraseMask == null) {
+                            Bitmap.Config config = currentMask.getConfig();
+                            if (config == null) config = Bitmap.Config.ARGB_8888;
+                            editorView.rawEraseMask = currentMask.copy(config, true);
+                        }
+                    }
+                });
+
+                sliderSmooth.addOnChangeListener((slider, value, fromUser) -> {
+                    if (fromUser && editorView.rawEraseMask != null) {
+                        editorView.currentSmoothLevel = value;
+                        int level = (int) value;
+                        Bitmap currentMask = editorView.drawingManager.getEraseLayerBitmap();
+                        if (currentMask != null) {
+                            applySmoothToMaskInPlace(currentMask, editorView.rawEraseMask, level);
+                            editorView.invalidate();
+                        }
                     }
                 });
 
@@ -427,6 +497,8 @@ public class ImageEditorActivity extends AppCompatActivity {
                         editorView.startBgEraser((int) sliderBrushSize.getValue(), false);
                     } else if (checkedId == R.id.btnRepair) {
                         editorView.startBgEraser((int) sliderBrushSize.getValue(), true);
+                    } else if (checkedId == smoothBtnId) {
+                        Toast.makeText(this, "Edge Smoothing Applied!", Toast.LENGTH_SHORT).show();
                     }
                     dialog.dismiss();
                 });
@@ -547,7 +619,6 @@ public class ImageEditorActivity extends AppCompatActivity {
             });
         }
 
-        // --- NEW CLONE TOOL CLICK LISTENER ---
         if (btnCloneTool != null) {
             btnCloneTool.setOnClickListener(v -> {
                 if (editorView.isImageMissing()) {
@@ -563,7 +634,6 @@ public class ImageEditorActivity extends AppCompatActivity {
                     Bitmap currentImage;
                     GraphicLayer active = editorView.getActiveLayer();
 
-                    // IF A LAYER IS SELECTED, EXTRACT ONLY THAT LAYER
                     if (active != null) {
                         if (active.type == 1 && active.bitmap != null) {
                             currentImage = active.bitmap.copy(Bitmap.Config.ARGB_8888, true);
@@ -572,7 +642,6 @@ public class ImageEditorActivity extends AppCompatActivity {
                             currentImage = active.bakedCache != null ? active.bakedCache.copy(Bitmap.Config.ARGB_8888, true) : editorView.getRenderedBitmap(true);
                         }
                     } else {
-                        // NO LAYER SELECTED, BAKE ENTIRE SCREEN
                         currentImage = editorView.getRenderedBitmap(true);
                     }
 
@@ -584,7 +653,7 @@ public class ImageEditorActivity extends AppCompatActivity {
 
                         runOnUiThread(() -> {
                             btnCloneTool.setEnabled(true);
-                            btnCloneTool.setText("Clone Tool"); // Reset text
+                            btnCloneTool.setText("Clone Tool");
                             Intent intent = new Intent(ImageEditorActivity.this, CloneActivity.class);
                             intent.putExtra("image_path", tempIn.getAbsolutePath());
                             cloneLauncher.launch(intent);
@@ -615,7 +684,6 @@ public class ImageEditorActivity extends AppCompatActivity {
                     Bitmap currentImage;
                     GraphicLayer active = editorView.getActiveLayer();
 
-                    // IF A LAYER IS SELECTED, EXTRACT ONLY THAT LAYER
                     if (active != null) {
                         if (active.type == 1 && active.bitmap != null) {
                             currentImage = active.bitmap.copy(Bitmap.Config.ARGB_8888, true);
@@ -624,7 +692,6 @@ public class ImageEditorActivity extends AppCompatActivity {
                             currentImage = active.bakedCache != null ? active.bakedCache.copy(Bitmap.Config.ARGB_8888, true) : editorView.getRenderedBitmap(true);
                         }
                     } else {
-                        // NO LAYER SELECTED, BAKE ENTIRE SCREEN
                         currentImage = editorView.getRenderedBitmap(true);
                     }
 
@@ -681,6 +748,37 @@ public class ImageEditorActivity extends AppCompatActivity {
                 dialog.show();
             });
         }
+    }
+
+    private void applySmoothToMaskInPlace(Bitmap mask, Bitmap originalBackup, int level) {
+        if (mask == null || originalBackup == null) return;
+        int width = mask.getWidth();
+        int height = mask.getHeight();
+
+        if (level == 0) {
+            int[] pixels = new int[width * height];
+            originalBackup.getPixels(pixels, 0, width, 0, 0, width, height);
+            mask.setPixels(pixels, 0, width, 0, 0, width, height);
+            return;
+        }
+
+        float radius = level + 1f;
+
+        Bitmap temp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(temp);
+
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(Color.BLACK);
+        paint.setMaskFilter(new BlurMaskFilter(radius, BlurMaskFilter.Blur.SOLID));
+
+        Bitmap alpha = originalBackup.extractAlpha();
+        c.drawBitmap(alpha, 0, 0, paint);
+        alpha.recycle();
+
+        int[] tempPixels = new int[width * height];
+        temp.getPixels(tempPixels, 0, width, 0, 0, width, height);
+        mask.setPixels(tempPixels, 0, width, 0, 0, width, height);
+        temp.recycle();
     }
 
     private void showEmptyCanvasColorPicker() {
@@ -1486,15 +1584,39 @@ public class ImageEditorActivity extends AppCompatActivity {
             BitmapFactory.decodeStream(is, null, options);
             if (is != null) is.close();
 
-            int maxDimension = 4096;
+            int maxDimension = isOverlay ? 2048 : 4096;
             options.inSampleSize = calculateInSampleSize(options, maxDimension, maxDimension);
             options.inJustDecodeBounds = false;
+
+            options.inMutable = true;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+            }
 
             is = getContentResolver().openInputStream(uri);
             Bitmap bitmap = BitmapFactory.decodeStream(is, null, options);
             if (is != null) is.close();
 
             if (bitmap != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bitmap.getConfig() == Bitmap.Config.HARDWARE) {
+                    Bitmap swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                    bitmap.recycle();
+                    bitmap = swBitmap;
+                }
+
+                if (isOverlay) {
+                    int bW = bitmap.getWidth();
+                    int bH = bitmap.getHeight();
+                    if (bW > maxDimension || bH > maxDimension) {
+                        float ratio = Math.min((float) maxDimension / bW, (float) maxDimension / bH);
+                        Bitmap scaled = Bitmap.createScaledBitmap(bitmap, (int) (bW * ratio), (int) (bH * ratio), true);
+                        if (scaled != bitmap) {
+                            bitmap.recycle();
+                            bitmap = scaled;
+                        }
+                    }
+                }
+
                 if (isOverlay) {
                     editorView.addImageLayer(bitmap);
                     if (leftLayersPanel != null) leftLayersPanel.setVisibility(View.VISIBLE);
@@ -2048,6 +2170,9 @@ public class ImageEditorActivity extends AppCompatActivity {
         private boolean isAutoColorRemovalMode = false;
         private boolean isBgRepairMode = false;
 
+        public float currentSmoothLevel = 0f;
+        public Bitmap rawEraseMask = null;
+
         public boolean isZoomMode = false;
         public boolean isGridMode = false;
 
@@ -2262,6 +2387,10 @@ public class ImageEditorActivity extends AppCompatActivity {
                 if (layerListener != null) layerListener.run();
             } else if (lastAction.type == 1) {
                 drawingManager.removeStroke(lastAction.stroke);
+                if (isBgRemoverMode) {
+                    currentSmoothLevel = 0f;
+                    if (rawEraseMask != null) { rawEraseMask.recycle(); rawEraseMask = null; }
+                }
             }
             invalidate();
         }
@@ -2273,6 +2402,10 @@ public class ImageEditorActivity extends AppCompatActivity {
             disableSpecialModes(); graphicLayers.clear(); undoStack.clear();
             drawingManager.clear();
             viewZoom = 1f; viewPanX = 0f; viewPanY = 0f; isCircleCrop = false; isPerspectiveMode = false; isGridMode = false; isLayerCropping = false;
+
+            currentSmoothLevel = 0f;
+            if (rawEraseMask != null) { rawEraseMask.recycle(); rawEraseMask = null; }
+
             setAdjustments(0, 1, 1, 0);
             if (layerListener != null) layerListener.run();
             if (modeListener != null) modeListener.onModeChanged();
@@ -2868,6 +3001,16 @@ public class ImageEditorActivity extends AppCompatActivity {
                         break;
                     case MotionEvent.ACTION_UP:
                         DrawingToolManager.DrawStroke stroke = drawingManager.onTouchUp(imgX, imgY, isEraser, drawingManager.isDrawMode, targetCanvasState);
+
+                        // IF we made manual erase changes, we must reset the smooth baseline!
+                        if (isBgRemoverMode) {
+                            currentSmoothLevel = 0f;
+                            if (rawEraseMask != null) {
+                                rawEraseMask.recycle();
+                                rawEraseMask = null;
+                            }
+                        }
+
                         undoStack.add(new ActionRecord(stroke));
                         break;
                 }
@@ -2892,11 +3035,12 @@ public class ImageEditorActivity extends AppCompatActivity {
                             float cx = (l + r) / 2f;
                             float cy = (t + b) / 2f;
 
-                            touchHitPts[0] = l; touchHitPts[1] = t;
-                            touchHitPts[2] = r; touchHitPts[3] = b;
-                            touchHitPts[4] = cx; touchHitPts[5] = t - 80f;
-                            touchHitPts[6] = r; touchHitPts[7] = cy;
-                            touchHitPts[8] = cx; touchHitPts[9] = b;
+                            // FIXED: CORRECT TOUCH HIT ARRAY ALLOCATIONS (10 POINTS)
+                            touchHitPts[0] = l; touchHitPts[1] = t;        // Top Left: Delete
+                            touchHitPts[2] = r; touchHitPts[3] = b;        // Bottom Right: Uniform Scale
+                            touchHitPts[4] = cx; touchHitPts[5] = t - 80f; // Top Middle: Rotate
+                            touchHitPts[6] = r; touchHitPts[7] = cy;       // Right Middle: Horizontal Stretch
+                            touchHitPts[8] = cx; touchHitPts[9] = b;       // Bottom Middle: Vertical Stretch
 
                             touchFwdMat.mapPoints(touchHitPts);
 
@@ -3047,40 +3191,64 @@ public class ImageEditorActivity extends AppCompatActivity {
                 if (Color.alpha(bmpC) == 0) continue;
                 if (Math.abs(Color.red(bmpC) - rT) <= 25 && Math.abs(Color.green(bmpC) - gT) <= 25 && Math.abs(Color.blue(bmpC) - bT) <= 25) { maskPixels[i] = Color.BLACK; }
             }
-            eraseBitmap.setPixels(maskPixels, 0, width, 0, 0, width, height); invalidate();
+            eraseBitmap.setPixels(maskPixels, 0, width, 0, 0, width, height);
+
+            // Because we made an automated erase change, reset the smooth state
+            currentSmoothLevel = 0f;
+            if (rawEraseMask != null) {
+                rawEraseMask.recycle();
+                rawEraseMask = null;
+            }
+
+            invalidate();
         }
 
         public Bitmap getRenderedBitmap(boolean isForExport) {
-            Bitmap result = Bitmap.createBitmap(baseImage.getWidth(), baseImage.getHeight(), Bitmap.Config.ARGB_8888);
-            Canvas c = new Canvas(result);
+            boolean tc = isCropping;
+            GraphicLayer tl = activeLayer;
+            boolean tp = isPerspectiveMode;
 
-            int sc = c.saveLayer(0, 0, result.getWidth(), result.getHeight(), null);
-            c.drawBitmap(baseImage, 0, 0, bitmapPaint);
-            if (drawingManager.getEraseLayerBitmap() != null) {
-                c.drawBitmap(drawingManager.getEraseLayerBitmap(), 0, 0, autoPunchPaint);
+            if (isForExport) {
+                isCropping = false;
+                isPerspectiveMode = false;
+                activeLayer = null;
             }
-            c.restoreToCount(sc);
+
+            Bitmap result = Bitmap.createBitmap(baseImage.getWidth(), baseImage.getHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(result);
+
+            int sc = canvas.saveLayer(0, 0, result.getWidth(), result.getHeight(), null);
+            canvas.drawBitmap(baseImage, 0, 0, bitmapPaint);
+            if (drawingManager.getEraseLayerBitmap() != null) {
+                canvas.drawBitmap(drawingManager.getEraseLayerBitmap(), 0, 0, autoPunchPaint);
+            }
+            canvas.restoreToCount(sc);
 
             if (drawingManager.getDrawLayerBitmap() != null) {
-                c.drawBitmap(drawingManager.getDrawLayerBitmap(), 0, 0, hqPaint);
+                canvas.drawBitmap(drawingManager.getDrawLayerBitmap(), 0, 0, hqPaint);
             }
+
             for (GraphicLayer layer : graphicLayers) {
-                c.save();
+                canvas.save();
                 if (!isLayerOutMode && !isForExport) {
-                    c.clipRect(0, 0, result.getWidth(), result.getHeight());
+                    canvas.clipRect(0, 0, result.getWidth(), result.getHeight());
                 }
-                c.translate(result.getWidth()/2f, result.getHeight()/2f); c.translate(layer.x, layer.y);
+                canvas.translate(result.getWidth() / 2f, result.getHeight() / 2f);
+                canvas.translate(layer.x, layer.y);
 
-                c.rotate(layer.rotation);
-                c.scale(layer.scaleX, layer.scaleY);
+                canvas.rotate(layer.rotation);
+                canvas.scale(layer.scaleX, layer.scaleY);
 
-                layer.drawLayer(c);
-                c.restore();
+                layer.drawLayer(canvas);
+                canvas.restore();
             }
 
-            boolean tc = isCropping; GraphicLayer tl = activeLayer; boolean tp = isPerspectiveMode;
-            if (isForExport) { isCropping = false; isPerspectiveMode = false; activeLayer = null; }
-            isCropping = tc; activeLayer = tl; isPerspectiveMode = tp; return result;
+            if (isForExport) {
+                isCropping = tc;
+                activeLayer = tl;
+                isPerspectiveMode = tp;
+            }
+            return result;
         }
     }
 }

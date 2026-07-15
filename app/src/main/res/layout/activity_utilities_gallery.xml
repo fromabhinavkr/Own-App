@@ -12,7 +12,7 @@
         android:id="@+id/tvUtilitiesTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Utilities"
+        android:text="Utility Collection"
         android:textSize="32sp"
         android:textStyle="bold"
         android:textColor="#FFFFFF"
@@ -53,14 +53,25 @@
                 android:clickable="true"
                 android:focusable="true">
 
-                <!-- FIXED: Image scaling to display your custom logo perfectly -->
-                <ImageView
-                    android:id="@+id/ivBrowserPreview"
+                <!-- MATCHED TOOLS STRUCTURE: FrameLayout wrapper for perfect centering -->
+                <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/privatebrowser_icon"
-                    android:padding="0dp" />
+                    android:layout_height="120dp">
+                    <ImageView
+                        android:id="@+id/ivBrowserPreview"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:layout_gravity="center"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/privatebrowser_icon" />
+                </FrameLayout>
+
+                <!-- THE NEW HORIZONTAL SEPARATOR LINE -->
+                <View
+                    android:id="@+id/divPrivateBrowser"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginHorizontal="0dp" />
 
                 <TextView
                     android:id="@+id/textPrivateBrowser"
