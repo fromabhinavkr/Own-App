@@ -36,45 +36,7 @@
         android:clipToPadding="false"
         android:clipChildren="false">
 
-        <!-- Sticker Maker Card -->
-        <LinearLayout
-            android:id="@+id/cardStickerMaker"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:orientation="vertical"
-            android:layout_margin="12dp">
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="120dp">
-                <ImageView
-                    android:layout_width="100dp"
-                    android:layout_height="100dp"
-                    android:layout_gravity="center"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/stickermaker_preview" />
-            </FrameLayout>
-
-            <!-- THE HORIZONTAL SEPARATOR LINE -->
-            <View
-                android:id="@+id/divStickerMaker"
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginHorizontal="0dp" />
-
-            <TextView
-                android:id="@+id/textStickerMaker"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/whatsapp_sticker_title"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:padding="16dp" />
-        </LinearLayout>
-
-        <!-- Image Editor Card -->
+        <!-- 1. Image Editor Card -->
         <LinearLayout
             android:id="@+id/cardImageEditor"
             android:layout_width="0dp"
@@ -112,7 +74,45 @@
                 android:padding="16dp" />
         </LinearLayout>
 
-        <!-- PDF Studio Card -->
+        <!-- 2. Collage Studio Card -->
+        <LinearLayout
+            android:id="@+id/cardCollageStudio"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:orientation="vertical"
+            android:layout_margin="12dp">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="120dp">
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_gravity="center"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/collagestudio_preview" />
+            </FrameLayout>
+
+            <!-- THE HORIZONTAL SEPARATOR LINE -->
+            <View
+                android:id="@+id/divCollageStudio"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="0dp" />
+
+            <TextView
+                android:id="@+id/textCollageStudio"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Collage Studio"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <!-- 3. PDF Studio Card -->
         <LinearLayout
             android:id="@+id/cardPdfStudio"
             android:layout_width="0dp"
@@ -144,6 +144,44 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="PDF Studio"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <!-- 4. Sticker Maker Card -->
+        <LinearLayout
+            android:id="@+id/cardStickerMaker"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:orientation="vertical"
+            android:layout_margin="12dp">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="120dp">
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_gravity="center"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/stickermaker_preview" />
+            </FrameLayout>
+
+            <!-- THE HORIZONTAL SEPARATOR LINE -->
+            <View
+                android:id="@+id/divStickerMaker"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="0dp" />
+
+            <TextView
+                android:id="@+id/textStickerMaker"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/whatsapp_sticker_title"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:gravity="center"

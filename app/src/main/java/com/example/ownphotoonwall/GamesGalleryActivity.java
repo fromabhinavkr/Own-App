@@ -36,9 +36,12 @@ public class GamesGalleryActivity extends AppCompatActivity {
         View cardTetris = findViewById(R.id.cardTetris);
         TextView textTetris = findViewById(R.id.textTetris);
 
-        // NEW: Link Breakout Views
         View cardBreakout = findViewById(R.id.cardBreakout);
         TextView textBreakout = findViewById(R.id.textBreakout);
+
+        // NEW: Link Maze Ball Views
+        View cardMazeBall = findViewById(R.id.cardMazeBall);
+        TextView textMazeBall = findViewById(R.id.textMazeBall);
 
         // Apply Theme Colors
         int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
@@ -70,10 +73,15 @@ public class GamesGalleryActivity extends AppCompatActivity {
             textTetris.setTextColor(textColor);
         }
 
-        // NEW: Apply Theme to Breakout Card
         if (cardBreakout != null) {
             cardBreakout.setBackground(cardBg);
             textBreakout.setTextColor(textColor);
+        }
+
+        // NEW: Apply Theme to Maze Ball Card
+        if (cardMazeBall != null) {
+            cardMazeBall.setBackground(cardBg);
+            textMazeBall.setTextColor(textColor);
         }
 
         // =====================================
@@ -98,10 +106,16 @@ public class GamesGalleryActivity extends AppCompatActivity {
             });
         }
 
-        // NEW: Breakout Launcher
         if (cardBreakout != null) {
             cardBreakout.setOnClickListener(v -> {
                 startActivity(new Intent(GamesGalleryActivity.this, BreakoutActivity.class));
+            });
+        }
+
+        // NEW: Maze Ball Launcher
+        if (cardMazeBall != null) {
+            cardMazeBall.setOnClickListener(v -> {
+                startActivity(new Intent(GamesGalleryActivity.this, MazeBallActivity.class));
             });
         }
     }

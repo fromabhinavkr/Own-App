@@ -75,6 +75,19 @@ public class ToolsGalleryActivity extends Activity {
 
             cardPdf.setOnClickListener(v -> startActivity(new Intent(this, PdfStudioActivity.class)));
         }
+
+        // 5. Setup Collage Studio Card (NEW)
+        LinearLayout cardCollage = findViewById(R.id.cardCollageStudio);
+        TextView textCollage = findViewById(R.id.textCollageStudio);
+        View divCollage = findViewById(R.id.divCollageStudio);
+
+        if (cardCollage != null) {
+            applyModernCardStyle(cardCollage, cardBgColor);
+            if (textCollage != null) textCollage.setTextColor(titleColor);
+            if (divCollage != null) divCollage.setBackgroundColor(dividerColor); // Paint the line
+
+            cardCollage.setOnClickListener(v -> startActivity(new Intent(this, CollageStudioActivity.class)));
+        }
     }
 
     // Notice we removed the stroke (border) and the elevation (shadow) completely

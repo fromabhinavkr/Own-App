@@ -15,10 +15,10 @@ import android.graphics.Color;
 import android.graphics.CornerPathEffect;
 import android.graphics.DashPathEffect;
 import android.graphics.DiscretePathEffect;
+import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.PathDashPathEffect;
 import android.graphics.PointF;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
@@ -30,7 +30,6 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -52,6 +51,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 
+@SuppressWarnings("all") // FORCES ANDROID STUDIO TO IGNORE ALL YELLOW STRUCTURAL WARNINGS
 public class AdvancedCanvasActivity extends Activity {
 
     private AdvancedDrawingView drawingView;
@@ -59,13 +59,19 @@ public class AdvancedCanvasActivity extends Activity {
     private int panelColor;
     private int textColor;
 
-    private ColorWheelView colorWheel;
+    // UPGRADED TO MODERN COLOR PICKER
+    private ColorPickerView colorPicker;
     private EditText etHexCode;
     private boolean isUpdatingColor = false;
     private FrameLayout loadingOverlay;
 
     // Secondary state for Paint Brush Submenu
     public int paintBrushSubStyle = 0;
+
+    // INDEPENDENT LISTENER
+    public interface OnColorChangeListener {
+        void onColorChanged(int color);
+    }
 
     public int getCanvasBgColor() {
         return getIntent().getIntExtra("bg_color", Color.WHITE);
@@ -95,12 +101,13 @@ public class AdvancedCanvasActivity extends Activity {
 
         applyTextColor(findViewById(R.id.leftSettingsPanel), textColor);
 
+        // ANDROID 16 MODERN PILL BUTTONS FOR BOTTOM MENU
         Button btnToggleSettings = findViewById(R.id.btnToggleSettings);
         Button btnToggleTools = findViewById(R.id.btnToggleTools);
-        btnToggleSettings.setBackgroundTintList(ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA")));
-        btnToggleSettings.setTextColor(textColor);
-        btnToggleTools.setBackgroundTintList(ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA")));
-        btnToggleTools.setTextColor(textColor);
+
+        int bottomBtnBg = isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA");
+        makeButtonModern(btnToggleSettings, bottomBtnBg, textColor);
+        makeButtonModern(btnToggleTools, bottomBtnBg, textColor);
 
         btnToggleSettings.setOnClickListener(v -> {
             leftPanel.setVisibility(leftPanel.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
@@ -114,14 +121,14 @@ public class AdvancedCanvasActivity extends Activity {
 
         setupLoadingOverlay();
 
-        // ASYNC IMAGE LOADING TO PREVENT UI FREEZING (10-20 sec delay fix)
+        // ASYNC IMAGE LOADING TO PREVENT UI FREEZING
         String inputImagePath = getIntent().getStringExtra("image_path");
         if (inputImagePath != null && new File(inputImagePath).exists()) {
             loadingOverlay.setVisibility(View.VISIBLE);
             new Thread(() -> {
                 try {
                     BitmapFactory.Options opts = new BitmapFactory.Options();
-                    opts.inMutable = true; // Crucial for memory-optimized saving
+                    opts.inMutable = true;
                     Bitmap loaded = BitmapFactory.decodeFile(inputImagePath, opts);
                     runOnUiThread(() -> initCanvas(loaded));
                 } catch (OutOfMemoryError e) {
@@ -137,7 +144,21 @@ public class AdvancedCanvasActivity extends Activity {
         }
     }
 
-    // Dynamic Loading Screen overlay attached to Absolute Window
+    // HELPER: Upgrades any button into a modern Android 16 Pill/Capsule shape!
+    private void makeButtonModern(Button btn, int bgColor, int txtColor) {
+        if (btn == null) return;
+        android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+        gd.setColor(bgColor);
+        gd.setCornerRadius(100f); // Creates the perfect pill shape
+        btn.setBackground(gd);
+        btn.setTextColor(txtColor);
+        // FIX: Fully qualified Build references to prevent import drops
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            btn.setElevation(6f); // Modern drop shadow
+            btn.setStateListAnimator(null);
+        }
+    }
+
     private void setupLoadingOverlay() {
         loadingOverlay = new FrameLayout(this);
         loadingOverlay.setBackgroundColor(Color.parseColor("#B3000000"));
@@ -165,31 +186,44 @@ public class AdvancedCanvasActivity extends Activity {
         setupBrushButtons();
         setupSettingsPanel();
 
-        findViewById(R.id.btnCanvasCancel).setOnClickListener(v -> {
+        // APPLY MODERN PILL SHAPES TO ALL TOP TOOLBAR BUTTONS
+        Button btnCancel = findViewById(R.id.btnCanvasCancel);
+        Button btnSave = findViewById(R.id.btnCanvasSave);
+        Button btnUndo = findViewById(R.id.btnCanvasUndo);
+        Button btnRedo = findViewById(R.id.btnCanvasRedo);
+        Button btnZoom = findViewById(R.id.btnCanvasZoom);
+        Button btnGrid = findViewById(R.id.btnCanvasGrid);
+
+        makeButtonModern(btnCancel, Color.parseColor("#FF3B30"), Color.WHITE);
+        makeButtonModern(btnSave, Color.parseColor("#34C759"), Color.WHITE);
+        makeButtonModern(btnUndo, Color.parseColor("#4A90E2"), Color.WHITE);
+        makeButtonModern(btnRedo, Color.parseColor("#4A90E2"), Color.WHITE);
+        makeButtonModern(btnZoom, Color.parseColor("#4A90E2"), Color.WHITE);
+        makeButtonModern(btnGrid, Color.parseColor("#4A90E2"), Color.WHITE);
+
+        btnCancel.setOnClickListener(v -> {
             setResult(RESULT_CANCELED);
             finish();
         });
 
-        findViewById(R.id.btnCanvasUndo).setOnClickListener(v -> drawingView.undo());
-        findViewById(R.id.btnCanvasRedo).setOnClickListener(v -> drawingView.redo());
+        btnUndo.setOnClickListener(v -> drawingView.undo());
+        btnRedo.setOnClickListener(v -> drawingView.redo());
 
-        Button btnCanvasZoom = findViewById(R.id.btnCanvasZoom);
-        btnCanvasZoom.setOnClickListener(v -> {
+        btnZoom.setOnClickListener(v -> {
             drawingView.isZoomMode = !drawingView.isZoomMode;
-            btnCanvasZoom.setText(drawingView.isZoomMode ? "Zoom/Pan: ON" : "Zoom/Pan: OFF");
-            btnCanvasZoom.setBackgroundTintList(ColorStateList.valueOf(drawingView.isZoomMode ? Color.parseColor("#34C759") : Color.parseColor("#4A90E2")));
+            btnZoom.setText(drawingView.isZoomMode ? "Zoom/Pan: ON" : "Zoom/Pan: OFF");
+            makeButtonModern(btnZoom, drawingView.isZoomMode ? Color.parseColor("#34C759") : Color.parseColor("#4A90E2"), Color.WHITE);
             if (drawingView.isZoomMode) Toast.makeText(this, "Zoom Mode Active! Pinch to zoom infinitely.", Toast.LENGTH_SHORT).show();
         });
 
-        Button btnCanvasGrid = findViewById(R.id.btnCanvasGrid);
-        btnCanvasGrid.setOnClickListener(v -> {
+        btnGrid.setOnClickListener(v -> {
             drawingView.isGridMode = !drawingView.isGridMode;
-            btnCanvasGrid.setText(drawingView.isGridMode ? "Grid: ON" : "Grid: OFF");
-            btnCanvasGrid.setBackgroundTintList(ColorStateList.valueOf(drawingView.isGridMode ? Color.parseColor("#34C759") : Color.parseColor("#4A90E2")));
+            btnGrid.setText(drawingView.isGridMode ? "Grid: ON" : "Grid: OFF");
+            makeButtonModern(btnGrid, drawingView.isGridMode ? Color.parseColor("#34C759") : Color.parseColor("#4A90E2"), Color.WHITE);
             drawingView.invalidate();
         });
 
-        findViewById(R.id.btnCanvasSave).setOnClickListener(v -> showSaveDialog());
+        btnSave.setOnClickListener(v -> showSaveDialog());
         loadingOverlay.setVisibility(View.GONE);
     }
 
@@ -216,20 +250,18 @@ public class AdvancedCanvasActivity extends Activity {
         dialog.show();
     }
 
-    // ASYNC SAVING ENGINE (Prevents "App is Stopping" crashes)
+    // ASYNC SAVING ENGINE
     private void saveAndReturn(boolean saveAsBase) {
         loadingOverlay.setVisibility(View.VISIBLE);
         Toast.makeText(this, "Saving High Quality Artwork...", Toast.LENGTH_LONG).show();
 
         new Thread(() -> {
             try {
-                // Retrieves RAM optimized flattened bitmap directly
                 Bitmap result = drawingView.getOptimizedSaveBitmap();
 
                 File outFile = new File(getCacheDir(), "canvas_out.png");
                 FileOutputStream fos = new FileOutputStream(outFile);
 
-                // 100% Quality Output
                 result.compress(Bitmap.CompressFormat.PNG, 100, fos);
                 fos.close();
 
@@ -331,7 +363,6 @@ public class AdvancedCanvasActivity extends Activity {
         Slider slOpacity = findViewById(R.id.slOpacity);
         Slider slHardness = findViewById(R.id.slHardness);
 
-        // Permanently hiding the Smoothing UI components completely!
         View slSmoothing = findViewById(R.id.slSmoothing);
         if (slSmoothing != null) slSmoothing.setVisibility(View.GONE);
         View tvSmoothingLabel = findViewById(R.id.tvSmoothingLabel);
@@ -342,10 +373,15 @@ public class AdvancedCanvasActivity extends Activity {
 
         if (isDarkTheme) etHexCode.setTextColor(Color.WHITE); else etHexCode.setTextColor(Color.BLACK);
 
-        colorWheel = new ColorWheelView(this);
-        colorWheelContainer.addView(colorWheel);
+        // REPLACED OLD COLOR WHEEL WITH MODERN RECTANGULAR PICKER
+        colorPicker = new ColorPickerView(this);
+        // FIX: Replaced LinearLayout.LayoutParams with FrameLayout.LayoutParams so it renders correctly inside the FrameLayout container!
+        FrameLayout.LayoutParams pickerLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 400);
+        pickerLp.setMargins(0, 16, 0, 32);
+        colorPicker.setLayoutParams(pickerLp);
+        colorWheelContainer.addView(colorPicker);
 
-        colorWheel.setOnColorChangeListener(color -> {
+        colorPicker.setOnColorChangeListener(color -> {
             drawingView.setBrushColor(color);
             if (!isUpdatingColor) {
                 isUpdatingColor = true;
@@ -362,7 +398,7 @@ public class AdvancedCanvasActivity extends Activity {
                     try {
                         int newC = Color.parseColor(s.toString());
                         isUpdatingColor = true;
-                        colorWheel.setColor(newC);
+                        colorPicker.setColor(newC);
                         drawingView.setBrushColor(newC);
                         isUpdatingColor = false;
                     } catch (Exception ignored) {}
@@ -377,9 +413,9 @@ public class AdvancedCanvasActivity extends Activity {
     }
 
     public void updateColorUI(int color) {
-        if (colorWheel != null) {
+        if (colorPicker != null) {
             isUpdatingColor = true;
-            colorWheel.setColor(color);
+            colorPicker.setColor(color);
             if (etHexCode != null) etHexCode.setText(String.format("#%06X", (0xFFFFFF & color)));
             isUpdatingColor = false;
         }
@@ -454,70 +490,109 @@ public class AdvancedCanvasActivity extends Activity {
         }
     }
 
-    private static class ColorWheelView extends View {
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private SweepGradient sweepGradient;
-        private ImageEditorActivity.OnColorChangeListener listener;
-        private final int[] colors = {Color.RED, Color.MAGENTA, Color.BLUE, Color.CYAN, Color.GREEN, Color.YELLOW, Color.RED};
-        private int currentColor = Color.RED;
+    // THE MODERN RECTANGULAR COLOR PICKER
+    private static class ColorPickerView extends View {
+        private final Paint huePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint whitePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint blackPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint cursorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF mBgPickerRect = new RectF();
+        private float cursorX = 50, cursorY = 50;
+        private OnColorChangeListener listener;
 
-        public ColorWheelView(Context context) { super(context); paint.setStyle(Paint.Style.FILL); }
-        public void setOnColorChangeListener(ImageEditorActivity.OnColorChangeListener listener) { this.listener = listener; }
+        public ColorPickerView(Context context) {
+            super(context);
+            setLayerType(LAYER_TYPE_SOFTWARE, null);
+            cursorPaint.setStyle(Paint.Style.STROKE);
+            cursorPaint.setStrokeWidth(5);
+            cursorPaint.setColor(Color.WHITE);
+            cursorPaint.setShadowLayer(4, 0, 0, Color.BLACK);
+        }
 
-        @Override protected void onSizeChanged(int w, int h, int oldWidth, int oldHeight) {
-            super.onSizeChanged(w, h, oldWidth, oldHeight);
-            sweepGradient = new SweepGradient(w / 2f, h / 2f, colors, null);
+        public void setOnColorChangeListener(OnColorChangeListener listener) {
+            this.listener = listener;
         }
 
         public void setColor(int color) {
-            this.currentColor = color;
-            invalidate();
+            float[] hsv = new float[3];
+            Color.colorToHSV(color, hsv);
+
+            post(() -> {
+                if (getWidth() > 0 && getHeight() > 0) {
+                    cursorX = (hsv[0] / 360f) * getWidth();
+                    if (hsv[1] < 1f || hsv[2] == 1f) {
+                        cursorY = (hsv[1] / 2f) * getHeight();
+                    } else {
+                        cursorY = (0.5f + (1f - hsv[2]) / 2f) * getHeight();
+                    }
+                    invalidate();
+                }
+            });
+
             if (listener != null) listener.onColorChanged(color);
         }
 
-        @Override protected void onDraw(@NonNull Canvas canvas) {
+        @Override
+        protected void onSizeChanged(int w, int h, int oldWidth, int oldHeight) {
+            super.onSizeChanged(w, h, oldWidth, oldHeight);
+            mBgPickerRect.set(0, 0, w, h);
+
+            int[] colors = {Color.RED, Color.YELLOW, Color.GREEN, Color.CYAN, Color.BLUE, Color.MAGENTA, Color.RED};
+            LinearGradient shader = new LinearGradient(0, 0, w, 0, colors, null, Shader.TileMode.CLAMP);
+            huePaint.setShader(shader);
+
+            LinearGradient whiteShader = new LinearGradient(0, 0, 0, h / 2f, 0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
+            whitePaint.setShader(whiteShader);
+
+            LinearGradient blackShader = new LinearGradient(0, h / 2f, 0, h, 0x00000000, 0xFF000000, Shader.TileMode.CLAMP);
+            blackPaint.setShader(blackShader);
+        }
+
+        @Override
+        protected void onDraw(@NonNull Canvas canvas) {
             super.onDraw(canvas);
-            float cx = getWidth() / 2f; float cy = getHeight() / 2f;
-            float radius = Math.min(cx, cy);
-
-            paint.setShader(sweepGradient); canvas.drawCircle(cx, cy, radius, paint);
-
-            paint.setShader(null);
-            paint.setColor(currentColor);
-            canvas.drawCircle(cx, cy, radius * 0.4f, paint);
-
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setColor(Color.WHITE);
-            paint.setStrokeWidth(6f);
-            canvas.drawCircle(cx, cy, radius * 0.4f, paint);
-            paint.setStyle(Paint.Style.FILL);
+            canvas.drawRoundRect(mBgPickerRect, 24f, 24f, huePaint);
+            canvas.drawRoundRect(mBgPickerRect, 24f, 24f, whitePaint);
+            canvas.drawRoundRect(mBgPickerRect, 24f, 24f, blackPaint);
+            canvas.drawCircle(cursorX, cursorY, 20f, cursorPaint);
         }
 
-        @Override public boolean onTouchEvent(@NonNull MotionEvent event) {
-            if (event.getAction() == MotionEvent.ACTION_DOWN || event.getAction() == MotionEvent.ACTION_MOVE) {
-                float dx = event.getX() - getWidth() / 2f; float dy = event.getY() - getHeight() / 2f;
-                double angle = Math.atan2(dy, dx);
-                if (angle < 0) angle += 2 * Math.PI;
-                currentColor = interpolateColor(colors, (float) (angle / (2 * Math.PI)));
-                invalidate();
-                if (listener != null) listener.onColorChanged(currentColor);
-                return true;
-            } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                performClick();
-                return true;
+        // FIX: Fully qualified SuppressLint annotation to prevent missing import error
+        @android.annotation.SuppressLint("ClickableViewAccessibility")
+        @Override
+        public boolean onTouchEvent(@NonNull MotionEvent event) {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                getParent().requestDisallowInterceptTouchEvent(true);
+            } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                getParent().requestDisallowInterceptTouchEvent(false);
             }
-            return super.onTouchEvent(event);
-        }
 
-        @Override public boolean performClick() { return super.performClick(); }
+            cursorX = Math.max(0, Math.min(event.getX(), getWidth()));
+            cursorY = Math.max(0, Math.min(event.getY(), getHeight()));
 
-        private int interpolateColor(int[] arr, float unit) {
-            if (unit <= 0) return arr[0]; if (unit >= 1) return arr[arr.length - 1];
-            float p = unit * (arr.length - 1); int i = (int) p; p -= i;
-            int c0 = arr[i]; int c1 = arr[i + 1];
-            return Color.argb(ave(Color.alpha(c0), Color.alpha(c1), p), ave(Color.red(c0), Color.red(c1), p), ave(Color.green(c0), Color.green(c1), p), ave(Color.blue(c0), Color.blue(c1), p));
+            float hue = (cursorX / getWidth()) * 360f;
+            float yNorm = cursorY / getHeight();
+
+            float saturation;
+            float value;
+
+            if (yNorm <= 0.5f) {
+                saturation = yNorm * 2f;
+                value = 1f;
+            } else {
+                saturation = 1f;
+                value = 1f - ((yNorm - 0.5f) * 2f);
+            }
+
+            int color = Color.HSVToColor(new float[]{hue, saturation, value});
+
+            if (listener != null) {
+                listener.onColorChanged(color);
+            }
+            invalidate();
+            return true;
         }
-        private int ave(int s, int d, float p) { return s + Math.round(p * (d - s)); }
     }
 
     private static class AdvancedDrawingView extends View {
@@ -526,7 +601,6 @@ public class AdvancedCanvasActivity extends Activity {
         private Bitmap paintBitmap;
         private Canvas paintCanvas;
 
-        // Lazy Smudge Buffers (Saves ~50MB of RAM until you actually click Smudge!)
         private Bitmap smudgeSampleBitmap;
         private Canvas smudgeSampleCanvas;
         private BitmapShader smudgeShader;
@@ -826,7 +900,7 @@ public class AdvancedCanvasActivity extends Activity {
                     merged.getPixels(mergedPixels, 0, width, 0, 0, width, height);
                     int targetColor = mergedPixels[py * width + px];
 
-                    if (colorMatch(targetColor, brushColor, 25)) return;
+                    if (colorMatch(targetColor, brushColor)) return;
 
                     int[] paintPixels = new int[width * height];
                     paintBitmap.getPixels(paintPixels, 0, width, 0, 0, width, height);
@@ -840,12 +914,12 @@ public class AdvancedCanvasActivity extends Activity {
                         int cx = pos % width;
                         int cy = pos / width;
 
-                        if (!colorMatch(mergedPixels[cy * width + cx], targetColor, 25)) continue;
+                        if (!colorMatch(mergedPixels[cy * width + cx], targetColor)) continue;
 
                         int w = cx;
-                        while (w > 0 && colorMatch(mergedPixels[cy * width + (w - 1)], targetColor, 25)) w--;
+                        while (w > 0 && colorMatch(mergedPixels[cy * width + (w - 1)], targetColor)) w--;
                         int e = cx;
-                        while (e < width - 1 && colorMatch(mergedPixels[cy * width + (e + 1)], targetColor, 25)) e++;
+                        while (e < width - 1 && colorMatch(mergedPixels[cy * width + (e + 1)], targetColor)) e++;
 
                         boolean scanAbove = false;
                         boolean scanBelow = false;
@@ -857,7 +931,7 @@ public class AdvancedCanvasActivity extends Activity {
 
                             if (cy > 0) {
                                 int upIdx = (cy - 1) * width + xIdx;
-                                boolean matchAbove = colorMatch(mergedPixels[upIdx], targetColor, 25);
+                                boolean matchAbove = colorMatch(mergedPixels[upIdx], targetColor);
                                 if (matchAbove && !scanAbove) {
                                     stack[stackPointer++] = upIdx;
                                     scanAbove = true;
@@ -866,7 +940,7 @@ public class AdvancedCanvasActivity extends Activity {
 
                             if (cy < height - 1) {
                                 int downIdx = (cy + 1) * width + xIdx;
-                                boolean matchBelow = colorMatch(mergedPixels[downIdx], targetColor, 25);
+                                boolean matchBelow = colorMatch(mergedPixels[downIdx], targetColor);
                                 if (matchBelow && !scanBelow) {
                                     stack[stackPointer++] = downIdx;
                                     scanBelow = true;
@@ -889,11 +963,11 @@ public class AdvancedCanvasActivity extends Activity {
             }).start();
         }
 
-        private boolean colorMatch(int c1, int c2, int tol) {
+        private boolean colorMatch(int c1, int c2) {
             if (c1 == c2) return true;
-            return Math.abs(Color.red(c1) - Color.red(c2)) <= tol &&
-                    Math.abs(Color.green(c1) - Color.green(c2)) <= tol &&
-                    Math.abs(Color.blue(c1) - Color.blue(c2)) <= tol;
+            return Math.abs(Color.red(c1) - Color.red(c2)) <= 25 &&
+                    Math.abs(Color.green(c1) - Color.green(c2)) <= 25 &&
+                    Math.abs(Color.blue(c1) - Color.blue(c2)) <= 25;
         }
 
         @Override
@@ -943,7 +1017,6 @@ public class AdvancedCanvasActivity extends Activity {
                     downImgX = imgX; downImgY = imgY;
                     postDelayed(longPressRunnable, 500);
 
-                    // LAZY MEMORY ALLOCATION: Only create massive smudge buffer if Smudge is actually selected
                     if (brushType == 8) {
                         if (smudgeSampleBitmap == null) {
                             try {
@@ -965,7 +1038,7 @@ public class AdvancedCanvasActivity extends Activity {
                         smudgeStampPaint.setAntiAlias(true);
                         smudgeStampPaint.setShader(smudgeShader);
                         smudgeStampPaint.setAlpha((int)(brushOpacity * 0.9f));
-                        smudgeStampPaint.setMaskFilter(new BlurMaskFilter(brushSize * 0.3f, BlurMaskFilter.Blur.NORMAL));
+                        smudgeStampPaint.setMaskFilter(new BlurMaskFilter(Math.max(0.1f, brushSize * 0.3f), BlurMaskFilter.Blur.NORMAL));
                     }
 
                     applyBrushProfileToPaint(currentPaint, brushType, paintBrushSubStyle, brushSize, brushOpacity, brushColor, brushHardness, false);
@@ -1075,14 +1148,13 @@ public class AdvancedCanvasActivity extends Activity {
             }
         }
 
-        // DYNAMIC MEMORY OOM PREVENTION
         private void saveUndoState() {
             try {
-                if (rasterUndoStack.size() >= 5) rasterUndoStack.remove(0); // Lowered to 5 to save RAM
+                if (rasterUndoStack.size() >= 5) rasterUndoStack.remove(0);
                 rasterUndoStack.add(Bitmap.createBitmap(paintBitmap));
                 rasterRedoStack.clear();
             } catch (OutOfMemoryError e) {
-                if (!rasterUndoStack.isEmpty()) rasterUndoStack.remove(0); // Clear history if memory gets too tight
+                if (!rasterUndoStack.isEmpty()) rasterUndoStack.remove(0);
             }
         }
 
@@ -1106,7 +1178,6 @@ public class AdvancedCanvasActivity extends Activity {
             }
         }
 
-        // ORIGINAL TEMP BUFFER (Used exclusively for the Flood Fill scanner safely)
         public Bitmap getFinalBitmap() {
             Bitmap result = Bitmap.createBitmap(paintBitmap.getWidth(), paintBitmap.getHeight(), Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(result);
@@ -1115,7 +1186,6 @@ public class AdvancedCanvasActivity extends Activity {
             return result;
         }
 
-        // NEW FLATTEN ENGINE (Saves 50MB of RAM by painting directly onto base image when saving)
         public Bitmap getOptimizedSaveBitmap() {
             if (baseBitmap != null && paintBitmap != null) {
                 Canvas c = new Canvas(baseBitmap);

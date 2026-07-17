@@ -8,11 +8,14 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.view.Window;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.view.WindowCompat;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -23,6 +26,17 @@ public class MainActivity extends AppCompatActivity {
         AppCompatDelegate.setDefaultNightMode(isDarkTheme ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
 
         super.onCreate(savedInstanceState);
+
+        // =========================================================
+        // GLOBAL FIX: POCO/MOTOROLA STATUS BAR OVERLAP PREVENTION
+        // =========================================================
+        // Enable proper window insets handling for all modern devices
+        EdgeToEdge.enable(this);
+        Window window = getWindow();
+        // Force the app to safely fit within the system windows (below status bar, above nav bar)
+        WindowCompat.setDecorFitsSystemWindows(window, true);
+        // =========================================================
+
         setContentView(R.layout.activity_main);
 
         // --- 1. THEME TOGGLE LOGIC ---

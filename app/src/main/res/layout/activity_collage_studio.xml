@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- MAIN CONTENT -->
+    <RelativeLayout
+        android:id="@+id/mainContentRoot"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- TOP ACTION BAR -->
+        <RelativeLayout
+            android:id="@+id/topBar"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:elevation="4dp">
+
+            <!-- PERFECTLY CENTERED TITLE -->
+            <TextView
+                android:id="@+id/tvTopTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:text="Collage Studio"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-black"/>
+
+            <!-- Export Button -->
+            <Button
+                android:id="@+id/btnExport"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:text="Export"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:backgroundTint="@null"
+                android:stateListAnimator="@null"
+                android:elevation="2dp"/>
+        </RelativeLayout>
+
+        <!-- Custom Canvas Container -->
+        <FrameLayout
+            android:id="@+id/canvasContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/topBar"
+            android:layout_above="@+id/bottomBar"
+            android:padding="16dp" />
+
+        <!-- CENTER ADD PHOTOS BUTTON -->
+        <Button
+            android:id="@+id/btnCenterAddPhotos"
+            android:layout_width="wrap_content"
+            android:layout_height="56dp"
+            android:layout_centerInParent="true"
+            android:paddingStart="32dp"
+            android:paddingEnd="32dp"
+            android:text="Tap to Add Photos (2 - 50)"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            android:backgroundTint="@null"
+            android:stateListAnimator="@null"
+            android:elevation="6dp"/>
+
+        <!-- Bottom Navigation -->
+        <LinearLayout
+            android:id="@+id/bottomBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:orientation="horizontal"
+            android:padding="24dp"
+            android:gravity="center"
+            android:clipToPadding="false">
+
+            <Button
+                android:id="@+id/btnOpenSettings"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="≡ Settings"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:backgroundTint="@null"
+                android:elevation="8dp"
+                android:stateListAnimator="@null"/>
+
+            <Button
+                android:id="@+id/btnOpenTools"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Tools ≡"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:backgroundTint="@null"
+                android:elevation="8dp"
+                android:stateListAnimator="@null"/>
+        </LinearLayout>
+
+        <!-- LOADING OVERLAY -->
+        <RelativeLayout
+            android:id="@+id/loadingOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#B3000000"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="10dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/loadingCard"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:orientation="vertical"
+                android:padding="32dp"
+                android:gravity="center">
+
+                <ProgressBar
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:indeterminateTint="#4049EA" />
+
+                <TextView
+                    android:id="@+id/tvLoadingText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Saving High Quality Collage..."
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </RelativeLayout>
+    </RelativeLayout>
+
+    <!-- LEFT DRAWER: SETTINGS -->
+    <ScrollView
+        android:id="@+id/leftDrawer"
+        android:layout_width="320dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/leftDrawerContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SETTINGS" android:textSize="22sp" android:textStyle="bold" android:fontFamily="sans-serif-black" android:layout_marginBottom="16dp"/>
+
+            <Button android:id="@+id/btnDrawerAddPhotos" android:layout_width="match_parent" android:layout_height="50dp" android:text="+ Change/Add Photos" android:textAllCaps="false" android:backgroundTint="@null" android:textStyle="bold" android:layout_marginBottom="16dp"/>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="24dp">
+                <Button android:id="@+id/btnUndo" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="Undo" android:layout_marginEnd="4dp" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold"/>
+                <Button android:id="@+id/btnRedo" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="Redo" android:layout_marginStart="4dp" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold"/>
+            </LinearLayout>
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ratio" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:columnCount="3" android:layout_marginBottom="16dp">
+                <Button android:id="@+id/btnRatio11" android:layout_width="80dp" android:layout_height="45dp" android:text="1:1" android:backgroundTint="@null" android:layout_margin="4dp"/>
+                <Button android:id="@+id/btnRatio169" android:layout_width="80dp" android:layout_height="45dp" android:text="16:9" android:backgroundTint="@null" android:layout_margin="4dp"/>
+                <Button android:id="@+id/btnRatio43" android:layout_width="80dp" android:layout_height="45dp" android:text="4:3" android:backgroundTint="@null" android:layout_margin="4dp"/>
+                <Button android:id="@+id/btnRatio916" android:layout_width="80dp" android:layout_height="45dp" android:text="9:16" android:backgroundTint="@null" android:layout_margin="4dp"/>
+                <Button android:id="@+id/btnRatio32" android:layout_width="80dp" android:layout_height="45dp" android:text="3:2" android:backgroundTint="@null" android:layout_margin="4dp"/>
+                <Button android:id="@+id/btnRatio23" android:layout_width="80dp" android:layout_height="45dp" android:text="2:3" android:backgroundTint="@null" android:layout_margin="4dp"/>
+            </GridLayout>
+
+            <!-- BORDER WIDTH (Controls Gap between images) -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Border Width (Gap)" android:textStyle="bold" />
+            <SeekBar android:id="@+id/seekBorderWidth" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="10" android:layout_marginBottom="24dp"/>
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Background Color &amp; Hex" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <FrameLayout android:id="@+id/colorPickerContainer" android:layout_width="match_parent" android:layout_height="150dp" android:layout_marginBottom="8dp"/>
+            <EditText android:id="@+id/etBgHexCode" android:layout_width="match_parent" android:layout_height="50dp" android:hint="#RRGGBB" android:inputType="textCapCharacters" android:gravity="center" android:layout_marginBottom="16dp"/>
+
+            <Button android:id="@+id/btnBgTexture" android:layout_width="match_parent" android:layout_height="56dp" android:text="Select Bg Texture" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold"/>
+            <View android:layout_width="match_parent" android:layout_height="40dp" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- RIGHT DRAWER: TOOLS -->
+    <ScrollView
+        android:id="@+id/rightDrawer"
+        android:layout_width="320dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/rightDrawerContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TOOLS" android:textSize="22sp" android:textStyle="bold" android:fontFamily="sans-serif-black" android:layout_marginBottom="24dp"/>
+
+            <!-- MODE SWITCHERS -->
+            <Button android:id="@+id/btnRearrange" android:layout_width="match_parent" android:layout_height="60dp" android:text="Rearrange: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <Button android:id="@+id/btnToggleAdjust" android:layout_width="match_parent" android:layout_height="60dp" android:text="Adjust: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <Button android:id="@+id/btnToggleZoom" android:layout_width="match_parent" android:layout_height="60dp" android:text="Zoom: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <Button android:id="@+id/btnToggleDelete" android:layout_width="match_parent" android:layout_height="60dp" android:text="Delete: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="24dp"/>
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Layout Mode" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="4" android:layout_marginBottom="24dp">
+                <Button android:id="@+id/btnLayoutGrid" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="Grid" android:backgroundTint="@null" android:layout_marginEnd="2dp" android:padding="0dp" android:textAllCaps="false"/>
+                <Button android:id="@+id/btnLayoutRow" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="Row" android:backgroundTint="@null" android:layout_marginStart="2dp" android:layout_marginEnd="2dp" android:padding="0dp" android:textAllCaps="false"/>
+                <Button android:id="@+id/btnLayoutFree" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="Free" android:backgroundTint="@null" android:layout_marginStart="2dp" android:layout_marginEnd="2dp" android:padding="0dp" android:textAllCaps="false"/>
+                <Button android:id="@+id/btnLayoutFit" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="Fit" android:backgroundTint="@null" android:layout_marginStart="2dp" android:padding="0dp" android:textAllCaps="false"/>
+            </LinearLayout>
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Corner Radius" android:textStyle="bold" />
+            <SeekBar android:id="@+id/seekCornerRadius" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="0" android:layout_marginBottom="24dp"/>
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Blender (Edge Fade)" android:textStyle="bold" />
+            <SeekBar android:id="@+id/seekBlender" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0" android:layout_marginBottom="24dp"/>
+
+            <!-- STROKE CONTROL SECTION -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stroke Control" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <Button android:id="@+id/btnToggleStroke" android:layout_width="match_parent" android:layout_height="50dp" android:text="Stroke: ON" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stroke Width" android:textStyle="bold" />
+            <SeekBar android:id="@+id/seekStrokeWidth" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="10" android:layout_marginBottom="12dp"/>
+            <FrameLayout android:id="@+id/strokeColorContainer" android:layout_width="match_parent" android:layout_height="120dp" android:layout_marginBottom="8dp"/>
+            <EditText android:id="@+id/etStrokeHexCode" android:layout_width="match_parent" android:layout_height="50dp" android:hint="#RRGGBB" android:inputType="textCapCharacters" android:gravity="center" android:layout_marginBottom="24dp"/>
+
+            <!-- SHADOW CONTROL SECTION -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Drop Shadow" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <Button android:id="@+id/btnToggleShadow" android:layout_width="match_parent" android:layout_height="50dp" android:text="Shadow: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Offset X" android:textStyle="bold" />
+            <SeekBar android:id="@+id/seekShadowOffsetX" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="115" android:layout_marginBottom="8dp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Offset Y" android:textStyle="bold" />
+            <SeekBar android:id="@+id/seekShadowOffsetY" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="115" android:layout_marginBottom="12dp"/>
+            <FrameLayout android:id="@+id/shadowColorContainer" android:layout_width="match_parent" android:layout_height="120dp" android:layout_marginBottom="8dp"/>
+            <EditText android:id="@+id/etShadowHexCode" android:layout_width="match_parent" android:layout_height="50dp" android:hint="#RRGGBB" android:inputType="textCapCharacters" android:gravity="center" android:layout_marginBottom="16dp"/>
+
+            <View android:layout_width="match_parent" android:layout_height="60dp" />
+        </LinearLayout>
+    </ScrollView>
+</androidx.drawerlayout.widget.DrawerLayout>

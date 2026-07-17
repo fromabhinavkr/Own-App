@@ -11,7 +11,7 @@
         </intent>
     </queries>
 
-    <!-- NEW: Required for the Private Browser to access the web -->
+    <!-- Required for the Private Browser to access the web -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -23,7 +23,9 @@
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
+    <!-- FIXED: Added android:name=".MainApplication" to trigger the global status bar fix -->
     <application
+        android:name=".MainApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -98,16 +100,23 @@
             android:theme="@style/Theme.OwnPhotoONWall"
             tools:ignore="LockedOrientationActivity" />
 
+        <!-- Maze Ball Game Activity -->
+        <activity
+            android:name=".MazeBallActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
         <activity
             android:name=".ToolsGalleryActivity"
             android:exported="false" />
 
-        <!-- NEW: Utilities Gallery -->
+        <!-- Utilities Gallery -->
         <activity
             android:name=".UtilitiesGalleryActivity"
             android:exported="false" />
 
-        <!-- NEW: Hyper-Secure Private Browser Activity -->
+        <!-- Hyper-Secure Private Browser Activity -->
         <activity
             android:name=".PrivateBrowserActivity"
             android:exported="false"
@@ -131,6 +140,13 @@
         <!-- Clone Tool Studio -->
         <activity
             android:name=".CloneActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
+
+        <!-- Collage Studio Activity -->
+        <activity
+            android:name=".CollageStudioActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             tools:ignore="LockedOrientationActivity" />
