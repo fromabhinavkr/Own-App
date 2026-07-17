@@ -56,6 +56,9 @@ public class MazeGameService extends Service implements SensorEventListener {
     private static final float FRICTION = 0.85f;
     private static final float BALL_RADIUS = 0.2f;
 
+    // ANTI-TUNNELING SPEED LIMIT
+    private static final float MAX_SPEED = 0.6f;
+
     // MULTIPLE FLYING SPIKES ARRAY ENGINE
     private static final int NUM_SPIKES = 3;
     private final float[] spikeX = new float[NUM_SPIKES];
@@ -141,6 +144,11 @@ public class MazeGameService extends Service implements SensorEventListener {
             velX += accelX; velY += accelY;
             velX *= FRICTION; velY *= FRICTION;
 
+            // BUG FIX: VELOCITY CLAMPING
+            // Mathematically prevents the ball from moving so fast that it skips over a wall (Tunneling effect)
+            velX = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, velX));
+            velY = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, velY));
+
             float nextX = ballX + velX;
             float nextY = ballY + velY;
 
@@ -150,7 +158,7 @@ public class MazeGameService extends Service implements SensorEventListener {
             if (!isColliding(ballX, nextY)) ballY = nextY;
             else velY = 0;
 
-            // FLYING SPIKES PHYSICS (Now loops through all 3)
+            // FLYING SPIKES PHYSICS (Loops through all 3)
             for (int i = 0; i < NUM_SPIKES; i++) {
                 spikeX[i] += spikeVelX[i];
                 spikeY[i] += spikeVelY[i];
