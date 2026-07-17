@@ -6,11 +6,11 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_maze"
-    android:resizeMode="none"
+    android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
-    android:maxResizeWidth="180dp"
+    android:maxResizeWidth="300dp"
+    android:maxResizeHeight="300dp"
     android:previewImage="@drawable/maze_preview"
     android:label="My Maze Game"
     android:description="@string/widget_description">
-    android:maxResizeHeight="110dp"
 </appwidget-provider>

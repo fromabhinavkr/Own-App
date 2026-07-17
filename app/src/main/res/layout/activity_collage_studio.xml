@@ -223,7 +223,14 @@
             <Button android:id="@+id/btnRearrange" android:layout_width="match_parent" android:layout_height="60dp" android:text="Rearrange: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
             <Button android:id="@+id/btnToggleAdjust" android:layout_width="match_parent" android:layout_height="60dp" android:text="Adjust: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
             <Button android:id="@+id/btnToggleZoom" android:layout_width="match_parent" android:layout_height="60dp" android:text="Zoom: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
-            <Button android:id="@+id/btnToggleDelete" android:layout_width="match_parent" android:layout_height="60dp" android:text="Delete: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="24dp"/>
+            <Button android:id="@+id/btnToggleDelete" android:layout_width="match_parent" android:layout_height="60dp" android:text="Delete: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+
+            <!-- NEW TRANSFORMATION MODES -->
+            <Button android:id="@+id/btnToggleRotate" android:layout_width="match_parent" android:layout_height="60dp" android:text="Rotate: OFF" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginBottom="24dp">
+                <Button android:id="@+id/btnToggleMirrorH" android:layout_width="0dp" android:layout_weight="1" android:layout_height="60dp" android:text="Mirror ↔: OFF" android:layout_marginEnd="4dp" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold"/>
+                <Button android:id="@+id/btnToggleMirrorV" android:layout_width="0dp" android:layout_weight="1" android:layout_height="60dp" android:text="Mirror ↕: OFF" android:layout_marginStart="4dp" android:backgroundTint="@null" android:textAllCaps="false" android:textStyle="bold"/>
+            </LinearLayout>
 
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Layout Mode" android:textStyle="bold" android:layout_marginBottom="8dp"/>
 

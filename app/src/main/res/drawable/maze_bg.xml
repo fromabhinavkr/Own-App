@@ -1,5 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/maze_path" />
-    <corners android:radius="16dp" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Dark bottom-right shadow -->
+    <item android:top="2dp" android:left="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#151619"/>
+            <corners android:radius="28dp"/>
+        </shape>
+    </item>
+    <!-- Light top-left highlight -->
+    <item android:bottom="2dp" android:right="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#363940"/>
+            <corners android:radius="28dp"/>
+        </shape>
+    </item>
+    <!-- Main Dark Base -->
+    <item android:bottom="2dp" android:right="2dp" android:top="2dp" android:left="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#23252A"/>
+            <corners android:radius="28dp"/>
+        </shape>
+    </item>
+</layer-list>

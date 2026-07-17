@@ -57,35 +57,47 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
 
+@SuppressWarnings("all")
 @SuppressLint("SetTextI18n")
 public class CollageStudioActivity extends AppCompatActivity {
 
     private CollageCanvasView canvasView;
     private EditText etBgHexCode, etStrokeHexCode, etShadowHexCode;
-    private Button btnRearrange, btnToggleAdjust, btnToggleZoom, btnToggleDelete, btnToggleStroke, btnToggleShadow;
+    private Button btnRearrange, btnToggleAdjust, btnToggleZoom, btnToggleDelete;
+    private Button btnToggleStroke, btnToggleShadow;
+
+    // NEW: Transformation Mode Buttons
+    private Button btnToggleRotate, btnToggleMirrorH, btnToggleMirrorV;
+
     private Button btnCenterAddPhotos;
     private RelativeLayout loadingOverlay;
 
     // State Variables
     private final List<Uri> currentUris = new ArrayList<>();
     private float currentRatio = 1.0f;
-    private float currentBorderWidth = 10f; // Gap between images
+    private float currentBorderWidth = 10f;
     private float currentCornerRadius = 0f;
     private float currentBlender = 0f;
     private int currentBgColor = Color.WHITE;
     private Uri currentBgTexture = null;
-    private int currentLayoutMode = 0; // 0=Grid, 1=Rows, 2=Free, 3=Fit
+    private int currentLayoutMode = 0;
 
     // Interaction Modes
     private boolean isRearrangeMode = false;
     private boolean isAdjustMode = false;
     private boolean isZoomMode = false;
     private boolean isDeleteMode = false;
+    private boolean isRotateMode = false;
+    private boolean isMirrorHMode = false;
+    private boolean isMirrorVMode = false;
 
-    // Zoom & Pan Memory
+    // Zoom, Pan, & Transform Memory
     private final List<Float> imageScales = new ArrayList<>();
     private final List<Float> imagePanX = new ArrayList<>();
     private final List<Float> imagePanY = new ArrayList<>();
+    private final List<Float> imageRotations = new ArrayList<>();
+    private final List<Boolean> imageFlipX = new ArrayList<>();
+    private final List<Boolean> imageFlipY = new ArrayList<>();
 
     // Stroke Variables
     private boolean isStrokeEnabled = true;
@@ -189,10 +201,18 @@ public class CollageStudioActivity extends AppCompatActivity {
         btnToggleZoom = findViewById(R.id.btnToggleZoom);
         btnToggleDelete = findViewById(R.id.btnToggleDelete);
 
+        btnToggleRotate = findViewById(R.id.btnToggleRotate);
+        btnToggleMirrorH = findViewById(R.id.btnToggleMirrorH);
+        btnToggleMirrorV = findViewById(R.id.btnToggleMirrorV);
+
         setupRoundButton(btnRearrange, themeButtonColor);
         setupRoundButton(btnToggleAdjust, themeButtonColor);
         setupRoundButton(btnToggleZoom, themeButtonColor);
         setupRoundButton(btnToggleDelete, themeButtonColor);
+
+        setupRoundButton(btnToggleRotate, themeButtonColor);
+        setupRoundButton(btnToggleMirrorH, themeButtonColor);
+        setupRoundButton(btnToggleMirrorV, themeButtonColor);
 
         setupRoundButton(findViewById(R.id.btnBgTexture), themeButtonColor);
         setupRoundButton(findViewById(R.id.btnUndo), themeButtonColor);
@@ -239,6 +259,9 @@ public class CollageStudioActivity extends AppCompatActivity {
         isAdjustMode = (mode == 2);
         isZoomMode = (mode == 3);
         isDeleteMode = (mode == 4);
+        isRotateMode = (mode == 5);
+        isMirrorHMode = (mode == 6);
+        isMirrorVMode = (mode == 7);
 
         if (btnRearrange != null) {
             btnRearrange.setText(isRearrangeMode ? "Rearrange: ON" : "Rearrange: OFF");
@@ -255,6 +278,18 @@ public class CollageStudioActivity extends AppCompatActivity {
         if (btnToggleDelete != null) {
             btnToggleDelete.setText(isDeleteMode ? "Delete: ON (Tap to Remove)" : "Delete: OFF");
             setupRoundButton(btnToggleDelete, isDeleteMode ? Color.parseColor("#F44336") : themeButtonColor);
+        }
+        if (btnToggleRotate != null) {
+            btnToggleRotate.setText(isRotateMode ? "Rotate: ON" : "Rotate: OFF");
+            setupRoundButton(btnToggleRotate, isRotateMode ? Color.parseColor("#4CAF50") : themeButtonColor);
+        }
+        if (btnToggleMirrorH != null) {
+            btnToggleMirrorH.setText(isMirrorHMode ? "Mirror ↔: ON" : "Mirror ↔: OFF");
+            setupRoundButton(btnToggleMirrorH, isMirrorHMode ? Color.parseColor("#4CAF50") : themeButtonColor);
+        }
+        if (btnToggleMirrorV != null) {
+            btnToggleMirrorV.setText(isMirrorVMode ? "Mirror ↕: ON" : "Mirror ↕: OFF");
+            setupRoundButton(btnToggleMirrorV, isMirrorVMode ? Color.parseColor("#4CAF50") : themeButtonColor);
         }
     }
 
@@ -308,6 +343,10 @@ public class CollageStudioActivity extends AppCompatActivity {
         if (btnToggleAdjust != null) btnToggleAdjust.setOnClickListener(v -> setInteractionMode(isAdjustMode ? 0 : 2));
         if (btnToggleZoom != null) btnToggleZoom.setOnClickListener(v -> setInteractionMode(isZoomMode ? 0 : 3));
         if (btnToggleDelete != null) btnToggleDelete.setOnClickListener(v -> setInteractionMode(isDeleteMode ? 0 : 4));
+
+        if (btnToggleRotate != null) btnToggleRotate.setOnClickListener(v -> setInteractionMode(isRotateMode ? 0 : 5));
+        if (btnToggleMirrorH != null) btnToggleMirrorH.setOnClickListener(v -> setInteractionMode(isMirrorHMode ? 0 : 6));
+        if (btnToggleMirrorV != null) btnToggleMirrorV.setOnClickListener(v -> setInteractionMode(isMirrorVMode ? 0 : 7));
 
         if (btnToggleStroke != null) {
             btnToggleStroke.setOnClickListener(v -> {
@@ -534,6 +573,9 @@ public class CollageStudioActivity extends AppCompatActivity {
                         imageScales.add(1.0f);
                         imagePanX.add(0f);
                         imagePanY.add(0f);
+                        imageRotations.add(0f);
+                        imageFlipX.add(false);
+                        imageFlipY.add(false);
                     }
                 } else if (data.getData() != null && currentUris.size() < 50) {
                     Uri uri = data.getData();
@@ -542,6 +584,9 @@ public class CollageStudioActivity extends AppCompatActivity {
                     imageScales.add(1.0f);
                     imagePanX.add(0f);
                     imagePanY.add(0f);
+                    imageRotations.add(0f);
+                    imageFlipX.add(false);
+                    imageFlipY.add(false);
                 }
                 applyUpdateAsync(true, true);
             }
@@ -661,12 +706,14 @@ public class CollageStudioActivity extends AppCompatActivity {
         int bgColor, strokeColor, layoutMode; Uri bgTexture; boolean isStrokeEnabled;
         boolean isShadowEnabled; float shadowOffsetX, shadowOffsetY; int shadowColor;
         List<RectF> boundsPercentages;
-        List<Float> scales, panXs, panYs;
+        List<Float> scales, panXs, panYs, rotations;
+        List<Boolean> flipXs, flipYs;
 
         CollageState(List<Uri> u, float r, float bw, float sw, float cr, float bl,
                      int bg, int sc, int lm, Uri tex, boolean se,
                      boolean she, float sox, float soy, int shc, List<RectF> bounds,
-                     List<Float> s, List<Float> px, List<Float> py) {
+                     List<Float> s, List<Float> px, List<Float> py,
+                     List<Float> rot, List<Boolean> fx, List<Boolean> fy) {
             uris = new ArrayList<>(u); ratio = r; borderWidth = bw; strokeWidth = sw; cornerRadius = cr; blender = bl;
             bgColor = bg; strokeColor = sc; layoutMode = lm; bgTexture = tex; isStrokeEnabled = se;
             isShadowEnabled = she; shadowOffsetX = sox; shadowOffsetY = soy; shadowColor = shc;
@@ -677,6 +724,9 @@ public class CollageStudioActivity extends AppCompatActivity {
             scales = new ArrayList<>(s);
             panXs = new ArrayList<>(px);
             panYs = new ArrayList<>(py);
+            rotations = new ArrayList<>(rot);
+            flipXs = new ArrayList<>(fx);
+            flipYs = new ArrayList<>(fy);
         }
     }
 
@@ -685,7 +735,7 @@ public class CollageStudioActivity extends AppCompatActivity {
         undoStack.push(new CollageState(currentUris, currentRatio, currentBorderWidth, currentStrokeWidth, currentCornerRadius,
                 currentBlender, currentBgColor, currentStrokeColor, currentLayoutMode, currentBgTexture,
                 isStrokeEnabled, isShadowEnabled, currentShadowOffsetX, currentShadowOffsetY, currentShadowColor,
-                canvasView.getBoundsAsPercentages(), imageScales, imagePanX, imagePanY));
+                canvasView.getBoundsAsPercentages(), imageScales, imagePanX, imagePanY, imageRotations, imageFlipX, imageFlipY));
     }
 
     private void undo() {
@@ -734,6 +784,9 @@ public class CollageStudioActivity extends AppCompatActivity {
         imageScales.clear(); imageScales.addAll(state.scales);
         imagePanX.clear(); imagePanX.addAll(state.panXs);
         imagePanY.clear(); imagePanY.addAll(state.panYs);
+        imageRotations.clear(); imageRotations.addAll(state.rotations);
+        imageFlipX.clear(); imageFlipX.addAll(state.flipXs);
+        imageFlipY.clear(); imageFlipY.addAll(state.flipYs);
 
         ((SeekBar) findViewById(R.id.seekBorderWidth)).setProgress((int) currentBorderWidth);
         ((SeekBar) findViewById(R.id.seekStrokeWidth)).setProgress((int) currentStrokeWidth);
@@ -830,13 +883,25 @@ public class CollageStudioActivity extends AppCompatActivity {
                     float userScale = i < imageScales.size() ? imageScales.get(i) : 1.0f;
                     float userPanX = (i < imagePanX.size() ? imagePanX.get(i) : 0f) * scaleX;
                     float userPanY = (i < imagePanY.size() ? imagePanY.get(i) : 0f) * scaleY;
+                    float userRot = i < imageRotations.size() ? imageRotations.get(i) : 0f;
+                    boolean userFlipX = i < imageFlipX.size() ? imageFlipX.get(i) : false;
+                    boolean userFlipY = i < imageFlipY.size() ? imageFlipY.get(i) : false;
 
                     m.reset();
                     float baseScale = Math.max(imgRect.width() / hrBmp.getWidth(), imgRect.height() / hrBmp.getHeight());
                     float finalScale = baseScale * userScale;
+
                     m.postScale(finalScale, finalScale);
                     m.postTranslate(imgRect.left + (imgRect.width() - hrBmp.getWidth() * finalScale) / 2f + userPanX,
                             imgRect.top + (imgRect.height() - hrBmp.getHeight() * finalScale) / 2f + userPanY);
+
+                    // Transform (Flip & Rotate) perfectly around its center
+                    if (userFlipX || userFlipY) {
+                        m.postScale(userFlipX ? -1 : 1, userFlipY ? -1 : 1, imgRect.centerX(), imgRect.centerY());
+                    }
+                    if (userRot != 0f) {
+                        m.postRotate(userRot, imgRect.centerX(), imgRect.centerY());
+                    }
 
                     // Draw Shadow Layer FIRST
                     if (isShadowEnabled && currentShadowColor != Color.TRANSPARENT) {
@@ -981,7 +1046,6 @@ public class CollageStudioActivity extends AppCompatActivity {
 
         public CollageCanvasView(Context context) {
             super(context);
-            // Motorola Native Crash FIX: Disables hardware acceleration for this specific view to allow BlurMaskFilter to run safely
             setLayerType(LAYER_TYPE_SOFTWARE, null);
             mMaskPaint.setColor(Color.WHITE);
             mStrokePaint.setStyle(Paint.Style.STROKE);
@@ -1145,6 +1209,27 @@ public class CollageStudioActivity extends AppCompatActivity {
             float x = event.getX();
             float y = event.getY();
 
+            // ================= ROTATE / MIRROR MODES =================
+            if (isRotateMode || isMirrorHMode || isMirrorVMode) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    for (int i = layoutBounds.size() - 1; i >= 0; i--) {
+                        if (layoutBounds.get(i).contains(x, y)) {
+                            if (isRotateMode) {
+                                imageRotations.set(i, (imageRotations.get(i) + 90f) % 360f);
+                            } else if (isMirrorHMode) {
+                                imageFlipX.set(i, !imageFlipX.get(i));
+                            } else if (isMirrorVMode) {
+                                imageFlipY.set(i, !imageFlipY.get(i));
+                            }
+                            saveStateToHistory();
+                            invalidate();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
             // ================= DELETE MODE =================
             if (isDeleteMode) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
@@ -1157,6 +1242,9 @@ public class CollageStudioActivity extends AppCompatActivity {
                             if (i < imageScales.size()) imageScales.remove(i);
                             if (i < imagePanX.size()) imagePanX.remove(i);
                             if (i < imagePanY.size()) imagePanY.remove(i);
+                            if (i < imageRotations.size()) imageRotations.remove(i);
+                            if (i < imageFlipX.size()) imageFlipX.remove(i);
+                            if (i < imageFlipY.size()) imageFlipY.remove(i);
 
                             if (currentLayoutMode == 2) {
                                 if (i < percentageBounds.size()) percentageBounds.remove(i);
@@ -1337,6 +1425,9 @@ public class CollageStudioActivity extends AppCompatActivity {
                                 Collections.swap(imageScales, draggedIndex, i);
                                 Collections.swap(imagePanX, draggedIndex, i);
                                 Collections.swap(imagePanY, draggedIndex, i);
+                                Collections.swap(imageRotations, draggedIndex, i);
+                                Collections.swap(imageFlipX, draggedIndex, i);
+                                Collections.swap(imageFlipY, draggedIndex, i);
                                 break;
                             }
                         }
@@ -1411,13 +1502,25 @@ public class CollageStudioActivity extends AppCompatActivity {
             float userScale = index < imageScales.size() ? imageScales.get(index) : 1.0f;
             float userPanX = index < imagePanX.size() ? imagePanX.get(index) : 0f;
             float userPanY = index < imagePanY.size() ? imagePanY.get(index) : 0f;
+            float userRot = index < imageRotations.size() ? imageRotations.get(index) : 0f;
+            boolean userFlipX = index < imageFlipX.size() ? imageFlipX.get(index) : false;
+            boolean userFlipY = index < imageFlipY.size() ? imageFlipY.get(index) : false;
 
             mMatrix.reset();
             float baseScale = Math.max(mImgRect.width() / bmp.getWidth(), mImgRect.height() / bmp.getHeight());
             float finalScale = baseScale * userScale;
+
             mMatrix.postScale(finalScale, finalScale);
             mMatrix.postTranslate(mImgRect.left + (mImgRect.width() - bmp.getWidth() * finalScale) / 2f + userPanX,
                     mImgRect.top + (mImgRect.height() - bmp.getHeight() * finalScale) / 2f + userPanY);
+
+            // Transform (Flip & Rotate) perfectly around its center
+            if (userFlipX || userFlipY) {
+                mMatrix.postScale(userFlipX ? -1 : 1, userFlipY ? -1 : 1, mImgRect.centerX(), mImgRect.centerY());
+            }
+            if (userRot != 0f) {
+                mMatrix.postRotate(userRot, mImgRect.centerX(), mImgRect.centerY());
+            }
 
             if (isShadowEnabled && currentShadowColor != Color.TRANSPARENT) {
                 int shadowSave = canvas.save();
@@ -1461,7 +1564,7 @@ public class CollageStudioActivity extends AppCompatActivity {
     }
 
     // ==========================================
-    // CUSTOM COLOR PICKER COMPONENT (Hold & Drag)
+    // CUSTOM COLOR PICKER COMPONENT
     // ==========================================
     private static class ColorPickerView extends View {
         private final Paint huePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -1479,7 +1582,6 @@ public class CollageStudioActivity extends AppCompatActivity {
 
         public ColorPickerView(Context context, OnColorPickedListener listener) {
             super(context);
-            // Motorola Native Crash FIX: Disables hardware acceleration for this specific view to allow BlurMaskFilter to run safely
             setLayerType(LAYER_TYPE_SOFTWARE, null);
             this.listener = listener;
             cursorPaint.setStyle(Paint.Style.STROKE);
@@ -1497,11 +1599,9 @@ public class CollageStudioActivity extends AppCompatActivity {
             LinearGradient shader = new LinearGradient(0, 0, w, 0, colors, null, Shader.TileMode.CLAMP);
             huePaint.setShader(shader);
 
-            // Top half: Solid White fading down to Transparent
             LinearGradient whiteShader = new LinearGradient(0, 0, 0, h / 2f, 0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
             whitePaint.setShader(whiteShader);
 
-            // Bottom half: Transparent fading down to Solid Black
             LinearGradient blackShader = new LinearGradient(0, h / 2f, 0, h, 0x00000000, 0xFF000000, Shader.TileMode.CLAMP);
             blackPaint.setShader(blackShader);
         }
@@ -1509,13 +1609,9 @@ public class CollageStudioActivity extends AppCompatActivity {
         @Override
         protected void onDraw(@NonNull Canvas canvas) {
             super.onDraw(canvas);
-            // Draw base color spectrum
             canvas.drawRoundRect(mBgPickerRect, 24f, 24f, huePaint);
-            // Overlay white lightness intensity (Top half)
             canvas.drawRoundRect(mBgPickerRect, 24f, 24f, whitePaint);
-            // Overlay black darkness intensity (Bottom half)
             canvas.drawRoundRect(mBgPickerRect, 24f, 24f, blackPaint);
-            // Draw the selection ring
             canvas.drawCircle(cursorX, cursorY, 20f, cursorPaint);
         }
 
@@ -1538,8 +1634,6 @@ public class CollageStudioActivity extends AppCompatActivity {
             float saturation = 1f;
             float value = 1f;
 
-            // Top half controls Saturation (Fading White to Pure Color)
-            // Bottom half controls Value (Fading Pure Color to Black)
             if (yNorm <= 0.5f) {
                 saturation = yNorm * 2f;
                 value = 1f;

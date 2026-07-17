@@ -27,6 +27,7 @@ public class MazeWidgetProvider extends AppWidgetProvider {
 
             PendingIntent pendingIntent = PendingIntent.getBroadcast(context, id, intent, flags);
             views.setOnClickPendingIntent(R.id.maze_canvas, pendingIntent);
+
             appWidgetManager.updateAppWidget(id, views);
         }
     }
@@ -35,8 +36,8 @@ public class MazeWidgetProvider extends AppWidgetProvider {
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
 
-        // Handle Theme Changes (Light/Dark mode switch)
-        if (action != null && action.equals(Intent.ACTION_CONFIGURATION_CHANGED)) {
+        // Handle Theme Changes
+        if (Intent.ACTION_CONFIGURATION_CHANGED.equals(action)) {
             AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
             ComponentName thisWidget = new ComponentName(context, MazeWidgetProvider.class);
             int[] allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget);
