@@ -68,8 +68,10 @@ If you just want to install and use the app on your Android device:
 3. Open the file on your phone (you may need to enable "Install Unknown Apps" in your settings).
 4. *Note for Samsung users:* If the installation is blocked, temporarily disable "Auto Blocker" in your Security & Privacy settings.
 
-### For Developers
-If you want to view the code or build the app yourself:
+
+## For Developers
+If you want to view the code or build the app yourself in Android Studio:
+
 1. Clone the repository:
-   ```bash
-   git clone [https://github.com/fromabhinavkr/Own-App.git](https://github.com/fromabhinavkr/Own-App.git)
+```bash
+git clone [https://github.com/fromabhinavkr/Own-App.git](https://github.com/fromabhinavkr/Own-App.git)
