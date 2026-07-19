@@ -23,9 +23,10 @@
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
-    <!-- FIXED: Added android:name=".MainApplication" to trigger the global status bar fix -->
+    <!-- FIXED: Added android:largeHeap="true" to prevent OOM Crashes with 4K Images! -->
     <application
         android:name=".MainApplication"
+        android:largeHeap="true"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -129,6 +130,13 @@
         <activity
             android:name=".ImageEditorActivity"
             android:exported="true" />
+
+        <!-- Image Studio Mega Gallery (Added Here!) -->
+        <activity
+            android:name=".ImageStudioMegaGal"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
 
         <!-- Advanced Canvas Studio -->
         <activity

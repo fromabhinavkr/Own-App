@@ -3,6 +3,7 @@ package com.example.ownphotoonwall;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BlurMaskFilter;
@@ -37,7 +38,6 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -89,17 +89,22 @@ public class LayerSettingsUI {
         }
     }
 
+    // MODERN UNIFIED GREY BUTTON CREATOR
     private Button createToggleButton(String text, boolean active) {
         Button b = new Button(activity);
         b.setText(text);
-        b.setTextSize(10f);
+        b.setTextSize(12f);
         b.setPadding(8, 0, 8, 0);
         b.setMinimumWidth(0);
         b.setMinimumHeight(0);
-        b.setTextColor(Color.WHITE);
-        b.setBackgroundTintList(ColorStateList.valueOf(active ? Color.parseColor("#4A90E2") : Color.parseColor("#3A3A3C")));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, 100);
-        lp.setMargins(4, 0, 4, 0);
+        b.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+
+        int activeColor = isDarkTheme ? Color.parseColor("#4A4A4C") : Color.parseColor("#D1D1D6");
+        int inactiveColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#E5E5EA");
+
+        b.setBackgroundTintList(ColorStateList.valueOf(active ? activeColor : inactiveColor));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, 110, 1f);
+        lp.setMargins(6, 0, 6, 0);
         b.setLayoutParams(lp);
         return b;
     }
@@ -112,10 +117,17 @@ public class LayerSettingsUI {
         tv.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
         tv.setTextSize(12f);
         tv.setTypeface(null, Typeface.BOLD);
+
         Slider slider = new Slider(activity);
         slider.setValueFrom(min);
         slider.setValueTo(max);
         slider.setValue(current);
+
+        // UNIFIED PROFESSIONAL SLIDER COLORS
+        slider.setThumbTintList(ColorStateList.valueOf(isDarkTheme ? Color.WHITE : Color.parseColor("#333333")));
+        slider.setTrackActiveTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+        slider.setTrackInactiveTintList(ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#4A4A4C") : Color.parseColor("#D1D1D6")));
+
         slider.addOnChangeListener(listener);
         row.addView(tv);
         row.addView(slider);
@@ -128,8 +140,9 @@ public class LayerSettingsUI {
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.setPadding(40, 40, 40, 40);
 
+        // PERFECT FROSTED GLASS BACKGROUND (95% Opacity)
         GradientDrawable gd = new GradientDrawable();
-        gd.setColor(isDarkTheme ? Color.parseColor("#E61C1C1E") : Color.parseColor("#E6F2F2F7"));
+        gd.setColor(isDarkTheme ? Color.parseColor("#E61C1C1E") : Color.parseColor("#F2FFFFFF"));
         gd.setCornerRadii(new float[]{60f, 60f, 60f, 60f, 0f, 0f, 0f, 0f});
         mainLayout.setBackground(gd);
 
@@ -210,11 +223,14 @@ public class LayerSettingsUI {
         etHex.setText("#FFFFFF");
         etHex.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
 
+        int profBtnColor = isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA");
+        int profTextColor = isDarkTheme ? Color.WHITE : Color.BLACK;
+
         Button btnEyedropper = new Button(activity);
         btnEyedropper.setText("🖌️ Pick");
-        btnEyedropper.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
-        btnEyedropper.setTextColor(Color.WHITE);
-        LinearLayout.LayoutParams pickLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnEyedropper.setBackgroundTintList(ColorStateList.valueOf(profBtnColor));
+        btnEyedropper.setTextColor(profTextColor);
+        LinearLayout.LayoutParams pickLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, 120);
         pickLp.setMargins(16, 0, 0, 0);
         btnEyedropper.setLayoutParams(pickLp);
 
@@ -253,8 +269,9 @@ public class LayerSettingsUI {
 
         Button btnPickFont = new Button(activity);
         btnPickFont.setText("Choose Custom Font (.ttf / .otf)");
-        btnPickFont.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
-        btnPickFont.setTextColor(Color.WHITE);
+        btnPickFont.setBackgroundTintList(ColorStateList.valueOf(profBtnColor));
+        btnPickFont.setTextColor(profTextColor);
+        btnPickFont.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 130));
         pageTint.addView(btnPickFont);
 
         activeFontLabel = new TextView(activity);
@@ -299,8 +316,11 @@ public class LayerSettingsUI {
 
         Button btnApply = new Button(activity);
         btnApply.setText(layerToEdit == null ? "Add to Image" : "Update Image");
-        btnApply.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#34C759")));
+        btnApply.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
         btnApply.setTextColor(Color.WHITE);
+        LinearLayout.LayoutParams applyLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 130);
+        applyLp.setMargins(0, 16, 0, 0);
+        btnApply.setLayoutParams(applyLp);
         mainLayout.addView(btnApply);
 
         ScrollView scrollWrapper = new ScrollView(activity);
@@ -314,11 +334,14 @@ public class LayerSettingsUI {
         colorPicker.setColor(textColors[0]);
         etHex.setText(String.format("#%06X", (0xFFFFFF & textColors[0])));
 
+        int activeColor = isDarkTheme ? Color.parseColor("#4A4A4C") : Color.parseColor("#D1D1D6");
+        int inactiveColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#E5E5EA");
+
         View.OnClickListener alignListener = aBtn -> {
-            btnAlignLeft.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            btnAlignCenter.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            btnAlignRight.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            aBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+            btnAlignLeft.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            btnAlignCenter.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            btnAlignRight.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            aBtn.setBackgroundTintList(ColorStateList.valueOf(activeColor));
             if (aBtn == btnAlignLeft) currentAlign[0] = Layout.Alignment.ALIGN_NORMAL;
             else if (aBtn == btnAlignCenter) currentAlign[0] = Layout.Alignment.ALIGN_CENTER;
             else if (aBtn == btnAlignRight) currentAlign[0] = Layout.Alignment.ALIGN_OPPOSITE;
@@ -330,11 +353,11 @@ public class LayerSettingsUI {
         btnAlignRight.setOnClickListener(alignListener);
 
         View.OnClickListener targetListener = tBtn -> {
-            btnTargetMain.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            btnTargetStroke.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            btnTargetShadow.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            btnTargetInner.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            tBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+            btnTargetMain.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            btnTargetStroke.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            btnTargetShadow.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            btnTargetInner.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            tBtn.setBackgroundTintList(ColorStateList.valueOf(activeColor));
 
             if (tBtn == btnTargetMain) activeColorTarget[0] = 0;
             else if (tBtn == btnTargetStroke) activeColorTarget[0] = 1;
@@ -482,7 +505,7 @@ public class LayerSettingsUI {
         Window window = dialog.getWindow();
         if (window != null) {
             window.setGravity(Gravity.BOTTOM);
-            int height = (int)(activity.getResources().getDisplayMetrics().heightPixels * 0.55);
+            int height = (int)(activity.getResources().getDisplayMetrics().heightPixels * 0.60);
             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, height);
             window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
@@ -494,12 +517,14 @@ public class LayerSettingsUI {
         if (layer == null) return;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, R.style.ModernDialogStyle);
+        final AlertDialog[] dialogHolder = new AlertDialog[1];
+
         LinearLayout mainLayout = new LinearLayout(activity);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.setPadding(30, 40, 30, 40);
 
         GradientDrawable gd = new GradientDrawable();
-        gd.setColor(isDarkTheme ? Color.parseColor("#E61C1C1E") : Color.parseColor("#E6F2F2F7"));
+        gd.setColor(isDarkTheme ? Color.parseColor("#E61C1C1E") : Color.parseColor("#F2FFFFFF"));
         gd.setCornerRadii(new float[]{60f, 60f, 60f, 60f, 0f, 0f, 0f, 0f});
         mainLayout.setBackground(gd);
 
@@ -542,11 +567,14 @@ public class LayerSettingsUI {
         etHex.setText(String.format("#%06X", (0xFFFFFF & layer.color)));
         etHex.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
 
+        int profBtnColor = isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA");
+        int profTextColor = isDarkTheme ? Color.WHITE : Color.BLACK;
+
         Button btnEyedropper = new Button(activity);
         btnEyedropper.setText("🖌️ Pick");
-        btnEyedropper.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
-        btnEyedropper.setTextColor(Color.WHITE);
-        LinearLayout.LayoutParams pickLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnEyedropper.setBackgroundTintList(ColorStateList.valueOf(profBtnColor));
+        btnEyedropper.setTextColor(profTextColor);
+        LinearLayout.LayoutParams pickLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, 120);
         pickLp.setMargins(16, 0, 0, 0);
         btnEyedropper.setLayoutParams(pickLp);
 
@@ -562,16 +590,18 @@ public class LayerSettingsUI {
         if (layer.type == 1) {
             Button btnCropLayer = new Button(activity);
             btnCropLayer.setText("Crop Image Layer");
-            btnCropLayer.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF9500")));
-            btnCropLayer.setTextColor(Color.WHITE);
-            LinearLayout.LayoutParams cropLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            btnCropLayer.setBackgroundTintList(ColorStateList.valueOf(profBtnColor));
+            btnCropLayer.setTextColor(profTextColor);
+            LinearLayout.LayoutParams cropLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 130);
             cropLp.setMargins(0, 16, 0, 16);
             btnCropLayer.setLayoutParams(cropLp);
             pageTint.addView(btnCropLayer, 0);
 
             btnCropLayer.setOnClickListener(v -> {
+                if (dialogHolder[0] != null) dialogHolder[0].dismiss();
+                activity.hideRightPanel();
                 editorView.startLayerCrop();
-                activity.hideToolsPanel();
+                activity.showCropToolbar();
             });
         }
 
@@ -580,9 +610,15 @@ public class LayerSettingsUI {
             editorView.invalidate();
         };
 
+        // PERFECT PERFORMANCE TRANSPARENCY FIX:
+        // Do NOT set isDirty=true or call bake() for Alpha changes! Just invalidate to trigger immediate GPU redraw.
         pageTint.addView(createSliderWithLabel("Transparency", 0, 255, layer.alpha, (Slider s, float v, boolean u) -> {
-            if (u) { layer.alpha = (int)v; debounceHandler.removeCallbacks(layerUpdateRunnable); debounceHandler.postDelayed(layerUpdateRunnable, 50); }
+            if (u) {
+                layer.alpha = (int)v;
+                editorView.invalidate(); // INSTANT redraw, ZERO lag!
+            }
         }));
+
         pageTint.addView(createSliderWithLabel("Rotation", -180, 180, layer.rotation, (Slider s, float v, boolean u) -> {
             if (u) { layer.rotation = v; debounceHandler.removeCallbacks(layerUpdateRunnable); debounceHandler.postDelayed(layerUpdateRunnable, 50); }
         }));
@@ -592,9 +628,9 @@ public class LayerSettingsUI {
         mirrorRow.setGravity(Gravity.CENTER);
         mirrorRow.setPadding(0, 16, 0, 16);
 
-        Button btnMirrorH = new Button(activity); btnMirrorH.setText("Mirror ↔"); btnMirrorH.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF9500"))); btnMirrorH.setTextColor(Color.WHITE);
-        Button btnMirrorV = new Button(activity); btnMirrorV.setText("Mirror ↕"); btnMirrorV.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF9500"))); btnMirrorV.setTextColor(Color.WHITE);
-        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        Button btnMirrorH = new Button(activity); btnMirrorH.setText("Mirror ↔"); btnMirrorH.setBackgroundTintList(ColorStateList.valueOf(profBtnColor)); btnMirrorH.setTextColor(profTextColor);
+        Button btnMirrorV = new Button(activity); btnMirrorV.setText("Mirror ↕"); btnMirrorV.setBackgroundTintList(ColorStateList.valueOf(profBtnColor)); btnMirrorV.setTextColor(profTextColor);
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(0, 120, 1f);
         btnLp.setMargins(8, 0, 8, 0);
         btnMirrorH.setLayoutParams(btnLp);
         btnMirrorV.setLayoutParams(btnLp);
@@ -641,8 +677,11 @@ public class LayerSettingsUI {
 
         Button btnApply = new Button(activity);
         btnApply.setText("Done");
-        btnApply.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#34C759")));
+        btnApply.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
         btnApply.setTextColor(Color.WHITE);
+        LinearLayout.LayoutParams doneLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 130);
+        doneLp.setMargins(0, 16, 0, 0);
+        btnApply.setLayoutParams(doneLp);
         mainLayout.addView(btnApply);
 
         ScrollView scrollWrapper = new ScrollView(activity);
@@ -650,16 +689,20 @@ public class LayerSettingsUI {
         builder.setView(scrollWrapper);
 
         final AlertDialog dialog = builder.create();
+        dialogHolder[0] = dialog;
         if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
 
         final int[] activeColorTarget = {0};
 
+        int activeColor = isDarkTheme ? Color.parseColor("#4A4A4C") : Color.parseColor("#D1D1D6");
+        int inactiveColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#E5E5EA");
+
         View.OnClickListener targetListener = tBtn -> {
-            btnTargetMain.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            btnTargetStroke.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            btnTargetShadow.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            btnTargetInner.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#3A3A3C")));
-            tBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2")));
+            btnTargetMain.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            btnTargetStroke.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            btnTargetShadow.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            btnTargetInner.setBackgroundTintList(ColorStateList.valueOf(inactiveColor));
+            tBtn.setBackgroundTintList(ColorStateList.valueOf(activeColor));
 
             if (tBtn == btnTargetMain) activeColorTarget[0] = 0;
             else if (tBtn == btnTargetStroke) activeColorTarget[0] = 1;
@@ -742,7 +785,7 @@ public class LayerSettingsUI {
         Window window = dialog.getWindow();
         if (window != null) {
             window.setGravity(Gravity.BOTTOM);
-            int height = (int)(activity.getResources().getDisplayMetrics().heightPixels * 0.55);
+            int height = (int)(activity.getResources().getDisplayMetrics().heightPixels * 0.60);
             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, height);
             window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
@@ -1061,7 +1104,6 @@ public class LayerSettingsUI {
             int originalW = (type == 0) ? staticLayout.getWidth() : bitmap.getWidth();
             int originalH = (type == 0) ? staticLayout.getHeight() : bitmap.getHeight();
 
-            // Downscale the caching resolution heavily to save massive amounts of RAM
             int maxDim = Math.max(originalW, originalH);
             if (maxDim > 1000) scaleFactor = 1000f / maxDim;
 
@@ -1099,7 +1141,6 @@ public class LayerSettingsUI {
                     float blurAmt = Math.max(0.1f, shadowRadius);
                     textPaint.setShadowLayer(blurAmt, shadowOffsetX, shadowOffsetY, shadowColor);
                     textPaint.setColor(color);
-                    textPaint.setAlpha(alpha);
                     staticLayout.draw(c);
                     textPaint.clearShadowLayer();
                 }
@@ -1108,14 +1149,12 @@ public class LayerSettingsUI {
                     textPaint.setStyle(Paint.Style.STROKE);
                     textPaint.setStrokeWidth(strokeWidth * 2f);
                     textPaint.setColor(strokeColor);
-                    textPaint.setAlpha(alpha);
                     staticLayout.draw(c);
                 }
 
                 c.saveLayer(null, null);
                 textPaint.setStyle(Paint.Style.FILL);
                 textPaint.setColor(color);
-                textPaint.setAlpha(alpha);
                 staticLayout.draw(c);
 
                 if (innerShadowRadius > 0.1f || innerShadowOffsetX != 0 || innerShadowOffsetY != 0) {
@@ -1125,13 +1164,10 @@ public class LayerSettingsUI {
 
                     Paint shadowFill = new Paint(Paint.ANTI_ALIAS_FLAG);
                     shadowFill.setColor(innerShadowColor);
-                    shadowFill.setAlpha(alpha);
                     c.drawRect(-currentPad * 2, -currentPad * 2, originalW + currentPad * 2, originalH + currentPad * 2, shadowFill);
 
                     int oldColor = textPaint.getColor();
-                    int oldAlpha = textPaint.getAlpha();
                     textPaint.setColor(Color.BLACK);
-                    textPaint.setAlpha(255);
                     textPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
                     float blurAmt = Math.max(0.1f, innerShadowRadius);
                     textPaint.setMaskFilter(new BlurMaskFilter(blurAmt, BlurMaskFilter.Blur.NORMAL));
@@ -1142,7 +1178,6 @@ public class LayerSettingsUI {
                     c.restore();
 
                     textPaint.setColor(oldColor);
-                    textPaint.setAlpha(oldAlpha);
                     textPaint.setXfermode(null);
                     textPaint.setMaskFilter(null);
                     c.restore();
@@ -1176,7 +1211,6 @@ public class LayerSettingsUI {
                     c.scale(bitmap.getWidth() / (float)alphaCache.getWidth(), bitmap.getHeight() / (float)alphaCache.getHeight());
                     Paint shadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
                     shadowPaint.setColor(shadowColor);
-                    shadowPaint.setAlpha((int)(alpha * 0.8f));
                     shadowPaint.setMaskFilter(new BlurMaskFilter(Math.max(0.1f, sShadow), BlurMaskFilter.Blur.NORMAL));
                     c.drawBitmap(alphaCache, 0, 0, shadowPaint);
                     c.restore();
@@ -1187,7 +1221,6 @@ public class LayerSettingsUI {
                     c.scale(bitmap.getWidth() / (float)alphaCache.getWidth(), bitmap.getHeight() / (float)alphaCache.getHeight());
                     Paint strokePaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
                     strokePaint.setColor(strokeColor);
-                    strokePaint.setAlpha(alpha);
                     int steps = 12;
                     for (int i = 0; i < steps; i++) {
                         float angle = (float) (i * 2 * Math.PI / steps);
@@ -1199,7 +1232,6 @@ public class LayerSettingsUI {
                 }
 
                 Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-                fillPaint.setAlpha(alpha);
                 c.drawBitmap(bitmap, 0, 0, fillPaint);
 
                 if (inShadow > 0.1f || inOffsetX != 0 || inOffsetY != 0) {
@@ -1212,12 +1244,10 @@ public class LayerSettingsUI {
 
                     Paint innerFill = new Paint(Paint.ANTI_ALIAS_FLAG);
                     innerFill.setColor(innerShadowColor);
-                    innerFill.setAlpha(alpha);
                     c.drawRect(-currentPad * 2, -currentPad * 2, bitmap.getWidth() + currentPad * 2, bitmap.getHeight() + currentPad * 2, innerFill);
 
                     Paint punchPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
                     punchPaint.setColor(Color.BLACK);
-                    punchPaint.setAlpha(255);
                     punchPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
                     punchPaint.setMaskFilter(new BlurMaskFilter(Math.max(0.1f, inShadow), BlurMaskFilter.Blur.NORMAL));
 
@@ -1248,6 +1278,10 @@ public class LayerSettingsUI {
                 canvas.save();
                 canvas.translate(-cx - currentPad, -cy - currentPad);
                 canvas.scale(1f / bakedScaleFactor, 1f / bakedScaleFactor);
+
+                // PERFECT PERFORMANCE FIX: Apply transparency directly on GPU hardware layer
+                renderPaint.setAlpha(alpha);
+
                 canvas.drawBitmap(bakedCache, 0, 0, renderPaint);
                 canvas.restore();
             }

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bgRemoverRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:elevation="40dp">
+
+    <!-- Top Bar -->
+    <RelativeLayout
+        android:id="@+id/bgTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_alignParentTop="true"
+        android:paddingHorizontal="24dp">
+
+        <TextView
+            android:id="@+id/tvBgTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="Background Remover"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnBgDone"
+            style="@style/ModernButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="45dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:paddingHorizontal="24dp"
+            android:textSize="15sp"
+            android:backgroundTint="#34C759"
+            android:textColor="#FFFFFF"
+            android:text="Done" />
+    </RelativeLayout>
+
+    <!-- Bottom Capsule Menu -->
+    <LinearLayout
+        android:id="@+id/bgBottomMenuBar"
+        android:layout_width="wrap_content"
+        android:layout_height="55dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="32dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/btnBgSettings"
+            android:layout_width="130dp"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="8dp"
+            android:text="Settings"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:stateListAnimator="@null"/>
+
+        <Button
+            android:id="@+id/btnBgTools"
+            android:layout_width="130dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="8dp"
+            android:text="Bg Tools"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:stateListAnimator="@null"/>
+    </LinearLayout>
+
+    <!-- Left Panel: Settings -->
+    <LinearLayout
+        android:id="@+id/bgLeftPanel"
+        android:layout_width="260dp"
+        android:layout_height="match_parent"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="80dp"
+        android:layout_marginBottom="100dp"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvBrushSizeLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Brush Size"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/slBgBrushSize"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="10.0"
+            android:valueTo="200.0"
+            android:value="50.0" />
+    </LinearLayout>
+
+    <!-- Right Panel: Tools -->
+    <LinearLayout
+        android:id="@+id/bgRightPanel"
+        android:layout_width="260dp"
+        android:layout_height="match_parent"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="80dp"
+        android:layout_marginBottom="100dp"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <Button
+            android:id="@+id/btnBgEraser"
+            style="@style/ModernButtonStyle"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginBottom="8dp"
+            android:text="Manual Eraser" />
+
+        <Button
+            android:id="@+id/btnBgRepair"
+            style="@style/ModernButtonStyle"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginBottom="8dp"
+            android:text="Repair Tool" />
+
+        <Button
+            android:id="@+id/btnBgAuto"
+            style="@style/ModernButtonStyle"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginBottom="16dp"
+            android:text="Auto Color Remove" />
+
+        <!-- UNDO & REDO ROW -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnBgUndo"
+                style="@style/ModernButtonStyle"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="55dp"
+                android:text="Undo"
+                android:layout_marginEnd="4dp"/>
+
+            <Button
+                android:id="@+id/btnBgRedo"
+                style="@style/ModernButtonStyle"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="55dp"
+                android:text="Redo"
+                android:layout_marginStart="4dp"/>
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#33888888"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:id="@+id/tvSmoothLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Smooth Edge Level (0 - 5)"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/slBgSmooth"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:valueFrom="0.0"
+            android:valueTo="5.0"
+            android:stepSize="1.0"
+            android:value="0.0" />
+    </LinearLayout>
+
+</RelativeLayout>
