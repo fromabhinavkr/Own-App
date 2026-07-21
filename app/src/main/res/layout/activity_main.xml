@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp"
@@ -20,197 +21,207 @@
         android:padding="8dp"
         tools:ignore="ImageContrastCheck" />
 
-    <!-- 2. The New 2x2 Grid Layout (Anchored to the Bottom) -->
-    <LinearLayout
-        android:id="@+id/bottom_button_container"
+    <!-- 2. The New 2x2 Grid Layout (Wrapped in ScrollView for responsive Landscape scaling) -->
+    <ScrollView
+        android:id="@+id/grid_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:orientation="vertical"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:scrollbars="none"
+        android:fillViewport="true">
 
-        <!-- ROW 1: Widgets & Games -->
         <LinearLayout
+            android:id="@+id/bottom_button_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:weightSum="2"
-            android:baselineAligned="false"
-            android:layout_marginBottom="12dp">
+            android:orientation="vertical"
+            android:gravity="center">
 
-            <!-- Widgets Card -->
+            <!-- ROW 1: Widgets & Games -->
             <LinearLayout
-                android:id="@+id/btnPlaceWidget"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/modern_button"
-                android:layout_marginEnd="6dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:elevation="2dp">
+                android:orientation="horizontal"
+                android:weightSum="2"
+                android:baselineAligned="false"
+                android:layout_marginBottom="12dp">
 
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="120dp">
-                    <ImageView
-                        android:id="@+id/ivWidgetIcon"
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
-                        android:layout_gravity="center"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/icon_main_widgets" />
-                </FrameLayout>
-                <View
-                    android:id="@+id/divWidget"
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp" />
-                <TextView
-                    android:id="@+id/tvWidgetText"
-                    android:layout_width="match_parent"
+                <!-- Widgets Card -->
+                <LinearLayout
+                    android:id="@+id/btnPlaceWidget"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="Widgets"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:padding="16dp" />
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/modern_button"
+                    android:layout_marginEnd="6dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:elevation="2dp">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp">
+                        <ImageView
+                            android:id="@+id/ivWidgetIcon"
+                            android:layout_width="100dp"
+                            android:layout_height="100dp"
+                            android:layout_gravity="center"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/icon_main_widgets" />
+                    </FrameLayout>
+                    <View
+                        android:id="@+id/divWidget"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp" />
+                    <TextView
+                        android:id="@+id/tvWidgetText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Widgets"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:padding="16dp" />
+                </LinearLayout>
+
+                <!-- Games Card -->
+                <LinearLayout
+                    android:id="@+id/btnGames"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/modern_button"
+                    android:layout_marginStart="6dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:elevation="2dp">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp">
+                        <ImageView
+                            android:id="@+id/ivGamesIcon"
+                            android:layout_width="100dp"
+                            android:layout_height="100dp"
+                            android:layout_gravity="center"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/icon_main_games" />
+                    </FrameLayout>
+                    <View
+                        android:id="@+id/divGames"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp" />
+                    <TextView
+                        android:id="@+id/tvGamesText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Games"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:padding="16dp" />
+                </LinearLayout>
             </LinearLayout>
 
-            <!-- Games Card -->
+            <!-- ROW 2: Tools & Utilities -->
             <LinearLayout
-                android:id="@+id/btnGames"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/modern_button"
-                android:layout_marginStart="6dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:elevation="2dp">
+                android:orientation="horizontal"
+                android:weightSum="2"
+                android:baselineAligned="false">
 
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="120dp">
-                    <ImageView
-                        android:id="@+id/ivGamesIcon"
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
-                        android:layout_gravity="center"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/icon_main_games" />
-                </FrameLayout>
-                <View
-                    android:id="@+id/divGames"
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp" />
-                <TextView
-                    android:id="@+id/tvGamesText"
-                    android:layout_width="match_parent"
+                <!-- Tools Card -->
+                <LinearLayout
+                    android:id="@+id/btnTools"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="Games"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:padding="16dp" />
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/modern_button"
+                    android:layout_marginEnd="6dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:elevation="2dp">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp">
+                        <ImageView
+                            android:id="@+id/ivToolsIcon"
+                            android:layout_width="100dp"
+                            android:layout_height="100dp"
+                            android:layout_gravity="center"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/icon_main_tools" />
+                    </FrameLayout>
+                    <View
+                        android:id="@+id/divTools"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp" />
+                    <TextView
+                        android:id="@+id/tvToolsText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Tools"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:padding="16dp" />
+                </LinearLayout>
+
+                <!-- Utilities Card -->
+                <LinearLayout
+                    android:id="@+id/btnUtilities"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/modern_button"
+                    android:layout_marginStart="6dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:elevation="2dp">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp">
+                        <ImageView
+                            android:id="@+id/ivUtilitiesIcon"
+                            android:layout_width="100dp"
+                            android:layout_height="100dp"
+                            android:layout_gravity="center"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/icon_main_utilities" />
+                    </FrameLayout>
+                    <View
+                        android:id="@+id/divUtilities"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp" />
+                    <TextView
+                        android:id="@+id/tvUtilitiesText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Utilities"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:padding="16dp" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
+    </ScrollView>
 
-        <!-- ROW 2: Tools & Utilities -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:weightSum="2"
-            android:baselineAligned="false">
-
-            <!-- Tools Card -->
-            <LinearLayout
-                android:id="@+id/btnTools"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/modern_button"
-                android:layout_marginEnd="6dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:elevation="2dp">
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="120dp">
-                    <ImageView
-                        android:id="@+id/ivToolsIcon"
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
-                        android:layout_gravity="center"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/icon_main_tools" />
-                </FrameLayout>
-                <View
-                    android:id="@+id/divTools"
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp" />
-                <TextView
-                    android:id="@+id/tvToolsText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Tools"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:padding="16dp" />
-            </LinearLayout>
-
-            <!-- Utilities Card -->
-            <LinearLayout
-                android:id="@+id/btnUtilities"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/modern_button"
-                android:layout_marginStart="6dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:elevation="2dp">
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="120dp">
-                    <ImageView
-                        android:id="@+id/ivUtilitiesIcon"
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
-                        android:layout_gravity="center"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/icon_main_utilities" />
-                </FrameLayout>
-                <View
-                    android:id="@+id/divUtilities"
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp" />
-                <TextView
-                    android:id="@+id/tvUtilitiesText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Utilities"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:padding="16dp" />
-            </LinearLayout>
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- 3. Earth (Globe) - Dynamically centered to prevent overlap -->
+    <!-- 3. Earth (Globe) - Dynamically positioned to prevent overlap in Portrait and Landscape -->
     <RelativeLayout
+        android:id="@+id/globe_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/btn_app_theme_toggle"
-        android:layout_above="@id/bottom_button_container">
+        android:layout_above="@id/grid_scroll_view">
 
         <com.example.ownphotoonwall.GlobeGLSurfaceView
             android:id="@+id/globe_view"

@@ -156,7 +156,6 @@ public class CollageStudioActivity extends AppCompatActivity {
     private void applyModernTheme() {
         int mainBg = isDarkTheme ? Color.parseColor("#000000") : Color.parseColor("#F2F2F7");
         int topBarBg = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.WHITE;
-        int drawerBg = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#FFFFFF");
         int loadingCardBg = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
 
         textColor = isDarkTheme ? Color.WHITE : Color.BLACK;
@@ -165,10 +164,37 @@ public class CollageStudioActivity extends AppCompatActivity {
         findViewById(R.id.mainContentRoot).setBackgroundColor(mainBg);
         findViewById(R.id.topBar).setBackgroundColor(topBarBg);
 
+        // =========================================================
+        // GLASSMORPHISM DRAWER UI DESIGN (ONLY FOR DRAWERS!)
+        // =========================================================
         View leftDrawer = findViewById(R.id.leftDrawer);
-        if (leftDrawer != null) leftDrawer.setBackgroundColor(drawerBg);
         View rightDrawer = findViewById(R.id.rightDrawer);
-        if (rightDrawer != null) rightDrawer.setBackgroundColor(drawerBg);
+
+        int glassBgColor = isDarkTheme ? Color.parseColor("#CC1C1C1E") : Color.parseColor("#CCFFFFFF");
+        int glassStrokeColor = isDarkTheme ? Color.parseColor("#33FFFFFF") : Color.parseColor("#26000000");
+        int strokeWidthPx = (int) (1.5f * getResources().getDisplayMetrics().density);
+        float cornerRadiusPx = 20f * getResources().getDisplayMetrics().density;
+
+        if (leftDrawer != null) {
+            GradientDrawable leftGlass = new GradientDrawable();
+            leftGlass.setColor(glassBgColor);
+            // Top-left, Top-right, Bottom-right, Bottom-left (in pairs of X, Y radii)
+            leftGlass.setCornerRadii(new float[]{0, 0, cornerRadiusPx, cornerRadiusPx, cornerRadiusPx, cornerRadiusPx, 0, 0});
+            leftGlass.setStroke(strokeWidthPx, glassStrokeColor);
+            leftDrawer.setBackground(leftGlass);
+            leftDrawer.setElevation(24f);
+        }
+
+        if (rightDrawer != null) {
+            GradientDrawable rightGlass = new GradientDrawable();
+            rightGlass.setColor(glassBgColor);
+            // Top-left, Top-right, Bottom-right, Bottom-left
+            rightGlass.setCornerRadii(new float[]{cornerRadiusPx, cornerRadiusPx, 0, 0, 0, 0, cornerRadiusPx, cornerRadiusPx});
+            rightGlass.setStroke(strokeWidthPx, glassStrokeColor);
+            rightDrawer.setBackground(rightGlass);
+            rightDrawer.setElevation(24f);
+        }
+        // =========================================================
 
         loadingOverlay = findViewById(R.id.loadingOverlay);
         LinearLayout loadingCard = findViewById(R.id.loadingCard);

@@ -149,7 +149,7 @@
         </RelativeLayout>
     </RelativeLayout>
 
-    <!-- LEFT DRAWER: SETTINGS -->
+    <!-- LEFT DRAWER: SETTINGS (Glassmorphism Styled via Java) -->
     <ScrollView
         android:id="@+id/leftDrawer"
         android:layout_width="320dp"
@@ -199,7 +199,7 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- RIGHT DRAWER: TOOLS -->
+    <!-- RIGHT DRAWER: TOOLS (Glassmorphism Styled via Java) -->
     <ScrollView
         android:id="@+id/rightDrawer"
         android:layout_width="320dp"

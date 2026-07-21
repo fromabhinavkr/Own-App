@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialogModeRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/modern_button"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/tvModeTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Game Mode"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="20dp" />
+
+    <Button
+        android:id="@+id/btnClosedGround"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Closed Ground"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/modern_button"
+        android:stateListAnimator="@null" />
+
+    <Button
+        android:id="@+id/btnOpenGround"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Open Ground"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:background="@drawable/modern_button"
+        android:stateListAnimator="@null" />
+</LinearLayout>

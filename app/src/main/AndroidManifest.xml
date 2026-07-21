@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:ignore="Typos">
+    tools:ignore="Typos,ForegroundServicePermission,ForegroundServiceType">
 
     <queries>
         <package android:name="com.whatsapp" />
@@ -39,6 +39,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -49,128 +50,128 @@
         <activity
             android:name=".ImagePickerActivity"
             android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".GearClickActivity"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:excludeFromRecents="true"
             android:taskAffinity="" />
 
         <activity
             android:name=".DrawingActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
         <activity
             android:name=".WidgetGalleryActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
         <activity
             android:name=".GamesGalleryActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
-        <!-- Suppressed the Portrait lock warning -->
+        <!-- Unlocked Screen Orientation & Added Seamless Rotation -->
         <activity
             android:name=".SnakeGameActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
         <!-- Flappy Bird Game Activity -->
         <activity
             android:name=".FlappyBirdActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.OwnPhotoONWall"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:theme="@style/Theme.OwnPhotoONWall" />
 
         <!-- Tetris Game Activity -->
         <activity
             android:name=".TetrisActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.OwnPhotoONWall"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:theme="@style/Theme.OwnPhotoONWall" />
 
         <!-- Breakout Game Activity -->
         <activity
             android:name=".BreakoutActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.OwnPhotoONWall"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:theme="@style/Theme.OwnPhotoONWall" />
 
         <!-- Maze Ball Game Activity -->
         <activity
             android:name=".MazeBallActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
         <activity
             android:name=".ToolsGalleryActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
         <!-- Utilities Gallery -->
         <activity
             android:name=".UtilitiesGalleryActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
         <!-- Hyper-Secure Private Browser Activity -->
         <activity
             android:name=".PrivateBrowserActivity"
             android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".StickerMakerActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
         <activity
             android:name=".ImageEditorActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="true" />
 
-        <!-- Image Studio Mega Gallery (Added Here!) -->
+        <!-- Image Studio Mega Gallery -->
         <activity
             android:name=".ImageStudioMegaGal"
             android:exported="false"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
         <!-- Advanced Canvas Studio -->
         <activity
             android:name=".AdvancedCanvasActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
         <!-- Clone Tool Studio -->
         <activity
             android:name=".CloneActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
         <!-- Collage Studio Activity -->
         <activity
             android:name=".CollageStudioActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
         <!-- PDF Studio Activities -->
         <activity
             android:name=".PdfStudioActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
         <activity
             android:name=".PdfGalleryActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
         <provider
             android:name=".StickerContentProvider"

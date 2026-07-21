@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/flappyRoot"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
 
     <!-- The Game Engine Canvas will be injected here -->
     <FrameLayout
@@ -11,14 +12,18 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Top HUD: Scores and Pause Button -->
+    <!-- Top HUD: Scores and Pause Button (Safe from Notches & Status Bars) -->
     <RelativeLayout
+        android:id="@+id/topHud"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="24dp"
+        android:layout_alignParentTop="true"
+        android:paddingStart="24dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="12dp"
         android:elevation="4dp">
 
-        <!-- FIX: Removed the LinearLayout, increased size to 24sp, and added centerVertical -->
         <TextView
             android:id="@+id/tvHighScore"
             android:layout_width="wrap_content"
@@ -29,7 +34,6 @@
             android:textSize="24sp"
             android:textStyle="bold" />
 
-        <!-- FIX: Increased size to 56sp and added centerInParent -->
         <TextView
             android:id="@+id/tvCurrentScore"
             android:layout_width="wrap_content"
@@ -39,7 +43,6 @@
             android:textSize="56sp"
             android:textStyle="bold" />
 
-        <!-- FIX: Increased height to 56dp, text to 18sp, and added centerVertical -->
         <Button
             android:id="@+id/btnPause"
             style="@style/ModernButtonStyle"
@@ -62,16 +65,23 @@
         android:layout_height="match_parent"
         android:background="#99000000"
         android:visibility="gone"
-        android:elevation="10dp">
+        android:elevation="10dp"
+        android:clipToPadding="false"
+        android:clipChildren="false">
 
+        <!-- FIX: Responsive width with extra bottom padding (44dp) to prevent button clipping! -->
         <LinearLayout
             android:id="@+id/pauseCard"
-            android:layout_width="340dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginHorizontal="28dp"
             android:layout_centerInParent="true"
             android:orientation="vertical"
-            android:padding="32dp"
-            android:gravity="center">
+            android:paddingTop="32dp"
+            android:paddingBottom="44dp"
+            android:paddingHorizontal="24dp"
+            android:gravity="center"
+            android:clipToPadding="false">
 
             <TextView
                 android:id="@+id/tvPauseTitle"
@@ -113,16 +123,23 @@
         android:layout_height="match_parent"
         android:background="#99000000"
         android:visibility="gone"
-        android:elevation="10dp">
+        android:elevation="10dp"
+        android:clipToPadding="false"
+        android:clipChildren="false">
 
+        <!-- FIX: Responsive width with extra bottom padding (44dp) to prevent button clipping! -->
         <LinearLayout
             android:id="@+id/gameOverCard"
-            android:layout_width="340dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginHorizontal="28dp"
             android:layout_centerInParent="true"
             android:orientation="vertical"
-            android:padding="32dp"
-            android:gravity="center">
+            android:paddingTop="32dp"
+            android:paddingBottom="44dp"
+            android:paddingHorizontal="24dp"
+            android:gravity="center"
+            android:clipToPadding="false">
 
             <TextView
                 android:id="@+id/tvGameOverTitle"

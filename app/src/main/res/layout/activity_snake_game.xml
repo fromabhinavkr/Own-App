@@ -1,50 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/snake_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
 
+    <!-- 1. The Game Canvas Arena -->
     <FrameLayout
         android:id="@+id/game_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <LinearLayout
-        android:layout_width="wrap_content"
+    <!-- 2. Top UI Bar: Safe-Insets & Guaranteed Pixel-Perfect Straight-Line Alignment -->
+    <RelativeLayout
+        android:id="@+id/top_ui_bar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
         android:layout_alignParentTop="true"
-        android:layout_marginTop="32dp"
-        android:layout_marginEnd="16dp"
-        android:orientation="horizontal">
+        android:paddingStart="24dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="12dp"
+        android:gravity="center_vertical"
+        android:elevation="4dp">
 
-        <Button
-            android:id="@+id/btnPause"
+        <TextView
+            android:id="@+id/tvScore"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/modern_button"
-            android:text="@string/game_pause"
-            android:textAllCaps="false"
-            android:textSize="14sp"
+            android:text="Score: 0"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:elevation="0dp"
-            android:stateListAnimator="@null" />
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true" />
 
-        <Button
-            android:id="@+id/btnDifficulty"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/modern_button"
-            android:text="@string/diff_medium"
-            android:textAllCaps="false"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:elevation="0dp"
-            android:stateListAnimator="@null" />
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal">
 
-    </LinearLayout>
+            <Button
+                android:id="@+id/btnPause"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/modern_button"
+                android:text="@string/game_pause"
+                android:textAllCaps="false"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:elevation="0dp"
+                android:stateListAnimator="@null" />
+
+            <Button
+                android:id="@+id/btnDifficulty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/modern_button"
+                android:text="@string/diff_medium"
+                android:textAllCaps="false"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:elevation="0dp"
+                android:stateListAnimator="@null" />
+        </LinearLayout>
+    </RelativeLayout>
 </RelativeLayout>
