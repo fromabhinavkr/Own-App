@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:ignore="Typos,ForegroundServicePermission,ForegroundServiceType">
+    tools:ignore="Typos,ForegroundServicePermission,ForegroundServiceType,ScopedStorage,SelectedPhotoAccess">
 
+    <!-- WhatsApp Queries required for publishing Custom Stickers -->
     <queries>
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
@@ -11,22 +12,41 @@
         </intent>
     </queries>
 
-    <!-- Required for the Private Browser to access the web -->
+    <!-- Required for the Private Browser to access the web & Haptic feedback -->
     <uses-permission android:name="android.permission.INTERNET" />
-
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Camera hardware feature tag to prevent unsupported device crashes -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Storage & Photo Permissions with Android 14+ Selected Visuals support -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
+    <!-- Required for API 33+ to show interactive Foreground Service notifications without security warnings -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Suppressed the generic Foreground Service declaration warning -->
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE"
         tools:ignore="ForegroundServicePermission" />
-
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
-    <!-- FIXED: Added android:largeHeap="true" to prevent OOM Crashes with 4K Images! -->
+    <!-- Hardware Accelerated & Large Heap enabled for smooth WebP compiling and A4 PDF rendering -->
     <application
         android:name=".MainApplication"
         android:largeHeap="true"
+        android:hardwareAccelerated="true"
+        android:requestLegacyExternalStorage="true"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -35,6 +55,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.OwnPhotoONWall">
+
+        <!-- ML Kit Document Scanner: Auto-download AI models on app installation -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="document_scanner" />
 
         <activity
             android:name=".MainActivity"
@@ -128,6 +153,44 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- UPGRADED: OWN Doc Reader with Universal System-Wide "Open With..." Support -->
+        <activity
+            android:name=".DocReaderActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <!-- Explicit Schemes required so WhatsApp, Gmail & Google Files route files here! -->
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+
+                <!-- Standard Office & Text MIME Types -->
+                <data android:mimeType="application/msword" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="application/rtf" />
+            </intent-filter>
+
+            <!-- Fallback Filter: Catches mislabeled .docx files from third-party file managers -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/zip" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.docx" />
+                <data android:pathPattern=".*\\.doc" />
+                <data android:pathPattern=".*\\.DOCX" />
+                <data android:pathPattern=".*\\.DOC" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".StickerMakerActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
@@ -175,7 +238,7 @@
 
         <provider
             android:name=".StickerContentProvider"
-            android:authorities="com.example.ownphotoonwall.stickercontentprovider"
+            android:authorities="com.abhinav.ownapp.stickercontentprovider"
             android:enabled="true"
             android:exported="true"
             android:readPermission="com.whatsapp.sticker.READ" />

@@ -1,95 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/stickerMakerRoot"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="24dp"
-    tools:ignore="HardcodedText,Autofill">
+    android:id="@+id/stickerMakerRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="20dp" tools:ignore="HardcodedText,Autofill">
 
-    <LinearLayout
-        android:id="@+id/headerLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_alignParentTop="true"
-        android:gravity="center_horizontal">
+    <LinearLayout android:id="@+id/headerLayout" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_alignParentTop="true" android:gravity="center_horizontal">
+
+        <!-- UPGRADED: Empty Container for Dynamic Infinite Pack Generation! -->
+        <HorizontalScrollView android:id="@+id/packScrollView" android:layout_width="match_parent" android:layout_height="wrap_content" android:scrollbars="none" android:layout_marginBottom="12dp">
+            <LinearLayout android:id="@+id/packSelectorContainer" android:layout_width="wrap_content" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical" />
+        </HorizontalScrollView>
 
         <!-- Editable Title for Pack Name -->
-        <EditText
-            android:id="@+id/etStickerTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@null"
-            android:gravity="center"
-            android:hint="Pack Name"
-            android:imeOptions="actionDone"
-            android:inputType="textCapWords"
-            android:maxLines="1"
-            android:singleLine="true"
-            android:text="My Custom Pack"
-            android:textSize="32sp"
-            android:textStyle="bold"
-            android:layout_marginTop="16dp" />
-
-        <TextView
-            android:id="@+id/tvStickerSubtitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Add at least 3 unique stickers.\nLong-press a sticker to delete it."
-            android:textSize="14sp"
-            android:gravity="center"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="16dp"/>
+        <EditText android:id="@+id/etStickerTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@null" android:gravity="center" android:hint="Pack Name" android:imeOptions="actionDone" android:inputType="textCapWords" android:maxLines="1" android:singleLine="true" android:text="My Custom Pack" android:textSize="28sp" android:textStyle="bold" />
+        <TextView android:id="@+id/tvStickerSubtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Add at least 3 unique stickers.\nLong-press a sticker to delete it." android:textSize="13sp" android:gravity="center" android:layout_marginTop="4dp" android:layout_marginBottom="8dp"/>
     </LinearLayout>
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/headerLayout"
-        android:layout_above="@id/bottomBar"
-        android:scrollbars="none"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp">
-
-        <GridLayout
-            android:id="@+id/stickerGrid"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="3"
-            android:alignmentMode="alignMargins"
-            android:gravity="center_horizontal"/>
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_below="@id/headerLayout" android:layout_above="@id/bottomBar" android:scrollbars="none" android:layout_marginVertical="8dp">
+        <GridLayout android:id="@+id/stickerGrid" android:layout_width="match_parent" android:layout_height="wrap_content" android:columnCount="3" android:alignmentMode="alignMargins" android:gravity="center_horizontal"/>
     </ScrollView>
 
-    <LinearLayout
-        android:id="@+id/bottomBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_alignParentBottom="true">
-
-        <Button
-            android:id="@+id/btnPickImage"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:background="@drawable/modern_button"
-            android:text="Add New Sticker"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:elevation="0dp"
-            android:stateListAnimator="@null"
-            android:layout_marginBottom="12dp"/>
-
-        <Button
-            android:id="@+id/btnAddWhatsApp"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:background="@drawable/modern_button"
-            android:text="Publish to WhatsApp"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:elevation="0dp"
-            android:stateListAnimator="@null" />
+    <LinearLayout android:id="@+id/bottomBar" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_alignParentBottom="true">
+        <Button android:id="@+id/btnPickImage" android:layout_width="match_parent" android:layout_height="56dp" android:background="@drawable/modern_button" android:text="Add New Sticker" android:textSize="16sp" android:textStyle="bold" android:elevation="0dp" android:stateListAnimator="@null" android:layout_marginBottom="10dp"/>
+        <Button android:id="@+id/btnAddWhatsApp" android:layout_width="match_parent" android:layout_height="56dp" android:background="@drawable/modern_button" android:text="Publish to WhatsApp" android:textSize="16sp" android:textStyle="bold" android:elevation="0dp" android:stateListAnimator="@null" />
     </LinearLayout>
 
 </RelativeLayout>

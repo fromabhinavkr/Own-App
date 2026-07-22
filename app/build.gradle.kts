@@ -1,36 +1,47 @@
+@file:Suppress("UseTomlInstead")
+
 plugins {
     alias(libs.plugins.android.application)
+    // Uncomment the line below if you are writing your app in Kotlin:
+    // alias(libs.plugins.kotlin.android)
 }
 
 android {
-    namespace = "com.example.ownphotoonwall"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    namespace = "com.abhinav.ownapp"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.ownphotoonwall"
+        applicationId = "com.abhinav.ownapp"
         minSdk = 24
         targetSdk = 36
         versionCode = 4
-        versionName = "4.9.5"
+        versionName = "5.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    // Recommended when using Kotlin with Java 11 target compatibility:
+    /*
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+    */
+
     buildFeatures {
         viewBinding = true
     }
@@ -44,5 +55,10 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ext.junit)
+
+    // Existing PDFBox library
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
+    // Google ML Kit Document Scanner (Scan to PDF Engine)
+    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
 }

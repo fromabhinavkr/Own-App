@@ -223,7 +223,7 @@
         android:layout_below="@id/btn_app_theme_toggle"
         android:layout_above="@id/grid_scroll_view">
 
-        <com.example.ownphotoonwall.GlobeGLSurfaceView
+        <com.abhinav.ownapp.GlobeGLSurfaceView
             android:id="@+id/globe_view"
             android:layout_width="320dp"
             android:layout_height="320dp"

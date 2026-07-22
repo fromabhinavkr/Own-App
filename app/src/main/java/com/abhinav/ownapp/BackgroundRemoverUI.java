@@ -1,0 +1,86 @@
+package com.abhinav.ownapp;
+
+import android.content.res.ColorStateList; import android.graphics.*; import android.graphics.drawable.GradientDrawable; import android.view.*; import android.view.animation.DecelerateInterpolator; import android.widget.*; import com.google.android.material.slider.Slider;
+
+public class BackgroundRemoverUI {
+    private final ImageEditorActivity activity; private final ImageEditorActivity.PhotoEditorView editorView; private final boolean isDarkTheme; private final int panelColor; private final int textColor;
+    private View bgRootView; private LinearLayout leftPanel; private LinearLayout rightPanel;
+    private Button btnEraser, btnRepair, btnAuto, btnZoom;
+    private Button btnTBgChecker, btnTBgWhite, btnTBgBlack, btnTBgGreen, btnTBgBlue, btnTBgBrown;
+    private boolean isZoomActive = false;
+
+    public BackgroundRemoverUI(ImageEditorActivity activity, ImageEditorActivity.PhotoEditorView editorView, boolean isDarkTheme, int panelColor, int textColor) { this.activity = activity; this.editorView = editorView; this.isDarkTheme = isDarkTheme; this.panelColor = panelColor; this.textColor = textColor; }
+
+    public void showDialog() { if (editorView.isImageMissing() || editorView.isCropping) return; editorView.deselectLayer(); setViewVisibility(R.id.topBar, View.GONE); setViewVisibility(R.id.bottomMenuBar, View.GONE); setViewVisibility(R.id.cropToolsBar, View.GONE); activity.hideLeftPanel(); activity.hideRightPanel(); ViewGroup root = activity.findViewById(R.id.editorRoot); LayoutInflater inflater = LayoutInflater.from(activity); bgRootView = inflater.inflate(R.layout.layout_bg_remover_fullscreen, root, false); setupTheming(); setupInteractions(); root.addView(bgRootView); editorView.startBgEraser((int) editorView.drawingManager.currentBrushWidth, false); updateToolHighlight(btnEraser); }
+
+    private void setViewVisibility(int id, int visibility) { View v = activity.findViewById(id); if (v != null) v.setVisibility(visibility); }
+
+    private void close() {
+        isZoomActive = false; try { editorView.tBgColor = 0; editorView.customBgRemoverBgColor = 0; editorView.isBgZoomMode = false; } catch (Exception ignored) {}
+        ViewGroup root = activity.findViewById(R.id.editorRoot); root.removeView(bgRootView); editorView.drawingManager.isDrawMode = false; editorView.isBgRemoverMode = false; editorView.isAutoColorRemovalMode = false; editorView.invalidate(); setViewVisibility(R.id.topBar, View.VISIBLE); setViewVisibility(R.id.bottomMenuBar, View.VISIBLE); activity.updateToolButtons();
+    }
+
+    private void setupTheming() {
+        TextView tvTitle = bgRootView.findViewById(R.id.tvBgTitle); tvTitle.setTextColor(textColor); TextView tvBrushLabel = bgRootView.findViewById(R.id.tvBrushSizeLabel); tvBrushLabel.setTextColor(textColor); TextView tvSmoothLabel = bgRootView.findViewById(R.id.tvSmoothLabel); tvSmoothLabel.setTextColor(textColor); TextView tvTBgLabel = bgRootView.findViewById(R.id.tvTBgLabel); if (tvTBgLabel != null) tvTBgLabel.setTextColor(textColor);
+        leftPanel = bgRootView.findViewById(R.id.bgLeftPanel); GradientDrawable leftGd = new GradientDrawable(); leftGd.setColor(panelColor); leftGd.setCornerRadii(new float[]{0,0, 60f,60f, 60f,60f, 0,0}); leftPanel.setBackground(leftGd); rightPanel = bgRootView.findViewById(R.id.bgRightPanel); GradientDrawable rightGd = new GradientDrawable(); rightGd.setColor(panelColor); rightGd.setCornerRadii(new float[]{60f,60f, 0,0, 0,0, 60f,60f}); rightPanel.setBackground(rightGd);
+        Button btnSettings = bgRootView.findViewById(R.id.btnBgSettings); Button btnTools = bgRootView.findViewById(R.id.btnBgTools); Button btnUndo = bgRootView.findViewById(R.id.btnBgUndo); Button btnRedo = bgRootView.findViewById(R.id.btnBgRedo); int capsuleColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#D1D1D6"); int capsuleTextColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
+        GradientDrawable cap1 = new GradientDrawable(); cap1.setColor(capsuleColor); cap1.setCornerRadius(100f); btnSettings.setBackgroundTintList(null); btnSettings.setBackground(cap1); btnSettings.setTextColor(capsuleTextColor); GradientDrawable cap2 = new GradientDrawable(); cap2.setColor(capsuleColor); cap2.setCornerRadius(100f); btnTools.setBackgroundTintList(null); btnTools.setBackground(cap2); btnTools.setTextColor(capsuleTextColor); if (btnUndo != null) { GradientDrawable capU = new GradientDrawable(); capU.setColor(capsuleColor); capU.setCornerRadius(100f); btnUndo.setBackgroundTintList(null); btnUndo.setBackground(capU); btnUndo.setTextColor(capsuleTextColor); } if (btnRedo != null) { GradientDrawable capR = new GradientDrawable(); capR.setColor(capsuleColor); capR.setCornerRadius(100f); btnRedo.setBackgroundTintList(null); btnRedo.setBackground(capR); btnRedo.setTextColor(capsuleTextColor); }
+        btnEraser = bgRootView.findViewById(R.id.btnBgEraser); btnRepair = bgRootView.findViewById(R.id.btnBgRepair); btnAuto = bgRootView.findViewById(R.id.btnBgAuto); btnZoom = bgRootView.findViewById(R.id.btnBgZoom);
+        btnTBgChecker = bgRootView.findViewById(R.id.btnTBgChecker); btnTBgWhite = bgRootView.findViewById(R.id.btnTBgWhite); btnTBgBlack = bgRootView.findViewById(R.id.btnTBgBlack); btnTBgGreen = bgRootView.findViewById(R.id.btnTBgGreen); btnTBgBlue = bgRootView.findViewById(R.id.btnTBgBlue); btnTBgBrown = bgRootView.findViewById(R.id.btnTBgBrown);
+
+        /* FIX 2: Applied standard uniform styling to Zoom Button instantly upon opening! */
+        if (btnZoom != null) { btnZoom.setBackgroundTintList(ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#FFFFFF"))); btnZoom.setTextColor(textColor); }
+
+        if (btnTBgChecker != null) { btnTBgChecker.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#888888"))); btnTBgChecker.setTextColor(Color.WHITE); }
+        if (btnTBgWhite != null) { btnTBgWhite.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE)); btnTBgWhite.setTextColor(Color.BLACK); }
+        if (btnTBgBlack != null) { btnTBgBlack.setBackgroundTintList(ColorStateList.valueOf(Color.BLACK)); btnTBgBlack.setTextColor(Color.WHITE); }
+        if (btnTBgGreen != null) { btnTBgGreen.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#008000"))); btnTBgGreen.setTextColor(Color.WHITE); }
+        if (btnTBgBlue != null) { btnTBgBlue.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#0000FF"))); btnTBgBlue.setTextColor(Color.WHITE); }
+        if (btnTBgBrown != null) { btnTBgBrown.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#8B4513"))); btnTBgBrown.setTextColor(Color.WHITE); }
+    }
+
+    private void setupInteractions() {
+        Button btnDone = bgRootView.findViewById(R.id.btnBgDone); btnDone.setOnClickListener(v -> close()); Button btnSettings = bgRootView.findViewById(R.id.btnBgSettings); Button btnTools = bgRootView.findViewById(R.id.btnBgTools); Button btnUndo = bgRootView.findViewById(R.id.btnBgUndo); Button btnRedo = bgRootView.findViewById(R.id.btnBgRedo); btnSettings.setOnClickListener(v -> togglePanel(leftPanel, true)); btnTools.setOnClickListener(v -> togglePanel(rightPanel, false));
+        Slider slSize = bgRootView.findViewById(R.id.slBgBrushSize); slSize.setValue(editorView.drawingManager.currentBrushWidth > 0 ? editorView.drawingManager.currentBrushWidth : 50f); slSize.addOnChangeListener((slider, value, fromUser) -> { if (fromUser) editorView.drawingManager.currentBrushWidth = value; });
+        Slider slSmooth = bgRootView.findViewById(R.id.slBgSmooth); slSmooth.setValue(editorView.currentSmoothLevel); slSmooth.addOnChangeListener((slider, value, fromUser) -> { if (fromUser) { Bitmap currentMask = editorView.drawingManager.getEraseLayerBitmap(); if (currentMask != null) { if (editorView.rawEraseMask == null) { Bitmap.Config config = currentMask.getConfig(); if (config == null) config = Bitmap.Config.ARGB_8888; editorView.rawEraseMask = currentMask.copy(config, true); } editorView.currentSmoothLevel = value; applySmoothToMaskInPlace(currentMask, editorView.rawEraseMask, (int) value); editorView.invalidate(); } } });
+        if(btnUndo != null) btnUndo.setOnClickListener(v -> { editorView.undoLastAction(); slSmooth.setValue(0f); }); if(btnRedo != null) btnRedo.setOnClickListener(v -> { editorView.redoLastAction(); slSmooth.setValue(0f); });
+        btnEraser.setOnClickListener(v -> { disableZoomIfActive(); editorView.startBgEraser((int) editorView.drawingManager.currentBrushWidth, false); updateToolHighlight(btnEraser); });
+        btnRepair.setOnClickListener(v -> { disableZoomIfActive(); editorView.startBgEraser((int) editorView.drawingManager.currentBrushWidth, true); updateToolHighlight(btnRepair); });
+
+        btnAuto.setOnClickListener(v -> {
+            disableZoomIfActive(); editorView.enterAutoColorRemovalMode();
+            /* FIX 1: Keeps BgRemover canvas layer instantly active so TBg colors show without waiting for touch! */
+            editorView.isBgRemoverMode = true;
+            Toast.makeText(activity, "Tap a color to remove.", Toast.LENGTH_LONG).show(); updateToolHighlight(btnAuto);
+        });
+
+        if (btnZoom != null) btnZoom.setOnClickListener(v -> {
+            isZoomActive = !isZoomActive; editorView.drawingManager.isDrawMode = !isZoomActive; try { editorView.isBgZoomMode = isZoomActive; } catch (Exception ignored) {}
+            /* FIX 2: Made Zoom ON highlight standard Green (#34C759) and Uniform when OFF */
+            if (isZoomActive) { btnZoom.setText("Zoom: ON"); btnZoom.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#34C759"))); btnZoom.setTextColor(Color.WHITE); }
+            else { btnZoom.setText("Zoom: OFF"); btnZoom.setBackgroundTintList(ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#FFFFFF"))); btnZoom.setTextColor(textColor); editorView.drawingManager.isDrawMode = true; }
+            editorView.invalidate();
+        });
+
+        if (btnTBgChecker != null) btnTBgChecker.setOnClickListener(v -> setTBgColor(0, btnTBgChecker));
+        if (btnTBgWhite != null) btnTBgWhite.setOnClickListener(v -> setTBgColor(Color.WHITE, btnTBgWhite));
+        if (btnTBgBlack != null) btnTBgBlack.setOnClickListener(v -> setTBgColor(Color.BLACK, btnTBgBlack));
+        if (btnTBgGreen != null) btnTBgGreen.setOnClickListener(v -> setTBgColor(Color.parseColor("#008000"), btnTBgGreen));
+        if (btnTBgBlue != null) btnTBgBlue.setOnClickListener(v -> setTBgColor(Color.parseColor("#0000FF"), btnTBgBlue));
+        if (btnTBgBrown != null) btnTBgBrown.setOnClickListener(v -> setTBgColor(Color.parseColor("#8B4513"), btnTBgBrown));
+    }
+
+    private void disableZoomIfActive() { if (isZoomActive) { isZoomActive = false; editorView.drawingManager.isDrawMode = true; try { editorView.isBgZoomMode = false; } catch (Exception ignored) {} if (btnZoom != null) { btnZoom.setText("Zoom: OFF"); btnZoom.setBackgroundTintList(ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#FFFFFF"))); btnZoom.setTextColor(textColor); } } }
+
+    private void setTBgColor(int colorCode, Button activeBtn) {
+        try { editorView.tBgColor = colorCode; editorView.customBgRemoverBgColor = colorCode; } catch (Exception ignored) {} editorView.invalidate();
+        Button[] tbgBtns = {btnTBgChecker, btnTBgWhite, btnTBgBlack, btnTBgGreen, btnTBgBlue, btnTBgBrown};
+        for (Button b : tbgBtns) { if (b == null) continue; if (b == activeBtn) { b.setAlpha(1.0f); b.setScaleX(1.06f); b.setScaleY(1.06f); } else { b.setAlpha(0.55f); b.setScaleX(1.0f); b.setScaleY(1.0f); } }
+    }
+
+    private void togglePanel(View panel, boolean isLeft) { if (panel.getVisibility() == View.VISIBLE) { float targetX = isLeft ? -panel.getWidth() : panel.getWidth(); panel.animate().translationX(targetX).alpha(0f).setDuration(250).setInterpolator(new DecelerateInterpolator(2f)).withEndAction(() -> panel.setVisibility(View.GONE)).start(); } else { panel.setVisibility(View.VISIBLE); float startX = isLeft ? -800f : 800f; if (panel.getWidth() > 0) startX = isLeft ? -panel.getWidth() : panel.getWidth(); panel.setTranslationX(startX); panel.setAlpha(0f); panel.animate().translationX(0).alpha(1f).setDuration(300).setInterpolator(new DecelerateInterpolator(2f)).start(); } }
+
+    private void updateToolHighlight(Button activeBtn) { Button[] btns = {btnEraser, btnRepair, btnAuto}; for (Button b : btns) { if (b == activeBtn) { b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4A90E2"))); b.setTextColor(Color.WHITE); } else { b.setBackgroundTintList(ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#FFFFFF"))); b.setTextColor(textColor); } } }
+
+    private void applySmoothToMaskInPlace(Bitmap mask, Bitmap originalBackup, int level) { if (mask == null || originalBackup == null) return; int width = mask.getWidth(); int height = mask.getHeight(); if (level == 0) { int[] pixels = new int[width * height]; originalBackup.getPixels(pixels, 0, width, 0, 0, width, height); mask.setPixels(pixels, 0, width, 0, 0, width, height); return; } float dilateRadius = level * 3f; float smoothRadius = level * 2f; Bitmap alpha = originalBackup.extractAlpha(); Bitmap temp1 = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888); Canvas c1 = new Canvas(temp1); Paint blurPaint = new Paint(); blurPaint.setColor(Color.BLACK); blurPaint.setMaskFilter(new android.graphics.BlurMaskFilter(dilateRadius, android.graphics.BlurMaskFilter.Blur.SOLID)); c1.drawBitmap(alpha, 0, 0, blurPaint); alpha.recycle(); Bitmap temp2 = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888); Canvas c2 = new Canvas(temp2); Paint thresholdPaint = new Paint(); ColorMatrix cm = new ColorMatrix(new float[] { 1, 0, 0, 0, 0,  0, 1, 0, 0, 0,  0, 0, 1, 0, 0,  0, 0, 0, 50f, -1000f }); thresholdPaint.setColorFilter(new ColorMatrixColorFilter(cm)); c2.drawBitmap(temp1, 0, 0, thresholdPaint); temp1.recycle(); Bitmap dilatedAlpha = temp2.extractAlpha(); temp2.recycle(); Bitmap finalTemp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888); Canvas c3 = new Canvas(finalTemp); Paint finalSmoothPaint = new Paint(); finalSmoothPaint.setColor(Color.BLACK); finalSmoothPaint.setMaskFilter(new android.graphics.BlurMaskFilter(smoothRadius, android.graphics.BlurMaskFilter.Blur.NORMAL)); c3.drawBitmap(dilatedAlpha, 0, 0, finalSmoothPaint); dilatedAlpha.recycle(); Paint overPaint = new Paint(Paint.ANTI_ALIAS_FLAG); c3.drawBitmap(originalBackup, 0, 0, overPaint); int[] tempPixels = new int[width * height]; finalTemp.getPixels(tempPixels, 0, width, 0, 0, width, height); mask.setPixels(tempPixels, 0, width, 0, 0, width, height); finalTemp.recycle(); }
+}

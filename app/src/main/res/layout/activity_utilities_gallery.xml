@@ -1,88 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/utilitiesGalleryRoot"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:background="#1C1C1E"
-    android:fitsSystemWindows="true">
+    android:id="@+id/utilitiesGalleryRoot" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="16dp" android:background="#1C1C1E" android:fitsSystemWindows="true">
 
     <TextView
-        android:id="@+id/tvUtilitiesTitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Utility Collection"
-        android:textSize="32sp"
-        android:textStyle="bold"
-        android:textColor="#FFFFFF"
-        android:layout_marginBottom="4dp"
-        android:layout_marginTop="24dp" />
+        android:id="@+id/tvUtilitiesTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Utility Collection" android:textSize="32sp" android:textStyle="bold" android:textColor="#FFFFFF"
+        android:layout_marginBottom="4dp" android:layout_marginTop="24dp" />
 
     <TextView
-        android:id="@+id/tvUtilitiesSubtitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Tap a utility tool to launch instantly."
-        android:textSize="14sp"
-        android:textColor="#AAAAAA"
-        android:layout_marginBottom="24dp" />
+        android:id="@+id/tvUtilitiesSubtitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Tap a utility tool to launch instantly." android:textSize="14sp" android:textColor="#AAAAAA" android:layout_marginBottom="24dp" />
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scrollbars="none">
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:scrollbars="none">
+        <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:columnCount="2" android:alignmentMode="alignMargins">
 
-        <GridLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="2"
-            android:alignmentMode="alignMargins">
-
-            <!-- Private Browser Card -->
+            <!-- 1. Private Browser Card -->
             <LinearLayout
-                android:id="@+id/cardPrivateBrowser"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:orientation="vertical"
-                android:background="@drawable/bg_gallery_card"
-                android:clipToOutline="true"
-                android:layout_margin="8dp"
-                android:elevation="2dp"
-                android:clickable="true"
-                android:focusable="true">
-
-                <!-- MATCHED TOOLS STRUCTURE: FrameLayout wrapper for perfect centering -->
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="120dp">
-                    <ImageView
-                        android:id="@+id/ivBrowserPreview"
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
-                        android:layout_gravity="center"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/privatebrowser_icon" />
+                android:id="@+id/cardPrivateBrowser" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1"
+                android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp" android:clickable="true" android:focusable="true">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="120dp">
+                    <ImageView android:id="@+id/ivBrowserPreview" android:layout_width="100dp" android:layout_height="100dp" android:layout_gravity="center" android:scaleType="fitCenter" android:src="@drawable/privatebrowser_icon" />
                 </FrameLayout>
+                <View android:id="@+id/divPrivateBrowser" android:layout_width="match_parent" android:layout_height="1dp" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center" android:padding="16dp">
+                    <TextView android:id="@+id/textPrivateBrowser" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Browser" android:textSize="16sp" android:textStyle="bold" android:textColor="#FFFFFF" />
+                    <TextView android:id="@+id/btnBrowserHelp" android:layout_width="22dp" android:layout_height="22dp" android:layout_marginStart="8dp" android:text="\?" android:textSize="13sp" android:textStyle="bold" android:gravity="center" android:clickable="true" android:focusable="true" />
+                </LinearLayout>
+            </LinearLayout>
 
-                <!-- THE NEW HORIZONTAL SEPARATOR LINE -->
-                <View
-                    android:id="@+id/divPrivateBrowser"
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginHorizontal="0dp" />
-
-                <TextView
-                    android:id="@+id/textPrivateBrowser"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Private Browser"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:padding="16dp"
-                    android:textColor="#FFFFFF" />
+            <!-- 2. Doc Reader Card -->
+            <LinearLayout
+                android:id="@+id/cardDocReader" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1"
+                android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp" android:clickable="true" android:focusable="true">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="120dp">
+                    <ImageView android:id="@+id/ivDocReaderPreview" android:layout_width="100dp" android:layout_height="100dp" android:layout_gravity="center" android:scaleType="fitCenter" android:src="@drawable/docread_icon" />
+                </FrameLayout>
+                <View android:id="@+id/divDocReader" android:layout_width="match_parent" android:layout_height="1dp" />
+                <TextView android:id="@+id/textDocReader" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Doc Reader" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" android:textColor="#FFFFFF" />
             </LinearLayout>
 
         </GridLayout>

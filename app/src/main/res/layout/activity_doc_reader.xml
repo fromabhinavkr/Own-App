@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/docReaderRoot" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="16dp" android:background="#1C1C1E" android:fitsSystemWindows="true">
+
+    <!-- Top Header Row with Perfect Circle 3-Dot Menu -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+        <TextView android:id="@+id/tvDocTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Doc Reader" android:textSize="20sp" android:textStyle="bold" android:textColor="#FFFFFF" android:ellipsize="end" android:maxLines="1" />
+
+        <!-- NEW: Replaced Button with TextView for perfect Oval/Circle Background Styling! -->
+        <TextView android:id="@+id/btnMenu" android:layout_width="44dp" android:layout_height="44dp" android:text="⋮" android:textSize="24sp" android:textStyle="bold" android:gravity="center" android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <!-- Floating Capsule Search Bar -->
+    <LinearLayout android:id="@+id/searchBarContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="14dp" android:paddingVertical="4dp" android:layout_marginBottom="10dp" android:visibility="gone">
+        <EditText android:id="@+id/etSearch" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:hint="Search words..." android:textColorHint="#888888" android:textColor="#FFFFFF" android:textSize="14sp" android:background="@null" android:singleLine="true" android:imeOptions="actionDone" />
+        <TextView android:id="@+id/tvSearchCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0/0" android:textColor="#AAAAAA" android:textSize="12sp" android:textStyle="bold" android:layout_marginHorizontal="8dp" />
+        <Button android:id="@+id/btnNextMatch" android:layout_width="34dp" android:layout_height="34dp" android:text="⬇" android:textSize="14sp" android:backgroundTint="#4A90E2" android:textColor="#FFFFFF" android:insetTop="0dp" android:insetBottom="0dp" android:padding="0dp" />
+        <Button android:id="@+id/btnCloseSearch" android:layout_width="34dp" android:layout_height="34dp" android:text="✖" android:textSize="12sp" android:backgroundTint="#FF3B30" android:textColor="#FFFFFF" android:insetTop="0dp" android:insetBottom="0dp" android:padding="0dp" android:layout_marginStart="6dp" />
+    </LinearLayout>
+
+    <!-- Document Content + Draggable Fast Scroller Area -->
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+
+        <!-- Text View Mode -->
+        <ScrollView android:id="@+id/scrollDocContent" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:scrollbars="none">
+            <LinearLayout android:id="@+id/docPanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp" android:paddingEnd="28dp">
+                <TextView android:id="@+id/tvDocContent" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" android:textSize="15sp" android:textColor="#FFFFFF" android:fontFamily="monospace" android:lineSpacingMultiplier="1.0" android:textIsSelectable="true" />
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Dedicated WebView for Exact Desktop PDF Mode -->
+        <WebView android:id="@+id/wvDocContent" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" />
+
+        <!-- Interactive Fast-Scroll Track & Capsule Drag Thumb on Right Edge -->
+        <FrameLayout android:id="@+id/fastScrollTrack" android:layout_width="28dp" android:layout_height="match_parent" android:layout_gravity="end|center_vertical" android:clickable="true" android:focusable="true">
+            <View android:id="@+id/fastScrollThumb" android:layout_width="6dp" android:layout_height="48dp" android:layout_gravity="end|top" android:layout_marginEnd="4dp" />
+        </FrameLayout>
+    </FrameLayout>
+</LinearLayout>
