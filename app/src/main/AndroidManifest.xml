@@ -135,6 +135,13 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
+        <!-- NEW: Rotating Globe Game Activity -->
+        <activity
+            android:name=".GlobeGameActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
         <activity
             android:name=".ToolsGalleryActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
@@ -312,7 +319,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.ownphotoonwall.ACTION_ROTATE_GEAR" />
+                <action android:name="com.abhinav.ownapp.ACTION_ROTATE_GEAR" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -325,7 +332,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.ownphotoonwall.TOGGLE_MAZE" />
+                <action android:name="com.abhinav.ownapp.TOGGLE_MAZE" />
                 <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
             </intent-filter>
             <meta-data

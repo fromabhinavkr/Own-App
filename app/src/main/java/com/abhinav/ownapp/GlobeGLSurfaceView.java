@@ -1,22 +1,79 @@
 package com.abhinav.ownapp;
 
-import android.content.Context; import android.graphics.Bitmap; import android.graphics.BitmapFactory; import android.graphics.PixelFormat; import android.opengl.GLES20; import android.opengl.GLSurfaceView; import android.opengl.GLUtils; import android.opengl.Matrix; import android.util.AttributeSet; import android.view.GestureDetector; import android.view.MotionEvent; import javax.microedition.khronos.egl.EGLConfig; import javax.microedition.khronos.opengles.GL10;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.PixelFormat;
+import android.opengl.GLES20;
+import android.opengl.GLSurfaceView;
+import android.opengl.GLUtils;
+import android.opengl.Matrix;
+import android.util.AttributeSet;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
 
 public class GlobeGLSurfaceView extends GLSurfaceView {
-    private GlobeRenderer renderer; private float previousX; private float previousY; private GestureDetector gestureDetector; private int currentPlanetIndex = 0; private final int[] maps = {R.drawable.earth_map, R.drawable.moon_map, R.drawable.mars_map, R.drawable.venus_map};
+    private GlobeRenderer renderer;
+    private float previousX;
+    private float previousY;
+    private GestureDetector gestureDetector;
+    private int currentPlanetIndex = 0;
+    private final int[] maps = {R.drawable.earth_map, R.drawable.moon_map, R.drawable.mars_map, R.drawable.venus_map};
+
+    // NEW: Interface to listen for long presses
+    public interface OnGlobeLongPressListener {
+        void onLongPress();
+    }
+    private OnGlobeLongPressListener longPressListener;
+
+    public void setOnGlobeLongPressListener(OnGlobeLongPressListener listener) {
+        this.longPressListener = listener;
+    }
 
     public GlobeGLSurfaceView(Context context, AttributeSet attrs) {
-        super(context, attrs); setEGLContextClientVersion(2); setEGLConfigChooser(8, 8, 8, 8, 16, 0); getHolder().setFormat(PixelFormat.TRANSLUCENT); setZOrderOnTop(true);
-        renderer = new GlobeRenderer(context); setRenderer(renderer); setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+        super(context, attrs);
+        setEGLContextClientVersion(2);
+        setEGLConfigChooser(8, 8, 8, 8, 16, 0);
+        getHolder().setFormat(PixelFormat.TRANSLUCENT);
+        setZOrderOnTop(true);
+        renderer = new GlobeRenderer(context);
+        setRenderer(renderer);
+        setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+
         gestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
-            @Override public boolean onDoubleTap(MotionEvent e) { currentPlanetIndex = (currentPlanetIndex + 1) % 4; queueEvent(() -> renderer.changeTexture(maps[currentPlanetIndex])); return true; }
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                currentPlanetIndex = (currentPlanetIndex + 1) % 4;
+                queueEvent(() -> renderer.changeTexture(maps[currentPlanetIndex]));
+                return true;
+            }
+
+            // NEW: Long Press Trigger
+            @Override
+            public void onLongPress(MotionEvent e) {
+                if (longPressListener != null) {
+                    longPressListener.onLongPress();
+                }
+            }
         });
     }
 
     @Override public boolean onTouchEvent(MotionEvent e) {
-        gestureDetector.onTouchEvent(e); float x = e.getX(); float y = e.getY();
-        if (e.getAction() == MotionEvent.ACTION_MOVE) { float dx = x - previousX; float dy = y - previousY; renderer.rotationX -= dy * 0.2f; renderer.rotationY += dx * 0.2f; if (renderer.rotationX > 80.0f) renderer.rotationX = 80.0f; if (renderer.rotationX < -80.0f) renderer.rotationX = -80.0f; }
-        previousX = x; previousY = y; return true;
+        gestureDetector.onTouchEvent(e);
+        float x = e.getX();
+        float y = e.getY();
+        if (e.getAction() == MotionEvent.ACTION_MOVE) {
+            float dx = x - previousX;
+            float dy = y - previousY;
+            renderer.rotationX -= dy * 0.2f;
+            renderer.rotationY += dx * 0.2f;
+            if (renderer.rotationX > 80.0f) renderer.rotationX = 80.0f;
+            if (renderer.rotationX < -80.0f) renderer.rotationX = -80.0f;
+        }
+        previousX = x; previousY = y;
+        return true;
     }
 
     private class GlobeRenderer implements GLSurfaceView.Renderer {

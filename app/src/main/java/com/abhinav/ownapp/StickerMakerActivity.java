@@ -1,9 +1,48 @@
 package com.abhinav.ownapp;
 
-import android.annotation.SuppressLint; import android.app.Activity; import android.app.AlertDialog; import android.content.ActivityNotFoundException;
-import android.content.Intent; import android.content.SharedPreferences; import android.content.res.ColorStateList; import android.graphics.Bitmap; import android.graphics.BitmapFactory; import android.graphics.Canvas; import android.graphics.Color; import android.graphics.Matrix; import android.graphics.Paint; import android.graphics.PointF; import android.graphics.Typeface; import android.graphics.drawable.GradientDrawable; import android.net.Uri; import android.os.Build; import android.os.Bundle; import android.text.Editable; import android.text.TextWatcher; import android.view.Gravity; import android.view.MotionEvent; import android.view.View; import android.view.ViewGroup; import android.view.Window; import android.widget.Button; import android.widget.EditText; import android.widget.FrameLayout; import android.widget.GridLayout; import android.widget.HorizontalScrollView; import android.widget.ImageView; import android.widget.LinearLayout; import android.widget.ProgressBar; import android.widget.TextView; import android.widget.Toast;
-import androidx.activity.result.ActivityResultLauncher; import androidx.activity.result.contract.ActivityResultContracts; import androidx.appcompat.app.AppCompatActivity;
-import java.io.File; import java.io.FileOutputStream; import java.io.InputStream; import java.util.Arrays;
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.PointF;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.GridLayout;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AppCompatActivity;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.util.Arrays;
 
 @SuppressWarnings("all") @SuppressLint({"SetTextI18n", "SpellCheckingInspection", "ClickableViewAccessibility", "DrawAllocation"})
 public class StickerMakerActivity extends AppCompatActivity {

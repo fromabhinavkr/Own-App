@@ -215,19 +215,4 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- 3. Earth (Globe) - Dynamically positioned to prevent overlap in Portrait and Landscape -->
-    <RelativeLayout
-        android:id="@+id/globe_container"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/btn_app_theme_toggle"
-        android:layout_above="@id/grid_scroll_view">
-
-        <com.abhinav.ownapp.GlobeGLSurfaceView
-            android:id="@+id/globe_view"
-            android:layout_width="320dp"
-            android:layout_height="320dp"
-            android:layout_centerInParent="true" />
-    </RelativeLayout>
-
 </RelativeLayout>
