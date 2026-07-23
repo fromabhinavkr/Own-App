@@ -36,6 +36,8 @@ public class MainActivity extends AppCompatActivity {
         WindowCompat.setDecorFitsSystemWindows(window, true);
         setContentView(R.layout.activity_main);
 
+        DeviceStatsHelper.setupDashboard(this, isDarkTheme);
+
         ImageButton themeToggleBtn = findViewById(R.id.btn_app_theme_toggle);
         themeToggleBtn.setImageResource(isDarkTheme ? R.drawable.ic_moon : R.drawable.ic_sun);
         themeToggleBtn.setColorFilter(isDarkTheme ? Color.WHITE : Color.BLACK);
@@ -68,11 +70,11 @@ public class MainActivity extends AppCompatActivity {
             int dividerColor;
 
             if (isDarkTheme) {
-                themeBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E"));
+                themeBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E")); // Dark Grey
                 themeText = Color.WHITE;
                 dividerColor = Color.parseColor("#33FFFFFF");
             } else {
-                themeBg = ColorStateList.valueOf(Color.WHITE);
+                themeBg = ColorStateList.valueOf(Color.parseColor("#F4F4F5")); // Light flat Grey for contrast
                 themeText = Color.parseColor("#333333");
                 dividerColor = Color.parseColor("#1A000000");
             }
@@ -112,13 +114,11 @@ public class MainActivity extends AppCompatActivity {
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
 
         if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            // Centers the grid in landscape and prevents it from stretching too wide
             gridParams.width = (int) (screenWidth * 0.6f);
             gridParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
             gridParams.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
             gridParams.addRule(RelativeLayout.CENTER_IN_PARENT);
         } else {
-            // Returns to normal bottom alignment for portrait mode
             gridParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
             gridParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
             gridParams.removeRule(RelativeLayout.CENTER_IN_PARENT);

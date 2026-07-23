@@ -23,13 +23,11 @@ public class UfoGameOverlayView extends View {
     private final Paint ufoDomePaint;
     private final Paint particlePaint;
 
-    // Upgraded Guaranteed-Render Damage Paints
     private final Paint charredPaint;
     private final Paint damagePaint;
     private final Paint emberGlowPaint;
     private final Paint emberPaint;
 
-    // Upgraded Divine Shield Paints
     private final Paint shieldDomePaint;
     private final Paint shieldGlowPaint;
     private final Paint shieldCorePaint;
@@ -44,25 +42,23 @@ public class UfoGameOverlayView extends View {
     public static final int STATE_GAME_OVER = 2;
     private int gameState = STATE_WAITING;
 
-    // Active Game Objects
     private final ArrayList<Ufo> ufoList = new ArrayList<>();
     private final ArrayList<Explosion> explosions = new ArrayList<>();
     private final ArrayList<DamageSpot> damages = new ArrayList<>();
 
-    // Object Pools (To prevent memory allocations during onDraw)
     private final ArrayList<Ufo> ufoPool = new ArrayList<>();
     private final ArrayList<Explosion> explosionPool = new ArrayList<>();
     private final ArrayList<DamageSpot> damagePool = new ArrayList<>();
 
     private static final Random random = new Random();
     private float planetRadius;
-    private float baseSpeed = 4f;
 
-    // Shield Mechanics
+    // Decreased speed for a creeping swarm effect
+    private float baseSpeed = 3.5f;
+
     private long shieldEndTime = 0;
     private float waveAnimRadius = 0;
 
-    // Vibration Service
     private final Vibrator vibrator;
 
     public interface OnGameOverListener {
@@ -73,8 +69,6 @@ public class UfoGameOverlayView extends View {
     public void setOnGameOverListener(OnGameOverListener listener) {
         this.gameOverListener = listener;
     }
-
-    // --- GAME OBJECT CLASSES ---
 
     private static class Ufo {
         float x, y, speed, dx, dy;
@@ -128,8 +122,6 @@ public class UfoGameOverlayView extends View {
         }
     }
 
-    // --- INITIALIZATION ---
-
     public UfoGameOverlayView(Context context, AttributeSet attrs) {
         super(context, attrs);
 
@@ -150,25 +142,23 @@ public class UfoGameOverlayView extends View {
         particlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         particlePaint.setStyle(Paint.Style.FILL);
 
-        // --- UPGRADED CRATER DAMAGE PAINTS (No ShadowLayer for universal support) ---
         charredPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        charredPaint.setColor(Color.parseColor("#99000000")); // Translucent outer burn
+        charredPaint.setColor(Color.parseColor("#99000000"));
         charredPaint.setStyle(Paint.Style.FILL);
 
         damagePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        damagePaint.setColor(Color.BLACK); // Pure deep black core
+        damagePaint.setColor(Color.BLACK);
         damagePaint.setStyle(Paint.Style.FILL);
 
         emberGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        emberGlowPaint.setColor(Color.parseColor("#D84315")); // Soft dark orange glow
+        emberGlowPaint.setColor(Color.parseColor("#D84315"));
         emberGlowPaint.setAlpha(150);
         emberGlowPaint.setStyle(Paint.Style.FILL);
 
         emberPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        emberPaint.setColor(Color.parseColor("#FFD54F")); // Bright yellow/orange core spark
+        emberPaint.setColor(Color.parseColor("#FFD54F"));
         emberPaint.setStyle(Paint.Style.FILL);
 
-        // --- UPGRADED DIVINE SHIELD PAINTS ---
         shieldDomePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         shieldDomePaint.setColor(Color.parseColor("#00B0FF"));
         shieldDomePaint.setAlpha(40);
@@ -177,26 +167,25 @@ public class UfoGameOverlayView extends View {
         shieldGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         shieldGlowPaint.setColor(Color.parseColor("#00E5FF"));
         shieldGlowPaint.setStyle(Paint.Style.STROKE);
-        shieldGlowPaint.setStrokeWidth(50f); // Massive ambient glow
+        shieldGlowPaint.setStrokeWidth(50f);
 
         shieldCorePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        shieldCorePaint.setColor(Color.WHITE); // Blinding white core
+        shieldCorePaint.setColor(Color.WHITE);
         shieldCorePaint.setStyle(Paint.Style.STROKE);
         shieldCorePaint.setStrokeWidth(15f);
 
         shieldAuraPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        shieldAuraPaint.setColor(Color.parseColor("#FFD700")); // Divine Gold Rings
+        shieldAuraPaint.setColor(Color.parseColor("#FFD700"));
         shieldAuraPaint.setStyle(Paint.Style.STROKE);
         shieldAuraPaint.setStrokeWidth(8f);
 
         shieldDivinePulsePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        shieldDivinePulsePaint.setColor(Color.parseColor("#E0F7FA")); // Celestial inner pulse
+        shieldDivinePulsePaint.setColor(Color.parseColor("#E0F7FA"));
         shieldDivinePulsePaint.setStyle(Paint.Style.STROKE);
         shieldDivinePulsePaint.setStrokeWidth(25f);
 
-        // Preallocate Object Pools
         for (int i = 0; i < 40; i++) ufoPool.add(new Ufo());
-        for (int i = 0; i < 20; i++) explosionPool.add(new Explosion());
+        for (int i = 0; i < 30; i++) explosionPool.add(new Explosion());
         for (int i = 0; i < 60; i++) damagePool.add(new DamageSpot());
     }
 
@@ -222,7 +211,9 @@ public class UfoGameOverlayView extends View {
         damagePool.addAll(damages);
         damages.clear();
 
-        baseSpeed = 4f;
+        // Speed is initialized to the new slower constant
+        baseSpeed = 3.5f;
+
         shieldEndTime = 0;
         waveAnimRadius = 0;
         gameState = STATE_PLAYING;
@@ -248,11 +239,12 @@ public class UfoGameOverlayView extends View {
                 ufoPool.add(ufo);
 
                 score++;
-                if (score % 5 == 0) baseSpeed += 0.6f;
 
+                // Reward the player by restoring their lives to full upon completing a wave!
                 if (score > 0 && score % 25 == 0) {
                     shieldEndTime = System.currentTimeMillis() + 3000;
                     waveAnimRadius = planetRadius;
+                    lives = 3;
                 }
 
                 invalidate();
@@ -272,7 +264,6 @@ public class UfoGameOverlayView extends View {
 
         if (gameState == STATE_WAITING) return;
 
-        // 1. ALWAYS Draw Burn Craters (Even on Game Over)
         for (DamageSpot spot : damages) {
             canvas.drawCircle(spot.x, spot.y, spot.radius * 1.4f, charredPaint);
             canvas.drawCircle(spot.x, spot.y, spot.radius, damagePaint);
@@ -280,23 +271,21 @@ public class UfoGameOverlayView extends View {
             canvas.drawCircle(spot.x, spot.y, spot.radius * 0.25f, emberPaint);
         }
 
-        // 2. Divine Shield Logic and Animation
         boolean isShieldActive = System.currentTimeMillis() < shieldEndTime;
 
         if (isShieldActive) {
             canvas.drawCircle(cx, cy, planetRadius + 30, shieldDomePaint);
         }
 
-        // Ensure the majestic wave finishes expanding even if the shield time expires
         if (waveAnimRadius > 0) {
             if (gameState == STATE_PLAYING) {
                 waveAnimRadius += 18f;
                 float maxWaveRadius = Math.max(getWidth(), getHeight()) + 100f;
                 if (waveAnimRadius > maxWaveRadius) {
                     if (isShieldActive) {
-                        waveAnimRadius = planetRadius; // Loop wave
+                        waveAnimRadius = planetRadius;
                     } else {
-                        waveAnimRadius = 0; // Stop wave
+                        waveAnimRadius = 0;
                     }
                 }
             }
@@ -306,24 +295,45 @@ public class UfoGameOverlayView extends View {
                 float waveProgress = (waveAnimRadius - planetRadius) / (maxWaveRadius - planetRadius);
                 int waveAlpha = Math.max(0, (int) (255 * (1f - waveProgress)));
 
-                // Fade out layers smoothly as they expand
                 shieldGlowPaint.setAlpha(Math.max(0, (int)(90 * (1f - waveProgress))));
                 shieldCorePaint.setAlpha(waveAlpha);
                 shieldAuraPaint.setAlpha(waveAlpha);
                 shieldDivinePulsePaint.setAlpha(Math.max(0, (int)(waveAlpha * 0.7f)));
 
-                canvas.drawCircle(cx, cy, waveAnimRadius, shieldGlowPaint);       // Thick cyan ambient glow
-                canvas.drawCircle(cx, cy, waveAnimRadius, shieldCorePaint);       // Blinding white center
-                canvas.drawCircle(cx, cy, waveAnimRadius - 15f, shieldDivinePulsePaint); // Inner celestial core
-                canvas.drawCircle(cx, cy, waveAnimRadius + 45f, shieldAuraPaint); // Leading gold ring
-                canvas.drawCircle(cx, cy, waveAnimRadius - 35f, shieldAuraPaint); // Trailing gold ring
+                canvas.drawCircle(cx, cy, waveAnimRadius, shieldGlowPaint);
+                canvas.drawCircle(cx, cy, waveAnimRadius, shieldCorePaint);
+                canvas.drawCircle(cx, cy, waveAnimRadius - 15f, shieldDivinePulsePaint);
+                canvas.drawCircle(cx, cy, waveAnimRadius + 45f, shieldAuraPaint);
+                canvas.drawCircle(cx, cy, waveAnimRadius - 35f, shieldAuraPaint);
             }
         }
 
-        // --- GAMEPLAY UPDATES (Only runs while playing) ---
         if (gameState == STATE_PLAYING) {
-            float spawnChance = 0.012f + (score * 0.0008f);
-            if (random.nextFloat() < spawnChance) spawnUfo(cx, cy);
+
+            // --- DIFFICULTY PHASES ---
+            int maxUfos;
+            float spawnChance;
+
+            if (score >= 50) {
+                // DIFFICULT PHASE
+                maxUfos = 7;
+                spawnChance = 0.06f;
+            } else if (score >= 25) {
+                // MEDIUM PHASE
+                maxUfos = 5;
+                spawnChance = 0.04f;
+            } else {
+                // EASY PHASE
+                maxUfos = 3;
+                spawnChance = 0.02f;
+            }
+
+            // Strictly enforce the maximum UFO cap for the current phase!
+            if (ufoList.size() < maxUfos) {
+                if (random.nextFloat() < spawnChance) {
+                    spawnUfo(cx, cy);
+                }
+            }
 
             Iterator<Ufo> iterator = ufoList.iterator();
             while (iterator.hasNext()) {
@@ -333,7 +343,6 @@ public class UfoGameOverlayView extends View {
 
                 float dist = (float) Math.hypot(cx - ufo.x, cy - ufo.y);
 
-                // Shield Wave collision
                 if (waveAnimRadius > 0 && dist < waveAnimRadius + 60) {
                     if (!explosionPool.isEmpty()) {
                         Explosion exp = explosionPool.remove(explosionPool.size() - 1);
@@ -345,7 +354,6 @@ public class UfoGameOverlayView extends View {
                     continue;
                 }
 
-                // Planet Collision
                 if (dist < planetRadius) {
                     if (!explosionPool.isEmpty()) {
                         Explosion exp = explosionPool.remove(explosionPool.size() - 1);
@@ -353,7 +361,6 @@ public class UfoGameOverlayView extends View {
                         explosions.add(exp);
                     }
 
-                    // Pulled the crater slightly deeper (-35) so it is extremely visible on the globe
                     float angle = (float) Math.atan2(ufo.y - cy, ufo.x - cx);
                     float impactX = cx + (float)Math.cos(angle) * (planetRadius - 35);
                     float impactY = cy + (float)Math.sin(angle) * (planetRadius - 35);
@@ -380,12 +387,10 @@ public class UfoGameOverlayView extends View {
             }
         }
 
-        // 3. ALWAYS Draw Remaining UFOs (Frozen on Game Over)
         for (Ufo ufo : ufoList) {
             drawCustomUfo(canvas, ufo);
         }
 
-        // 4. ALWAYS Animate and Draw Explosions
         Iterator<Explosion> expIt = explosions.iterator();
         while (expIt.hasNext()) {
             Explosion exp = expIt.next();
@@ -409,16 +414,13 @@ public class UfoGameOverlayView extends View {
             }
         }
 
-        // 5. ALWAYS Draw HUD
         canvas.drawText("Score: " + score + "   |   Lives: " + Math.max(0, lives), cx, 150, hudPaint);
 
-        // Keep loop running so explosions finish even after Game Over triggers
         if (gameState == STATE_PLAYING || !explosions.isEmpty() || waveAnimRadius > 0) {
             postInvalidateOnAnimation();
         }
     }
 
-    // --- DRAWING THE CUSTOM UFO TYPES ---
     private void drawCustomUfo(Canvas canvas, Ufo ufo) {
         float x = ufo.x;
         float y = ufo.y;
@@ -516,7 +518,8 @@ public class UfoGameOverlayView extends View {
         ufo.dx = dx / length;
         ufo.dy = dy / length;
 
-        ufo.speed = baseSpeed + (random.nextFloat() * 2f);
+        ufo.speed = baseSpeed + (random.nextFloat() * 1.5f);
+
         ufo.type = random.nextInt(4);
 
         ufoList.add(ufo);

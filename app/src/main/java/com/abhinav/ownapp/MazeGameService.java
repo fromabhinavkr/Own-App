@@ -40,10 +40,10 @@ public class MazeGameService extends Service implements SensorEventListener {
     private final Handler gameLoopHandler = new Handler(Looper.getMainLooper());
     private boolean isPlaying = false;
 
-    private static final int GRID_WIDTH = 27;
-    private static final int GRID_HEIGHT = 17;
+    // FIX: Changed to a TALL aspect ratio (21x27) to naturally fit standard tall widgets
+    private static final int GRID_WIDTH = 21;
+    private static final int GRID_HEIGHT = 27;
 
-    // INCREASED SCALE FOR CRISP HIGH-DEF 3D WIDGET RENDERING
     private static final int PIXEL_SCALE = 32;
     private static final int BITMAP_WIDTH = GRID_WIDTH * PIXEL_SCALE;
     private static final int BITMAP_HEIGHT = GRID_HEIGHT * PIXEL_SCALE;
@@ -55,7 +55,6 @@ public class MazeGameService extends Service implements SensorEventListener {
     private static final float FRICTION = 0.85f;
     private static final float BALL_RADIUS = 0.2f;
 
-    // MULTIPLE FLYING SPIKES ARRAY ENGINE
     private static final int NUM_SPIKES = 3;
     private final float[] spikeX = new float[NUM_SPIKES];
     private final float[] spikeY = new float[NUM_SPIKES];
@@ -80,18 +79,17 @@ public class MazeGameService extends Service implements SensorEventListener {
     }
 
     private void setupNeumorphicTheme() {
-        // Enforcing Modern Neumorphic Dark Theme to match the widget background perfectly
-        wallPaint.setColor(Color.parseColor("#2C2F36")); // Raised 3D wall color
-        wallPaint.setPathEffect(new CornerPathEffect(25.0f)); // Super smooth rounded walls
-        wallPaint.setShadowLayer(14f, 8f, 8f, Color.parseColor("#0A0B0E")); // Deep 3D Shadow
+        wallPaint.setColor(Color.parseColor("#2C2F36"));
+        wallPaint.setPathEffect(new CornerPathEffect(25.0f));
+        wallPaint.setShadowLayer(14f, 8f, 8f, Color.parseColor("#0A0B0E"));
 
-        ballPaint.setColor(Color.parseColor("#4A90E2")); // Modern Glowing Blue Ball
+        ballPaint.setColor(Color.parseColor("#4A90E2"));
         ballPaint.setShadowLayer(10f, 0f, 6f, Color.BLACK);
 
-        goalPaint.setColor(Color.parseColor("#34C759")); // Neon Green Goal
+        goalPaint.setColor(Color.parseColor("#34C759"));
         goalPaint.setShadowLayer(10f, 0f, 6f, Color.BLACK);
 
-        spikePaint.setColor(Color.parseColor("#FF3B30")); // Hazard Red Flying Spike
+        spikePaint.setColor(Color.parseColor("#FF3B30"));
         spikePaint.setShadowLayer(10f, 0f, 6f, Color.BLACK);
     }
 
@@ -136,12 +134,9 @@ public class MazeGameService extends Service implements SensorEventListener {
         public void run() {
             if (!isPlaying) return;
 
-            // BALL PHYSICS
             velX += accelX; velY += accelY;
             velX *= FRICTION; velY *= FRICTION;
 
-            // BUG FIX: SUB-STEPPING ENGINE (Continuous Collision Detection)
-            // Calculates total movement distance. Breaks the fast jump into safe 0.2f micro-steps.
             float moveDist = (float) Math.hypot(velX, velY);
             int steps = (int) Math.ceil(moveDist / 0.2f);
 
@@ -150,54 +145,47 @@ public class MazeGameService extends Service implements SensorEventListener {
                 float stepY = velY / steps;
 
                 for (int s = 0; s < steps; s++) {
-                    // Check X movement
                     if (!isColliding(ballX + stepX, ballY)) {
                         ballX += stepX;
                     } else {
                         velX = 0f;
-                        stepX = 0f; // Slammed into X wall, kill X momentum
+                        stepX = 0f;
                     }
 
-                    // Check Y movement
                     if (!isColliding(ballX, ballY + stepY)) {
                         ballY += stepY;
                     } else {
                         velY = 0f;
-                        stepY = 0f; // Slammed into Y wall, kill Y momentum
+                        stepY = 0f;
                     }
                 }
             }
 
-            // FLYING SPIKES PHYSICS (Loops through all 3)
             for (int i = 0; i < NUM_SPIKES; i++) {
                 spikeX[i] += spikeVelX[i];
                 spikeY[i] += spikeVelY[i];
 
-                // Bounce spikes off edges of the board
                 if (spikeX[i] <= 1f || spikeX[i] >= GRID_WIDTH - 1f) spikeVelX[i] *= -1;
                 if (spikeY[i] <= 1f || spikeY[i] >= GRID_HEIGHT - 1f) spikeVelY[i] *= -1;
 
-                // SPIKE COLLISION DETECTION WITH BALL
                 float dx = ballX - spikeX[i];
                 float dy = ballY - spikeY[i];
                 if (Math.hypot(dx, dy) < (BALL_RADIUS + 0.35f)) {
-                    // A Spike caught the ball! Reset player.
                     ballX = 1.5f;
                     ballY = 1.5f;
                     velX = 0f;
                     velY = 0f;
-                    break; // No need to check other spikes this frame if we already died
+                    break;
                 }
             }
 
-            // WIN CONDITION
             if (mazeGrid[(int) ballY][(int) ballX] == 2) {
                 generatePerfectMaze();
                 saveState();
             }
 
             renderFrame(false);
-            gameLoopHandler.postDelayed(this, 80); // 80ms loop for slightly smoother spike flying
+            gameLoopHandler.postDelayed(this, 80);
         }
     };
 
@@ -206,13 +194,9 @@ public class MazeGameService extends Service implements SensorEventListener {
             Bitmap bitmap = Bitmap.createBitmap(BITMAP_WIDTH, BITMAP_HEIGHT, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bitmap);
 
-            // Transparent background ensures your XML Neumorphic background shows through perfectly!
             canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-
-            // Draw Neumorphic Rounded Maze Walls
             canvas.drawPath(mazeWallPath, wallPaint);
 
-            // Draw Goal
             for (int y = 0; y < GRID_HEIGHT; y++) {
                 for (int x = 0; x < GRID_WIDTH; x++) {
                     if (mazeGrid[y][x] == 2) {
@@ -222,15 +206,12 @@ public class MazeGameService extends Service implements SensorEventListener {
                 }
             }
 
-            // Draw The Player Ball
             canvas.drawCircle(ballX * PIXEL_SCALE, ballY * PIXEL_SCALE, PIXEL_SCALE * 0.35f, ballPaint);
 
-            // Draw All 3 Flying Hazard Spikes
             Paint corePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             corePaint.setColor(Color.WHITE);
             for (int i = 0; i < NUM_SPIKES; i++) {
                 canvas.drawCircle(spikeX[i] * PIXEL_SCALE, spikeY[i] * PIXEL_SCALE, PIXEL_SCALE * 0.3f, spikePaint);
-                // Draw a small inner core to make the spike look cooler
                 canvas.drawCircle(spikeX[i] * PIXEL_SCALE, spikeY[i] * PIXEL_SCALE, PIXEL_SCALE * 0.1f, corePaint);
             }
 
@@ -276,14 +257,14 @@ public class MazeGameService extends Service implements SensorEventListener {
         ballX = prefs.getFloat("ballX", 1.5f);
         ballY = prefs.getFloat("ballY", 1.5f);
 
-        // Load Spikes with distinct starting fallback positions if starting fresh
-        spikeX[0] = prefs.getFloat("spikeX_0", 13.5f); spikeY[0] = prefs.getFloat("spikeY_0", 8.5f);
+        // FIX: Spikes adjusted to fit safely inside the new 21x27 vertical layout
+        spikeX[0] = prefs.getFloat("spikeX_0", 10.5f); spikeY[0] = prefs.getFloat("spikeY_0", 13.5f);
         spikeVelX[0] = prefs.getFloat("spikeVelX_0", 0.25f); spikeVelY[0] = prefs.getFloat("spikeVelY_0", 0.25f);
 
-        spikeX[1] = prefs.getFloat("spikeX_1", 23.5f); spikeY[1] = prefs.getFloat("spikeY_1", 3.5f);
+        spikeX[1] = prefs.getFloat("spikeX_1", 17.5f); spikeY[1] = prefs.getFloat("spikeY_1", 5.5f);
         spikeVelX[1] = prefs.getFloat("spikeVelX_1", -0.3f); spikeVelY[1] = prefs.getFloat("spikeVelY_1", 0.2f);
 
-        spikeX[2] = prefs.getFloat("spikeX_2", 3.5f); spikeY[2] = prefs.getFloat("spikeY_2", 13.5f);
+        spikeX[2] = prefs.getFloat("spikeX_2", 3.5f); spikeY[2] = prefs.getFloat("spikeY_2", 21.5f);
         spikeVelX[2] = prefs.getFloat("spikeVelX_2", 0.2f); spikeVelY[2] = prefs.getFloat("spikeVelY_2", -0.3f);
 
         String[] parts = gridStr.split(",");
@@ -305,10 +286,10 @@ public class MazeGameService extends Service implements SensorEventListener {
 
         ballX = 1.5f; ballY = 1.5f;
 
-        // Reset 3 Spikes across the map
-        spikeX[0] = 13.5f; spikeY[0] = 8.5f; spikeVelX[0] = 0.25f; spikeVelY[0] = 0.25f;
-        spikeX[1] = 23.5f; spikeY[1] = 3.5f; spikeVelX[1] = -0.3f; spikeVelY[1] = 0.2f;
-        spikeX[2] = 3.5f; spikeY[2] = 13.5f; spikeVelX[2] = 0.2f; spikeVelY[2] = -0.3f;
+        // FIX: Spikes adjusted to fit safely inside the new 21x27 vertical layout
+        spikeX[0] = 10.5f; spikeY[0] = 13.5f; spikeVelX[0] = 0.25f; spikeVelY[0] = 0.25f;
+        spikeX[1] = 17.5f; spikeY[1] = 5.5f; spikeVelX[1] = -0.3f; spikeVelY[1] = 0.2f;
+        spikeX[2] = 3.5f; spikeY[2] = 21.5f; spikeVelX[2] = 0.2f; spikeVelY[2] = -0.3f;
 
         buildMazePath();
     }

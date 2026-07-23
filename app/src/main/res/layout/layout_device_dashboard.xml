@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:ignore="HardcodedText,ContentDescription">
+
+    <!-- TOP SECTION: LIVE RAM MONITOR CARD -->
+    <RelativeLayout
+        android:id="@+id/ramCardBg"
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_ram_card"
+        android:clipToOutline="true">
+
+        <com.abhinav.ownapp.RamGraphView
+            android:id="@+id/ramGraphView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/tvRamTotal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:text="RAM - Calculating..."
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvRamUsed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginEnd="16dp"
+            android:layout_marginTop="16dp"
+            android:text="Used"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvRamFree"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            android:text="Free"
+            android:textSize="12sp" />
+    </RelativeLayout>
+
+    <!-- BOTTOM SECTION: STORAGE & BATTERY UNIFIED CARD -->
+    <LinearLayout
+        android:id="@+id/storageBatteryCardBg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:baselineAligned="false"
+        android:padding="12dp"
+        android:background="@drawable/bg_storage_card"
+        android:clipToOutline="true"
+        android:weightSum="2">
+
+        <!-- STORAGE STATS -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginEnd="6dp">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_circle_blue"
+                android:src="@drawable/ic_storage"
+                android:padding="9dp"
+                android:layout_marginEnd="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView android:id="@+id/tvStorageTitle" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Storage" android:textStyle="bold" android:textSize="15sp"
+                    android:maxLines="1" android:ellipsize="end" />
+                <TextView android:id="@+id/tvStorageValue" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Calculating..." android:textSize="12sp"
+                    android:maxLines="1" android:ellipsize="end" />
+
+                <!-- WIDTH REDUCED TO 110DP FOR COMPACT PILL LOOK -->
+                <ProgressBar android:id="@+id/pbStorage" style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="110dp" android:layout_height="14dp" android:layout_marginTop="6dp"
+                    android:progressDrawable="@drawable/bg_rounded_progress" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- BATTERY STATS -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginStart="6dp">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_circle_blue"
+                android:src="@drawable/ic_battery"
+                android:padding="9dp"
+                android:layout_marginEnd="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView android:id="@+id/tvBatteryTitle" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Battery" android:textStyle="bold" android:textSize="15sp"
+                    android:maxLines="1" android:ellipsize="end" />
+                <TextView android:id="@+id/tvBatteryValue" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Checking..." android:textSize="12sp"
+                    android:maxLines="1" android:ellipsize="end" />
+
+                <!-- WIDTH REDUCED TO 110DP FOR COMPACT PILL LOOK -->
+                <ProgressBar android:id="@+id/pbBattery" style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="110dp" android:layout_height="14dp" android:layout_marginTop="6dp"
+                    android:progressDrawable="@drawable/bg_rounded_progress" android:max="100"/>
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</LinearLayout>

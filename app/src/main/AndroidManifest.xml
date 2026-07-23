@@ -41,6 +41,11 @@
         tools:ignore="ForegroundServicePermission" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
+    <!-- DEVICE STATS DASHBOARD NOTE:
+         No additional permissions (like BATTERY_STATS or READ_EXTERNAL_STORAGE) are needed
+         for the DeviceStatsHelper. Android allows querying basic RAM, internal storage,
+         and battery broadcasts by default! -->
+
     <!-- Hardware Accelerated & Large Heap enabled for smooth WebP compiling and A4 PDF rendering -->
     <application
         android:name=".MainApplication"

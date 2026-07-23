@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Outer Track (The thick border) -->
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="10dp" />
+            <solid android:color="#E5E5EA" />
+        </shape>
+    </item>
+
+    <!-- Inner Progress Fill (Inset by 2dp for a sleek border) -->
+    <item android:id="@android:id/progress">
+        <inset android:inset="2dp">
+            <clip>
+                <shape android:shape="rectangle">
+                    <corners android:radius="10dp" />
+                    <solid android:color="#4A90E2" />
+                </shape>
+            </clip>
+        </inset>
+    </item>
+
+</layer-list>

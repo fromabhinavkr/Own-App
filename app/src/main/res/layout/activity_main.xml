@@ -7,7 +7,7 @@
     android:padding="16dp"
     android:fitsSystemWindows="true">
 
-    <!-- 1. Dark/Light Mode Toggle (Fixed Top Left) -->
+    <!-- 1. Dark/Light Mode Toggle -->
     <ImageButton
         android:id="@+id/btn_app_theme_toggle"
         android:layout_width="48dp"
@@ -21,7 +21,21 @@
         android:padding="8dp"
         tools:ignore="ImageContrastCheck" />
 
-    <!-- 2. The New 2x2 Grid Layout (Wrapped in ScrollView for responsive Landscape scaling) -->
+    <!-- 2. Device Stats Dashboard -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/btn_app_theme_toggle"
+        android:layout_above="@id/grid_scroll_view"
+        android:layout_marginTop="20dp"
+        android:gravity="top"
+        android:orientation="vertical">
+
+        <include layout="@layout/layout_device_dashboard" />
+
+    </LinearLayout>
+
+    <!-- 3. The 2x2 Grid Layout -->
     <ScrollView
         android:id="@+id/grid_scroll_view"
         android:layout_width="match_parent"
@@ -47,7 +61,7 @@
                 android:baselineAligned="false"
                 android:layout_marginBottom="12dp">
 
-                <!-- Widgets Card -->
+                <!-- Widgets Card (Shadow Removed) -->
                 <LinearLayout
                     android:id="@+id/btnPlaceWidget"
                     android:layout_width="0dp"
@@ -57,8 +71,7 @@
                     android:background="@drawable/modern_button"
                     android:layout_marginEnd="6dp"
                     android:clickable="true"
-                    android:focusable="true"
-                    android:elevation="2dp">
+                    android:focusable="true">
 
                     <FrameLayout
                         android:layout_width="match_parent"
@@ -86,7 +99,7 @@
                         android:padding="16dp" />
                 </LinearLayout>
 
-                <!-- Games Card -->
+                <!-- Games Card (Shadow Removed) -->
                 <LinearLayout
                     android:id="@+id/btnGames"
                     android:layout_width="0dp"
@@ -96,8 +109,7 @@
                     android:background="@drawable/modern_button"
                     android:layout_marginStart="6dp"
                     android:clickable="true"
-                    android:focusable="true"
-                    android:elevation="2dp">
+                    android:focusable="true">
 
                     <FrameLayout
                         android:layout_width="match_parent"
@@ -134,7 +146,7 @@
                 android:weightSum="2"
                 android:baselineAligned="false">
 
-                <!-- Tools Card -->
+                <!-- Tools Card (Shadow Removed) -->
                 <LinearLayout
                     android:id="@+id/btnTools"
                     android:layout_width="0dp"
@@ -144,8 +156,7 @@
                     android:background="@drawable/modern_button"
                     android:layout_marginEnd="6dp"
                     android:clickable="true"
-                    android:focusable="true"
-                    android:elevation="2dp">
+                    android:focusable="true">
 
                     <FrameLayout
                         android:layout_width="match_parent"
@@ -173,7 +184,7 @@
                         android:padding="16dp" />
                 </LinearLayout>
 
-                <!-- Utilities Card -->
+                <!-- Utilities Card (Shadow Removed) -->
                 <LinearLayout
                     android:id="@+id/btnUtilities"
                     android:layout_width="0dp"
@@ -183,8 +194,7 @@
                     android:background="@drawable/modern_button"
                     android:layout_marginStart="6dp"
                     android:clickable="true"
-                    android:focusable="true"
-                    android:elevation="2dp">
+                    android:focusable="true">
 
                     <FrameLayout
                         android:layout_width="match_parent"

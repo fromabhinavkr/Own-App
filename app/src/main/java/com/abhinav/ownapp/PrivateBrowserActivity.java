@@ -1,7 +1,7 @@
 package com.abhinav.ownapp;
 
-import android.app.AlertDialog; import android.app.DownloadManager; import android.content.ClipData; import android.content.ClipboardManager; import android.content.Context; import android.content.Intent; import android.content.SharedPreferences; import android.content.pm.ActivityInfo; import android.content.res.ColorStateList; import android.content.res.Configuration; import android.graphics.Bitmap; import android.graphics.BitmapFactory; import android.graphics.Canvas; import android.graphics.Color; import android.graphics.Rect; import android.graphics.drawable.GradientDrawable; import android.net.Uri;
-import android.os.Bundle; import android.os.Environment; import android.os.StrictMode; import android.transition.TransitionManager; import android.view.Gravity; import android.view.KeyEvent; import android.view.MotionEvent; import android.view.View; import android.view.ViewGroup; import android.view.inputmethod.EditorInfo; import android.view.inputmethod.InputMethodManager; import android.webkit.CookieManager; import android.webkit.JavascriptInterface; import android.webkit.URLUtil; import android.webkit.WebChromeClient; import android.webkit.WebResourceRequest; import android.webkit.WebResourceResponse; import android.webkit.WebSettings; import android.webkit.WebStorage; import android.webkit.WebView; import android.webkit.WebViewClient; import android.widget.EditText; import android.widget.FrameLayout; import android.widget.GridLayout; import android.widget.ImageView; import android.widget.LinearLayout; import android.widget.PopupWindow; import android.widget.ProgressBar; import android.widget.RelativeLayout; import android.widget.TextView; import android.widget.Toast;
+import android.app.AlertDialog; import android.app.DownloadManager; import android.content.ClipData; import android.content.ClipboardManager; import android.content.Context; import android.content.Intent; import android.content.SharedPreferences; import android.content.pm.ActivityInfo; import android.content.res.ColorStateList; import android.content.res.Configuration; import android.graphics.Bitmap; import android.graphics.BitmapFactory; import android.graphics.Canvas; import android.graphics.Color; import android.graphics.PorterDuff; import android.graphics.PorterDuffColorFilter; import android.graphics.Rect; import android.graphics.drawable.Drawable; import android.graphics.drawable.GradientDrawable; import android.net.Uri;
+import android.os.Build; import android.os.Bundle; import android.os.Environment; import android.os.StrictMode; import android.transition.TransitionManager; import android.view.Gravity; import android.view.KeyEvent; import android.view.MotionEvent; import android.view.View; import android.view.ViewGroup; import android.view.inputmethod.EditorInfo; import android.view.inputmethod.InputMethodManager; import android.webkit.CookieManager; import android.webkit.JavascriptInterface; import android.webkit.URLUtil; import android.webkit.WebChromeClient; import android.webkit.WebResourceRequest; import android.webkit.WebResourceResponse; import android.webkit.WebSettings; import android.webkit.WebStorage; import android.webkit.WebView; import android.webkit.WebViewClient; import android.widget.EditText; import android.widget.FrameLayout; import android.widget.GridLayout; import android.widget.ImageView; import android.widget.LinearLayout; import android.widget.PopupWindow; import android.widget.ProgressBar; import android.widget.RelativeLayout; import android.widget.TextView; import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback; import androidx.annotation.NonNull; import androidx.appcompat.app.AppCompatActivity; import androidx.core.graphics.Insets; import androidx.core.view.ViewCompat; import androidx.core.view.WindowInsetsCompat;
 import java.io.ByteArrayInputStream; import java.io.File; import java.text.SimpleDateFormat; import java.util.ArrayList; import java.util.Arrays; import java.util.Date; import java.util.List; import java.util.Locale;
 
@@ -15,8 +15,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private final List<TabInfo> tabs = new ArrayList<>(); private int currentTabIndex = 0; private String defaultUserAgent = null;
     private final String[] blockedDomains = { "google-analytics.com", "doubleclick.net", "facebook.net", "facebook.com/tr/", "scorecardresearch.com", "googlesyndication.com" };
 
-    // --- FULLSCREEN VIDEO ENGINE VARIABLES ---
     private View mCustomView; private WebChromeClient.CustomViewCallback mCustomViewCallback; private FrameLayout mFullscreenContainer; private int mOriginalSystemUiVisibility; private int mOriginalOrientation;
+
+    private boolean isMenuOpen = false;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState); setContentView(R.layout.activity_private_browser);
@@ -27,16 +28,22 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         webViewContainer = findViewById(R.id.webViewContainer); searchCapsule = findViewById(R.id.searchCapsule); etSearchUrl = findViewById(R.id.etSearchUrl); progressBar = findViewById(R.id.browserProgressBar);
         btnBack = findViewById(R.id.btnBrowserBack); btnForward = findViewById(R.id.btnBrowserForward); btnGo = findViewById(R.id.btnBrowserGo); btnMenu = findViewById(R.id.btnBrowserMenu); btnFullscreenToggle = findViewById(R.id.btnFullscreenToggle);
         tabsOverlay = findViewById(R.id.tabsOverlay); tabsGrid = findViewById(R.id.tabsGrid);
-        findViewById(R.id.btnCloseTabsOverlay).setOnClickListener(v -> tabsOverlay.setVisibility(View.GONE));
-        findViewById(R.id.btnAddNewTab).setOnClickListener(v -> { tabsOverlay.setVisibility(View.GONE); createNewTab("https://duckduckgo.com/"); });
+
+        findViewById(R.id.btnCloseTabsOverlay).setOnClickListener(v -> { tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); });
+        findViewById(R.id.btnAddNewTab).setOnClickListener(v -> { tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); createNewTab("https://duckduckgo.com/"); });
+
         downloadsOverlay = findViewById(R.id.downloadsOverlay); downloadsList = findViewById(R.id.downloadsList);
-        findViewById(R.id.btnCloseDownloadsOverlay).setOnClickListener(v -> downloadsOverlay.setVisibility(View.GONE));
-        applyTheme(); setupModernBackGesture();
+        findViewById(R.id.btnCloseDownloadsOverlay).setOnClickListener(v -> { downloadsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); });
+
+        applyTheme();
+        setupModernBackGesture();
+
         etSearchUrl.setOnFocusChangeListener((v, hasFocus) -> { TransitionManager.beginDelayedTransition((ViewGroup) rootLayout); RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams(); int margin24dp = (int) (24 * getResources().getDisplayMetrics().density);
             if (hasFocus) { params.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM); params.addRule(RelativeLayout.ALIGN_PARENT_TOP); params.topMargin = margin24dp; params.bottomMargin = 0; }
             else { params.removeRule(RelativeLayout.ALIGN_PARENT_TOP); params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM); params.topMargin = 0; params.bottomMargin = margin24dp; }
             searchCapsule.setLayoutParams(params);
         });
+
         btnBack.setOnClickListener(v -> { if (getCurrentWeb() != null && getCurrentWeb().canGoBack()) getCurrentWeb().goBack(); });
         btnForward.setOnClickListener(v -> { if (getCurrentWeb() != null && getCurrentWeb().canGoForward()) getCurrentWeb().goForward(); });
         btnGo.setOnClickListener(v -> loadUrlOrSearch());
@@ -46,7 +53,15 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         createNewTab("https://duckduckgo.com/");
     }
 
-    @Override public void onConfigurationChanged(@NonNull Configuration newConfig) { super.onConfigurationChanged(newConfig); /* Layout naturally resizes thanks to Manifest configChanges */ }
+    private void updateBackgroundBlur() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            boolean shouldBlur = tabsOverlay.getVisibility() == View.VISIBLE || downloadsOverlay.getVisibility() == View.VISIBLE || isMenuOpen;
+            if (shouldBlur) webViewContainer.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(35f, 35f, android.graphics.Shader.TileMode.CLAMP));
+            else webViewContainer.setRenderEffect(null);
+        }
+    }
+
+    @Override public void onConfigurationChanged(@NonNull Configuration newConfig) { super.onConfigurationChanged(newConfig); }
 
     @Override public boolean dispatchTouchEvent(MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_DOWN) { View v = getCurrentFocus(); if (v instanceof EditText && searchCapsule != null) { Rect outRect = new Rect(); searchCapsule.getGlobalVisibleRect(outRect); if (!outRect.contains((int) event.getRawX(), (int) event.getRawY())) { v.clearFocus(); InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE); if (imm != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0); } } }
@@ -55,9 +70,8 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void styleDialogButtons(AlertDialog dialog) { int btnColor = isDarkTheme ? Color.parseColor("#FFB59F") : Color.parseColor("#6750A4"); if (dialog.getButton(AlertDialog.BUTTON_POSITIVE) != null) dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(btnColor); if (dialog.getButton(AlertDialog.BUTTON_NEGATIVE) != null) dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(btnColor); if (dialog.getButton(AlertDialog.BUTTON_NEUTRAL) != null) dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(btnColor); }
 
-    private void setupModernBackGesture() { getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) { @Override public void handleOnBackPressed() { if (mCustomView != null) { exitFullscreenVideo(); } else if (tabsOverlay.getVisibility() == View.VISIBLE) { tabsOverlay.setVisibility(View.GONE); } else if (downloadsOverlay.getVisibility() == View.VISIBLE) { downloadsOverlay.setVisibility(View.GONE); } else if (!tabs.isEmpty() && getCurrentWeb() != null && getCurrentWeb().canGoBack()) { getCurrentWeb().goBack(); } else { setEnabled(false); getOnBackPressedDispatcher().onBackPressed(); } } }); }
+    private void setupModernBackGesture() { getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) { @Override public void handleOnBackPressed() { if (mCustomView != null) { exitFullscreenVideo(); } else if (tabsOverlay.getVisibility() == View.VISIBLE) { tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); } else if (downloadsOverlay.getVisibility() == View.VISIBLE) { downloadsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); } else if (!tabs.isEmpty() && getCurrentWeb() != null && getCurrentWeb().canGoBack()) { getCurrentWeb().goBack(); } else { setEnabled(false); getOnBackPressedDispatcher().onBackPressed(); } } }); }
 
-    // --- FULLSCREEN VIDEO ENGINE ---
     private void enterFullscreenVideo(View view, WebChromeClient.CustomViewCallback callback) { if (mCustomView != null) { callback.onCustomViewHidden(); return; } mOriginalOrientation = getRequestedOrientation(); mOriginalSystemUiVisibility = getWindow().getDecorView().getSystemUiVisibility(); mCustomView = view; mCustomViewCallback = callback; mFullscreenContainer = new FrameLayout(this); mFullscreenContainer.setBackgroundColor(Color.BLACK); mFullscreenContainer.addView(mCustomView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)); FrameLayout decor = (FrameLayout) getWindow().getDecorView(); decor.addView(mFullscreenContainer, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)); getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY); setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE); }
     private void exitFullscreenVideo() { if (mCustomView == null) return; FrameLayout decor = (FrameLayout) getWindow().getDecorView(); decor.removeView(mFullscreenContainer); mFullscreenContainer = null; mCustomView = null; if (mCustomViewCallback != null) mCustomViewCallback.onCustomViewHidden(); mCustomViewCallback = null; getWindow().getDecorView().setSystemUiVisibility(mOriginalSystemUiVisibility); setRequestedOrientation(mOriginalOrientation); }
 
@@ -84,6 +98,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         for (int i = 0; i < tabs.size(); i++) tabs.get(i).webView.setVisibility(i == currentTabIndex ? View.VISIBLE : View.GONE);
         WebView current = getCurrentWeb(); if (current != null) { String currentUrl = current.getUrl(); etSearchUrl.setText(currentUrl != null ? currentUrl : ""); }
         tabsOverlay.setVisibility(View.GONE);
+        updateBackgroundBlur();
     }
 
     private void closeTab(int index) {
@@ -96,7 +111,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         if (current.webView.getWidth() > 0 && current.webView.getHeight() > 0) { try { Bitmap bmp = Bitmap.createBitmap(current.webView.getWidth(), current.webView.getHeight(), Bitmap.Config.ARGB_8888); Canvas c = new Canvas(bmp); current.webView.draw(c); if (current.preview != null) current.preview.recycle(); current.preview = Bitmap.createScaledBitmap(bmp, 300, 500, true); bmp.recycle(); } catch (OutOfMemoryError ignored) {} }
     }
 
-    private void openVisualTabSwitcher() { etSearchUrl.clearFocus(); captureCurrentTabPreview(); renderVisualTabsGrid(); tabsOverlay.setVisibility(View.VISIBLE); }
+    private void openVisualTabSwitcher() { etSearchUrl.clearFocus(); captureCurrentTabPreview(); renderVisualTabsGrid(); tabsOverlay.setVisibility(View.VISIBLE); updateBackgroundBlur(); }
 
     private void renderVisualTabsGrid() {
         tabsGrid.removeAllViews();
@@ -119,24 +134,68 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private void showRoundedMenu(View anchor) {
         etSearchUrl.clearFocus();
         LinearLayout menuLayout = new LinearLayout(this); menuLayout.setOrientation(LinearLayout.VERTICAL);
-        int bgColor = isDarkTheme ? Color.parseColor("#B32C2C2E") : Color.parseColor("#B3FFFFFF");
+        int bgColor = isDarkTheme ? Color.parseColor("#992C2C2E") : Color.parseColor("#99FFFFFF");
         int textColor = isDarkTheme ? Color.WHITE : Color.BLACK;
+
         GradientDrawable gd = new GradientDrawable(); gd.setColor(bgColor); gd.setCornerRadius(40f);
         menuLayout.setBackground(gd); menuLayout.setPadding(20, 20, 20, 20);
+
         final PopupWindow[] popupWindow = new PopupWindow[1]; WebView current = getCurrentWeb(); if (current == null) return;
-        TextView tvReload = createMenuItem("⟳  Reload Page", textColor); tvReload.setOnClickListener(v -> { popupWindow[0].dismiss(); current.reload(); });
-        boolean isDesktop = (boolean) current.getTag(); TextView tvDesktop = createMenuItem(isDesktop ? "📱  Switch to Mobile" : "💻  Request Desktop Site", textColor); tvDesktop.setOnClickListener(v -> { popupWindow[0].dismiss(); toggleDesktopMode(current); });
-        TextView tvDownloads = createMenuItem("📥  Downloads", textColor); tvDownloads.setOnClickListener(v -> { popupWindow[0].dismiss(); openVisualDownloadsManager(); });
-        TextView tvNewTab = createMenuItem("➕  New Tab", textColor); tvNewTab.setOnClickListener(v -> { popupWindow[0].dismiss(); createNewTab("https://duckduckgo.com/"); });
-        TextView tvSwitch = createMenuItem("🗂  Manage Tabs (" + tabs.size() + ")", textColor); tvSwitch.setOnClickListener(v -> { popupWindow[0].dismiss(); openVisualTabSwitcher(); });
+
+        // --- USING REAL ANDROID ICONS NOW INSTEAD OF EMOJIS ---
+        TextView tvReload = createMenuItem("Reload Page", android.R.drawable.ic_popup_sync, textColor);
+        tvReload.setOnClickListener(v -> { popupWindow[0].dismiss(); current.reload(); });
+
+        boolean isDesktop = (boolean) current.getTag();
+        TextView tvDesktop = createMenuItem(isDesktop ? "Switch to Mobile" : "Request Desktop Site", android.R.drawable.ic_menu_view, textColor);
+        tvDesktop.setOnClickListener(v -> { popupWindow[0].dismiss(); toggleDesktopMode(current); });
+
+        TextView tvDownloads = createMenuItem("Downloads", android.R.drawable.stat_sys_download, textColor);
+        tvDownloads.setOnClickListener(v -> { popupWindow[0].dismiss(); openVisualDownloadsManager(); });
+
+        TextView tvNewTab = createMenuItem("New Tab", android.R.drawable.ic_menu_add, textColor);
+        tvNewTab.setOnClickListener(v -> { popupWindow[0].dismiss(); createNewTab("https://duckduckgo.com/"); });
+
+        TextView tvSwitch = createMenuItem("Manage Tabs (" + tabs.size() + ")", android.R.drawable.ic_menu_manage, textColor);
+        tvSwitch.setOnClickListener(v -> { popupWindow[0].dismiss(); openVisualTabSwitcher(); });
+
         menuLayout.addView(tvReload); menuLayout.addView(tvDesktop); menuLayout.addView(tvDownloads); menuLayout.addView(tvNewTab); menuLayout.addView(tvSwitch);
-        popupWindow[0] = new PopupWindow(menuLayout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true); popupWindow[0].setElevation(30f); popupWindow[0].showAtLocation(anchor, Gravity.BOTTOM | Gravity.END, 40, 200);
+
+        isMenuOpen = true; updateBackgroundBlur();
+        popupWindow[0] = new PopupWindow(menuLayout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popupWindow[0].setElevation(30f);
+        popupWindow[0].setOnDismissListener(() -> { isMenuOpen = false; updateBackgroundBlur(); });
+        popupWindow[0].showAtLocation(anchor, Gravity.BOTTOM | Gravity.END, 40, 200);
     }
 
-    private TextView createMenuItem(String text, int color) { TextView tv = new TextView(this); tv.setText(text); tv.setTextColor(color); tv.setTextSize(16f); tv.setPadding(40, 30, 40, 30); return tv; }
+    // --- UPDATED ICON ENGINE ---
+    private TextView createMenuItem(String text, int iconResId, int color) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(color);
+        tv.setTextSize(16f);
+        tv.setPadding(40, 30, 40, 30);
+        tv.setGravity(Gravity.CENTER_VERTICAL);
+
+        // Add space between the new icon and the text
+        tv.setCompoundDrawablePadding(40);
+
+        if (iconResId != 0) {
+            // Places the icon on the left side of the text
+            tv.setCompoundDrawablesWithIntrinsicBounds(iconResId, 0, 0, 0);
+            Drawable[] drawables = tv.getCompoundDrawables();
+            if (drawables[0] != null) {
+                // Dynamically tints the icon to perfectly match your Dark/Light theme!
+                drawables[0].setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
+                drawables[0].setAlpha(200); // Slight transparency for a sleek, modern look
+            }
+        }
+
+        return tv;
+    }
 
     private void openVisualDownloadsManager() {
-        etSearchUrl.clearFocus(); downloadsList.removeAllViews(); downloadsOverlay.setVisibility(View.VISIBLE);
+        etSearchUrl.clearFocus(); downloadsList.removeAllViews(); downloadsOverlay.setVisibility(View.VISIBLE); updateBackgroundBlur();
         File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "OWN's Browser downloads"); File[] files = dir.listFiles();
         if (!dir.exists() || files == null || files.length == 0) return;
         Arrays.sort(files, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified())); SimpleDateFormat sdf = new SimpleDateFormat("MMM d, yyyy", Locale.US);
@@ -229,13 +288,14 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         int buttonBgColor = isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE;
         int accentBgColor = isDarkTheme ? Color.parseColor("#FFB59F") : Color.parseColor("#6750A4");
         int accentTextColor = isDarkTheme ? Color.parseColor("#000000") : Color.WHITE;
-        int capsuleGlassColor = isDarkTheme ? Color.parseColor("#B32C2C2E") : Color.parseColor("#B3FFFFFF");
-        int overlayGlassColor = isDarkTheme ? Color.parseColor("#D91C1C1E") : Color.parseColor("#D9F2F2F7");
+        int capsuleGlassColor = isDarkTheme ? Color.parseColor("#D92C2C2E") : Color.parseColor("#D9FFFFFF");
+        int overlayGlassColor = isDarkTheme ? Color.parseColor("#801C1C1E") : Color.parseColor("#80F2F2F7");
 
         getWindow().setStatusBarColor(bgColor);
         findViewById(R.id.browserRoot).setBackgroundColor(bgColor);
 
-        GradientDrawable gd = new GradientDrawable(); gd.setColor(capsuleGlassColor); gd.setCornerRadius(100f); searchCapsule.setBackground(gd);
+        GradientDrawable gd = new GradientDrawable(); gd.setColor(capsuleGlassColor); gd.setCornerRadius(100f);
+        searchCapsule.setBackground(gd); searchCapsule.setClipToOutline(true);
         tabsOverlay.setBackgroundColor(overlayGlassColor); downloadsOverlay.setBackgroundColor(overlayGlassColor);
 
         etSearchUrl.setTextColor(textColor); etSearchUrl.setHintTextColor(hintColor);
