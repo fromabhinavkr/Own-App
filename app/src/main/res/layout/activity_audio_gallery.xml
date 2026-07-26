@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/galleryRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="#F2F2F7">
+    <RelativeLayout android:id="@+id/topBar" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="16dp" android:paddingVertical="24dp">
+        <TextView android:id="@+id/btnBack" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Back" android:textColor="#FFFFFF" android:textStyle="bold" android:paddingHorizontal="24dp" android:paddingVertical="12dp" android:layout_alignParentStart="true" android:layout_centerVertical="true" />
+        <TextView android:id="@+id/tvGalleryTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Gallery" android:textSize="22sp" android:textStyle="bold" android:layout_centerInParent="true"/>
+    </RelativeLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
+        <LinearLayout android:id="@+id/listContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp"/>
+    </ScrollView>
+</LinearLayout>

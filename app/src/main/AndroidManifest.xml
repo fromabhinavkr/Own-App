@@ -152,6 +152,35 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
+        <!-- Audio Editor Studio (Exported to accept external sharing) -->
+        <activity
+            android:name=".AudioEditorActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:screenOrientation="portrait">
+
+            <!-- Intercept shared audio files to use as Base Track -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+
+            <!-- Specifically target WhatsApp Opus files -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/ogg" />
+            </intent-filter>
+        </activity>
+
+        <!-- NEW: Audio Gallery Activity -->
+        <activity
+            android:name=".AudioGalleryActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:screenOrientation="portrait" />
+
         <!-- Utilities Gallery -->
         <activity
             android:name=".UtilitiesGalleryActivity"

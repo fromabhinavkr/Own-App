@@ -76,7 +76,7 @@ public class ToolsGalleryActivity extends Activity {
             cardPdf.setOnClickListener(v -> startActivity(new Intent(this, PdfStudioActivity.class)));
         }
 
-        // 5. Setup Collage Studio Card (NEW)
+        // 5. Setup Collage Studio Card
         LinearLayout cardCollage = findViewById(R.id.cardCollageStudio);
         TextView textCollage = findViewById(R.id.textCollageStudio);
         View divCollage = findViewById(R.id.divCollageStudio);
@@ -87,6 +87,19 @@ public class ToolsGalleryActivity extends Activity {
             if (divCollage != null) divCollage.setBackgroundColor(dividerColor); // Paint the line
 
             cardCollage.setOnClickListener(v -> startActivity(new Intent(this, CollageStudioActivity.class)));
+        }
+
+        // 6. Setup Audio Studio Card (NEW)
+        LinearLayout cardAudio = findViewById(R.id.cardAudioStudio);
+        TextView textAudio = findViewById(R.id.textAudioStudio);
+        View divAudio = findViewById(R.id.divAudioStudio);
+
+        if (cardAudio != null) {
+            applyModernCardStyle(cardAudio, cardBgColor);
+            if (textAudio != null) textAudio.setTextColor(titleColor);
+            if (divAudio != null) divAudio.setBackgroundColor(dividerColor); // Paint the line
+
+            cardAudio.setOnClickListener(v -> startActivity(new Intent(this, AudioEditorActivity.class)));
         }
     }
 

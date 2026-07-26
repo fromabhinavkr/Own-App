@@ -188,5 +188,43 @@
                 android:padding="16dp" />
         </LinearLayout>
 
+        <!-- 5. Audio Studio Card (NEW) -->
+        <LinearLayout
+            android:id="@+id/cardAudioStudio"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:orientation="vertical"
+            android:layout_margin="12dp">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="120dp">
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_gravity="center"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/audiostudio_preview" />
+            </FrameLayout>
+
+            <!-- THE HORIZONTAL SEPARATOR LINE -->
+            <View
+                android:id="@+id/divAudioStudio"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="0dp" />
+
+            <TextView
+                android:id="@+id/textAudioStudio"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Audio Studio"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
     </GridLayout>
 </LinearLayout>

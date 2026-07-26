@@ -2,8 +2,6 @@
 
 plugins {
     alias(libs.plugins.android.application)
-    // Uncomment the line below if you are writing your app in Kotlin:
-    // alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -15,7 +13,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 4
-        versionName = "5.0.0"
+        versionName = "5.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,13 +32,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-
-    // Recommended when using Kotlin with Java 11 target compatibility:
-    /*
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-    */
 
     buildFeatures {
         viewBinding = true
