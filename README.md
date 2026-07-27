@@ -78,7 +78,3 @@ If you just want to install and use the app on your Android device:
 
 
 Copyright © 2026 Abhinav K R. All Rights Reserved.
-
-This repository is provided for viewing purposes only.
-
-No permission is granted to copy, modify, distribute, sublicense, publish, or use any part of this source code or its assets without prior written permission from the copyright holder.
