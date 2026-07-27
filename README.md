@@ -76,3 +76,9 @@ If you just want to install and use the app on your Android device:
 3. Open the file on your phone (you may need to enable "Install Unknown Apps" in your settings).
 4. *Note for Samsung users:* If the installation is blocked, temporarily disable "Auto Blocker" in your Security & Privacy settings.
 
+
+Copyright © 2026 Abhinav K R. All Rights Reserved.
+
+This repository is provided for viewing purposes only.
+
+No permission is granted to copy, modify, distribute, sublicense, publish, or use any part of this source code or its assets without prior written permission from the copyright holder.
