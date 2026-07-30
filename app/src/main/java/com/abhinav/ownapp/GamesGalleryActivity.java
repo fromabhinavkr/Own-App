@@ -1,25 +1,39 @@
 package com.abhinav.ownapp;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class GamesGalleryActivity extends AppCompatActivity {
 
+    private LinearLayout root;
+    private int revealX;
+    private int revealY;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Make the window transparent so MainActivity renders underneath during reveal animations
+        getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_games_gallery);
 
@@ -28,7 +42,7 @@ public class GamesGalleryActivity extends AppCompatActivity {
         boolean isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
 
         // Link Views
-        LinearLayout root = findViewById(R.id.gamesGalleryRoot);
+        root = findViewById(R.id.gamesGalleryRoot);
         TextView title = findViewById(R.id.tvGamesTitle);
         TextView subtitle = findViewById(R.id.tvGamesSubtitle);
 
@@ -47,12 +61,11 @@ public class GamesGalleryActivity extends AppCompatActivity {
         View cardMazeBall = findViewById(R.id.cardMazeBall);
         TextView textMazeBall = findViewById(R.id.textMazeBall);
 
-        // NEW: Link Play My Planet Views
         View cardMyPlanet = findViewById(R.id.cardMyPlanet);
         TextView textMyPlanet = findViewById(R.id.textMyPlanet);
         TextView btnHelpMyPlanet = findViewById(R.id.btnHelpMyPlanet);
 
-        // Apply Theme Colors
+        // Apply Theme Colors dynamically
         int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
         int cardColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
         int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
@@ -61,6 +74,60 @@ public class GamesGalleryActivity extends AppCompatActivity {
         root.setBackgroundColor(bgColor);
         title.setTextColor(textColor);
         subtitle.setTextColor(subTextColor);
+
+        // --- Handle Circular Reveal Entry Animation ---
+        Intent intent = getIntent();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            root.setVisibility(View.INVISIBLE);
+
+            ViewTreeObserver viewTreeObserver = root.getViewTreeObserver();
+            if (viewTreeObserver.isAlive()) {
+                viewTreeObserver.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        root.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+
+                        revealX = intent.getIntExtra("REVEAL_X", root.getWidth() / 2);
+                        revealY = intent.getIntExtra("REVEAL_Y", root.getHeight() / 2);
+
+                        float finalRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+
+                        Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, 0, finalRadius);
+                        circularReveal.setDuration(350);
+                        circularReveal.setInterpolator(new DecelerateInterpolator());
+
+                        root.setVisibility(View.VISIBLE);
+                        circularReveal.start();
+                    }
+                });
+            }
+        }
+
+        // --- Handle Circular Reveal Exit Animation ---
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && root.isAttachedToWindow()) {
+                    float startRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+                    Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, startRadius, 0);
+                    circularReveal.setDuration(350);
+                    circularReveal.setInterpolator(new DecelerateInterpolator());
+
+                    circularReveal.addListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            root.setVisibility(View.INVISIBLE);
+                            finish();
+                            overridePendingTransition(0, 0);
+                        }
+                    });
+                    circularReveal.start();
+                } else {
+                    finish();
+                    overridePendingTransition(0, 0);
+                }
+            }
+        });
 
         // Apply dynamic background to the cards to match theme
         GradientDrawable cardBg = new GradientDrawable();
@@ -97,48 +164,41 @@ public class GamesGalleryActivity extends AppCompatActivity {
             cardMazeBall.setOnClickListener(v -> startActivity(new Intent(GamesGalleryActivity.this, MazeBallActivity.class)));
         }
 
-        // NEW: Play My Planet Logic & Theme
+        // Play My Planet Logic & Theme
         if (cardMyPlanet != null) {
             cardMyPlanet.setBackground(cardBg);
             textMyPlanet.setTextColor(textColor);
 
-            // Programmatically draw the circular outline for the "?" icon
             GradientDrawable helpBg = new GradientDrawable();
             helpBg.setShape(GradientDrawable.OVAL);
             helpBg.setStroke(3, subTextColor);
             btnHelpMyPlanet.setTextColor(subTextColor);
             btnHelpMyPlanet.setBackground(helpBg);
 
-            // Show instructions when the "?" is tapped
             btnHelpMyPlanet.setOnClickListener(v -> showInstructionsDialog(isDarkTheme));
 
-            // Launch the game when the card is tapped
             cardMyPlanet.setOnClickListener(v -> {
                 startActivity(new Intent(GamesGalleryActivity.this, GlobeGameActivity.class));
             });
         }
     }
 
-    // --- NEW: Professional Instructions Pop-Up ---
     private void showInstructionsDialog(boolean isDarkTheme) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
-        // Dialog Theme Colors
         int bgColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
         int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#1C1C1E");
         int subTextColor = isDarkTheme ? Color.parseColor("#B0B0B8") : Color.parseColor("#666666");
 
-        // Main Layout
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(60, 60, 60, 60);
 
         GradientDrawable bgGd = new GradientDrawable();
         bgGd.setColor(bgColor);
-        bgGd.setCornerRadius(50f); // Sleek rounded corners
+        bgGd.setCornerRadius(50f);
         layout.setBackground(bgGd);
 
-        // Title
         TextView tvTitle = new TextView(this);
         tvTitle.setText("How to Play");
         tvTitle.setTextSize(24f);
@@ -147,7 +207,6 @@ public class GamesGalleryActivity extends AppCompatActivity {
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setPadding(0, 0, 0, 40);
 
-        // Instructions Body
         TextView tvMessage = new TextView(this);
         tvMessage.setText(
                 "🌍 Explore Phase:\n" +
@@ -162,7 +221,6 @@ public class GamesGalleryActivity extends AppCompatActivity {
         tvMessage.setLineSpacing(0, 1.3f);
         tvMessage.setPadding(0, 0, 0, 60);
 
-        // "Got it!" Button
         Button btnGotIt = new Button(this);
         btnGotIt.setText("Got it!");
         btnGotIt.setTextColor(Color.WHITE);
@@ -171,14 +229,13 @@ public class GamesGalleryActivity extends AppCompatActivity {
         btnGotIt.setTypeface(null, Typeface.BOLD);
 
         GradientDrawable btnGd = new GradientDrawable();
-        btnGd.setColor(Color.parseColor("#4A90E2")); // Standard App Blue
+        btnGd.setColor(Color.parseColor("#4A90E2"));
         btnGd.setCornerRadius(100f);
         btnGotIt.setBackground(btnGd);
 
         LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 130);
         btnGotIt.setLayoutParams(btnLp);
 
-        // Assemble Layout
         layout.addView(tvTitle);
         layout.addView(tvMessage);
         layout.addView(btnGotIt);
@@ -186,14 +243,11 @@ public class GamesGalleryActivity extends AppCompatActivity {
         builder.setView(layout);
         AlertDialog dialog = builder.create();
 
-        // Make the square dialog background transparent so our rounded corners show
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
 
-        // Dismiss action
         btnGotIt.setOnClickListener(v -> dialog.dismiss());
-
         dialog.show();
     }
 }

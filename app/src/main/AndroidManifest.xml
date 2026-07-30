@@ -98,11 +98,13 @@
 
         <activity
             android:name=".WidgetGalleryActivity"
+            android:theme="@style/Theme.OwnPhotoONWall.Translucent"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
         <activity
             android:name=".GamesGalleryActivity"
+            android:theme="@style/Theme.OwnPhotoONWall.Translucent"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
@@ -149,6 +151,7 @@
 
         <activity
             android:name=".ToolsGalleryActivity"
+            android:theme="@style/Theme.OwnPhotoONWall.Translucent"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
@@ -184,6 +187,7 @@
         <!-- Utilities Gallery -->
         <activity
             android:name=".UtilitiesGalleryActivity"
+            android:theme="@style/Theme.OwnPhotoONWall.Translucent"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 

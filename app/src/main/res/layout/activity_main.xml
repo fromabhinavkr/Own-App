@@ -166,6 +166,7 @@
                         android:layout_marginTop="2dp" />
                 </LinearLayout>
 
+                <!-- Added transitionName for the Shared Element Morph -->
                 <LinearLayout
                     android:id="@+id/btnGames"
                     android:layout_width="0dp"
@@ -178,7 +179,8 @@
                     android:focusable="true"
                     android:paddingTop="12dp"
                     android:paddingBottom="24dp"
-                    android:gravity="center">
+                    android:gravity="center"
+                    android:transitionName="shared_games_container">
 
                     <FrameLayout
                         android:layout_width="match_parent"

@@ -46,17 +46,15 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // --- Navigation Bar Clipping Fix ---
-        // Dynamically pad the bottom of the ScrollView above the 3-button nav bar
         View gridScrollView = findViewById(R.id.grid_scroll_view);
         if (gridScrollView != null) {
             ViewCompat.setOnApplyWindowInsetsListener(gridScrollView, (v, insets) -> {
                 Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-                // Preserves existing left/top/right padding while adding system navigation bar height to bottom
                 v.setPadding(
                         v.getPaddingLeft(),
                         v.getPaddingTop(),
                         v.getPaddingRight(),
-                        systemBars.bottom + 48 // 48px extra padding for safe clearance
+                        systemBars.bottom + 48
                 );
                 return insets;
             });
@@ -153,16 +151,16 @@ public class MainActivity extends AppCompatActivity {
             ColorStateList themeBg;
             int themeText;
             int secondaryText;
-            int accentColor = Color.parseColor("#5A9AF4"); // Modern Blue for Calendar Pill
+            int accentColor = Color.parseColor("#5A9AF4");
 
             if (isDarkTheme) {
-                themeBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E")); // Dark Grey
+                themeBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E"));
                 themeText = Color.WHITE;
-                secondaryText = Color.parseColor("#BBBBBB"); // Light Grey Subtitle
+                secondaryText = Color.parseColor("#BBBBBB");
             } else {
-                themeBg = ColorStateList.valueOf(Color.parseColor("#F4F4F5")); // Light flat Grey
+                themeBg = ColorStateList.valueOf(Color.parseColor("#F4F4F5"));
                 themeText = Color.parseColor("#333333");
-                secondaryText = Color.parseColor("#666666"); // Dark Grey Subtitle
+                secondaryText = Color.parseColor("#666666");
             }
 
             // Apply Theme to Top Header
@@ -189,10 +187,66 @@ public class MainActivity extends AppCompatActivity {
             tvUtilitiesSub.setTextColor(secondaryText);
 
             // Listeners
-            btnPlaceWidget.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, WidgetGalleryActivity.class)));
-            btnGames.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, GamesGalleryActivity.class)));
-            btnTools.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, ToolsGalleryActivity.class)));
-            btnUtilities.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, UtilitiesGalleryActivity.class)));
+
+            // --- Calculate click coordinates and launch Circular Reveal for Widgets ---
+            btnPlaceWidget.setOnClickListener(v -> {
+                int[] location = new int[2];
+                btnPlaceWidget.getLocationOnScreen(location);
+                int cx = location[0] + (btnPlaceWidget.getWidth() / 2);
+                int cy = location[1] + (btnPlaceWidget.getHeight() / 2);
+
+                Intent intent = new Intent(MainActivity.this, WidgetGalleryActivity.class);
+                intent.putExtra("REVEAL_X", cx);
+                intent.putExtra("REVEAL_Y", cy);
+                startActivity(intent);
+
+                overridePendingTransition(0, 0);
+            });
+
+            // --- Calculate click coordinates and launch Circular Reveal for Games ---
+            btnGames.setOnClickListener(v -> {
+                int[] location = new int[2];
+                btnGames.getLocationOnScreen(location);
+                int cx = location[0] + (btnGames.getWidth() / 2);
+                int cy = location[1] + (btnGames.getHeight() / 2);
+
+                Intent intent = new Intent(MainActivity.this, GamesGalleryActivity.class);
+                intent.putExtra("REVEAL_X", cx);
+                intent.putExtra("REVEAL_Y", cy);
+                startActivity(intent);
+
+                overridePendingTransition(0, 0);
+            });
+
+            // --- Calculate click coordinates and launch Circular Reveal for Tools ---
+            btnTools.setOnClickListener(v -> {
+                int[] location = new int[2];
+                btnTools.getLocationOnScreen(location);
+                int cx = location[0] + (btnTools.getWidth() / 2);
+                int cy = location[1] + (btnTools.getHeight() / 2);
+
+                Intent intent = new Intent(MainActivity.this, ToolsGalleryActivity.class);
+                intent.putExtra("REVEAL_X", cx);
+                intent.putExtra("REVEAL_Y", cy);
+                startActivity(intent);
+
+                overridePendingTransition(0, 0);
+            });
+
+            // --- Calculate click coordinates and launch Circular Reveal for Utilities ---
+            btnUtilities.setOnClickListener(v -> {
+                int[] location = new int[2];
+                btnUtilities.getLocationOnScreen(location);
+                int cx = location[0] + (btnUtilities.getWidth() / 2);
+                int cy = location[1] + (btnUtilities.getHeight() / 2);
+
+                Intent intent = new Intent(MainActivity.this, UtilitiesGalleryActivity.class);
+                intent.putExtra("REVEAL_X", cx);
+                intent.putExtra("REVEAL_Y", cy);
+                startActivity(intent);
+
+                overridePendingTransition(0, 0);
+            });
         }
         applyOrientationLayout(getResources().getConfiguration().orientation);
     }
@@ -213,7 +267,6 @@ public class MainActivity extends AppCompatActivity {
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
 
         if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            // Adaptive Landscape: Dashboard left, Grid right
             gridParams.width = (int) (screenWidth * 0.5f);
             gridParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
             gridParams.removeRule(RelativeLayout.BELOW);
@@ -224,7 +277,6 @@ public class MainActivity extends AppCompatActivity {
             dashParams.removeRule(RelativeLayout.ALIGN_PARENT_LEFT);
             dashParams.addRule(RelativeLayout.LEFT_OF, R.id.grid_scroll_view);
         } else {
-            // Adaptive Portrait: Grid stays flexibly below Dashboard
             gridParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
             gridParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
             gridParams.removeRule(RelativeLayout.ALIGN_PARENT_RIGHT);

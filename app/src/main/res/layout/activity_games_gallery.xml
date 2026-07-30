@@ -25,6 +25,7 @@
         android:layout_marginBottom="24dp"/>
 
     <ScrollView
+        android:id="@+id/scrollViewGames"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scrollbars="none">
@@ -180,7 +181,7 @@
                     android:padding="16dp" />
             </LinearLayout>
 
-            <!-- NEW: Play My Planet Game Card -->
+            <!-- Play My Planet Game Card -->
             <LinearLayout
                 android:id="@+id/cardMyPlanet"
                 android:layout_width="0dp"

@@ -1,22 +1,37 @@
 package com.abhinav.ownapp;
 
-import android.app.Activity;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewAnimationUtils;
+import android.view.ViewTreeObserver;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class WidgetGalleryActivity extends Activity {
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class WidgetGalleryActivity extends AppCompatActivity {
+
+    private LinearLayout root;
+    private int revealX;
+    private int revealY;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Make the window transparent so MainActivity renders underneath during reveal animations
+        getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_widget_gallery);
 
@@ -33,13 +48,68 @@ public class WidgetGalleryActivity extends Activity {
         int dividerColor = isDarkTheme ? Color.parseColor("#33FFFFFF") : Color.parseColor("#1A000000");
 
         // Apply colors to root and headers
-        findViewById(R.id.galleryRoot).setBackgroundColor(rootBgColor);
+        root = findViewById(R.id.galleryRoot);
+        if (root != null) root.setBackgroundColor(rootBgColor);
 
         TextView tvTitle = findViewById(R.id.tvGalleryTitle);
         tvTitle.setTextColor(titleColor);
 
         TextView tvSubtitle = findViewById(R.id.tvGallerySubtitle);
         tvSubtitle.setTextColor(subtitleColor);
+
+        // --- Handle Circular Reveal Entry Animation ---
+        Intent intent = getIntent();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            root.setVisibility(View.INVISIBLE);
+
+            ViewTreeObserver viewTreeObserver = root.getViewTreeObserver();
+            if (viewTreeObserver.isAlive()) {
+                viewTreeObserver.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        root.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+
+                        revealX = intent.getIntExtra("REVEAL_X", root.getWidth() / 2);
+                        revealY = intent.getIntExtra("REVEAL_Y", root.getHeight() / 2);
+
+                        float finalRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+
+                        Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, 0, finalRadius);
+                        circularReveal.setDuration(350);
+                        circularReveal.setInterpolator(new DecelerateInterpolator());
+
+                        root.setVisibility(View.VISIBLE);
+                        circularReveal.start();
+                    }
+                });
+            }
+        }
+
+        // --- Handle Circular Reveal Exit Animation ---
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && root.isAttachedToWindow()) {
+                    float startRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+                    Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, startRadius, 0);
+                    circularReveal.setDuration(350);
+                    circularReveal.setInterpolator(new DecelerateInterpolator());
+
+                    circularReveal.addListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            root.setVisibility(View.INVISIBLE);
+                            finish();
+                            overridePendingTransition(0, 0);
+                        }
+                    });
+                    circularReveal.start();
+                } else {
+                    finish();
+                    overridePendingTransition(0, 0);
+                }
+            }
+        });
 
         // Link the layout cards
         LinearLayout cardDrawing = findViewById(R.id.cardDrawing);

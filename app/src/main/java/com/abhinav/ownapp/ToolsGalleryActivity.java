@@ -1,19 +1,34 @@
 package com.abhinav.ownapp;
 
-import android.app.Activity;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewAnimationUtils;
+import android.view.ViewTreeObserver;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-public class ToolsGalleryActivity extends Activity {
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class ToolsGalleryActivity extends AppCompatActivity {
+
+    private LinearLayout root;
+    private int revealX;
+    private int revealY;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Make the window transparent so MainActivity renders underneath during reveal animations
+        getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_tools_gallery);
 
@@ -29,13 +44,67 @@ public class ToolsGalleryActivity extends Activity {
         int dividerColor = isDarkTheme ? Color.parseColor("#33FFFFFF") : Color.parseColor("#1A000000");
 
         // 1. Root and Headers
-        LinearLayout rootLayout = findViewById(R.id.toolsGalleryRoot);
+        root = findViewById(R.id.toolsGalleryRoot);
         TextView tvTitle = findViewById(R.id.tvToolsTitle);
         TextView tvSubtitle = findViewById(R.id.tvToolsSubtitle);
 
-        if (rootLayout != null) rootLayout.setBackgroundColor(rootBgColor);
+        if (root != null) root.setBackgroundColor(rootBgColor);
         if (tvTitle != null) tvTitle.setTextColor(titleColor);
         if (tvSubtitle != null) tvSubtitle.setTextColor(subtitleColor);
+
+        // --- Handle Circular Reveal Entry Animation ---
+        Intent intent = getIntent();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            root.setVisibility(View.INVISIBLE);
+
+            ViewTreeObserver viewTreeObserver = root.getViewTreeObserver();
+            if (viewTreeObserver.isAlive()) {
+                viewTreeObserver.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        root.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+
+                        revealX = intent.getIntExtra("REVEAL_X", root.getWidth() / 2);
+                        revealY = intent.getIntExtra("REVEAL_Y", root.getHeight() / 2);
+
+                        float finalRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+
+                        Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, 0, finalRadius);
+                        circularReveal.setDuration(350);
+                        circularReveal.setInterpolator(new DecelerateInterpolator());
+
+                        root.setVisibility(View.VISIBLE);
+                        circularReveal.start();
+                    }
+                });
+            }
+        }
+
+        // --- Handle Circular Reveal Exit Animation ---
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && root.isAttachedToWindow()) {
+                    float startRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+                    Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, startRadius, 0);
+                    circularReveal.setDuration(350);
+                    circularReveal.setInterpolator(new DecelerateInterpolator());
+
+                    circularReveal.addListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            root.setVisibility(View.INVISIBLE);
+                            finish();
+                            overridePendingTransition(0, 0);
+                        }
+                    });
+                    circularReveal.start();
+                } else {
+                    finish();
+                    overridePendingTransition(0, 0);
+                }
+            }
+        });
 
         // 2. Setup Sticker Maker Card
         LinearLayout cardSticker = findViewById(R.id.cardStickerMaker);
@@ -45,7 +114,7 @@ public class ToolsGalleryActivity extends Activity {
         if (cardSticker != null) {
             applyModernCardStyle(cardSticker, cardBgColor);
             if (textSticker != null) textSticker.setTextColor(titleColor);
-            if (divSticker != null) divSticker.setBackgroundColor(dividerColor); // Paint the line
+            if (divSticker != null) divSticker.setBackgroundColor(dividerColor);
 
             cardSticker.setOnClickListener(v -> startActivity(new Intent(this, StickerMakerActivity.class)));
         }
@@ -58,7 +127,7 @@ public class ToolsGalleryActivity extends Activity {
         if (cardEditor != null) {
             applyModernCardStyle(cardEditor, cardBgColor);
             if (textEditor != null) textEditor.setTextColor(titleColor);
-            if (divEditor != null) divEditor.setBackgroundColor(dividerColor); // Paint the line
+            if (divEditor != null) divEditor.setBackgroundColor(dividerColor);
 
             cardEditor.setOnClickListener(v -> startActivity(new Intent(this, ImageEditorActivity.class)));
         }
@@ -71,7 +140,7 @@ public class ToolsGalleryActivity extends Activity {
         if (cardPdf != null) {
             applyModernCardStyle(cardPdf, cardBgColor);
             if (textPdf != null) textPdf.setTextColor(titleColor);
-            if (divPdf != null) divPdf.setBackgroundColor(dividerColor); // Paint the line
+            if (divPdf != null) divPdf.setBackgroundColor(dividerColor);
 
             cardPdf.setOnClickListener(v -> startActivity(new Intent(this, PdfStudioActivity.class)));
         }
@@ -84,7 +153,7 @@ public class ToolsGalleryActivity extends Activity {
         if (cardCollage != null) {
             applyModernCardStyle(cardCollage, cardBgColor);
             if (textCollage != null) textCollage.setTextColor(titleColor);
-            if (divCollage != null) divCollage.setBackgroundColor(dividerColor); // Paint the line
+            if (divCollage != null) divCollage.setBackgroundColor(dividerColor);
 
             cardCollage.setOnClickListener(v -> startActivity(new Intent(this, CollageStudioActivity.class)));
         }
@@ -97,19 +166,16 @@ public class ToolsGalleryActivity extends Activity {
         if (cardAudio != null) {
             applyModernCardStyle(cardAudio, cardBgColor);
             if (textAudio != null) textAudio.setTextColor(titleColor);
-            if (divAudio != null) divAudio.setBackgroundColor(dividerColor); // Paint the line
+            if (divAudio != null) divAudio.setBackgroundColor(dividerColor);
 
             cardAudio.setOnClickListener(v -> startActivity(new Intent(this, AudioEditorActivity.class)));
         }
     }
 
-    // Notice we removed the stroke (border) and the elevation (shadow) completely
     private void applyModernCardStyle(View card, int bgColor) {
         GradientDrawable gd = new GradientDrawable();
         gd.setColor(bgColor);
         gd.setCornerRadius(50f); // Keeps the smooth rounded corners
-
-        // No stroke and no elevation!
         card.setBackground(gd);
     }
 }

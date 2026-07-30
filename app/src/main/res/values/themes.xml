@@ -1,29 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FIXED: Removed the unused xmlns:tools namespace to clear the warning -->
 <resources>
-    <!-- Base application theme. -->
+    <!-- Base application theme -->
     <style name="Base.Theme.OwnPhotoONWall" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
-
-        <!-- REMOVED: statusBarColor, windowLightStatusBar, fitsSystemWindows, and windowOptOutEdgeToEdgeEnforcement -->
-        <!-- MainApplication.java now has 100% full programmatic control over the status bar colors and padding globally! -->
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowContentTransitions">true</item>
     </style>
 
     <style name="Theme.OwnPhotoONWall" parent="Base.Theme.OwnPhotoONWall" />
 
+    <!-- NEW: Translucent Theme for Circular Reveal Activities -->
+    <style name="Theme.OwnPhotoONWall.Translucent" parent="Theme.OwnPhotoONWall">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
     <style name="Theme.OwnPhotoONWall.AppWidgetContainerParent" parent="@android:style/Theme.DeviceDefault">
-        <!-- Radius of the outer bound of widgets to make the rounded corners -->
         <item name="appWidgetRadius">16dp</item>
-        <!--
-        Radius of the inner view's bound of widgets to make the rounded corners.
-        It needs to be 8dp or less than the value of appWidgetRadius
-        -->
         <item name="appWidgetInnerRadius">8dp</item>
     </style>
 
     <style name="Theme.OwnPhotoONWall.AppWidgetContainer" parent="Theme.OwnPhotoONWall.AppWidgetContainerParent">
-        <!-- Apply padding to avoid the content of the widget colliding with the rounded corners -->
         <item name="appWidgetPadding">16dp</item>
     </style>
 </resources>
