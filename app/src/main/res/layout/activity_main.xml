@@ -98,6 +98,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/dashboard_container"
+        android:clipToPadding="false"
+        android:paddingBottom="40dp"
         android:scrollbars="none"
         android:fillViewport="true">
 

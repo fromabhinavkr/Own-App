@@ -38,8 +38,9 @@
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:background="@drawable/bg_circle_blue"
+                android:backgroundTint="#4842FF"
                 android:src="@drawable/ic_ram"
-                android:padding="7dp"
+                android:padding="5dp"
                 android:layout_marginEnd="8dp" />
 
             <LinearLayout
@@ -53,7 +54,8 @@
                     android:layout_height="wrap_content"
                     android:text="RAM"
                     android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:textColor="?android:attr/textColorPrimary" />
 
                 <TextView
                     android:id="@+id/tvRamTotal"
@@ -62,12 +64,12 @@
                     android:text="Calculating..."
                     android:textSize="11sp"
                     android:layout_marginTop="1dp"
-                    android:singleLine="true" />
+                    android:singleLine="true"
+                    android:textColor="?android:attr/textColorSecondary" />
             </LinearLayout>
         </LinearLayout>
 
         <!-- TOP RIGHT: Used and Free RAM Stack -->
-        <!-- ALIGNMENT FIXED: Locked perfectly to the left header's top and bottom bounds -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -84,7 +86,8 @@
                 android:layout_height="wrap_content"
                 android:text="Used"
                 android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:textColor="?android:attr/textColorPrimary" />
 
             <TextView
                 android:id="@+id/tvRamFree"
@@ -93,7 +96,8 @@
                 android:text="Free"
                 android:textSize="11sp"
                 android:layout_marginTop="1dp"
-                android:singleLine="true" />
+                android:singleLine="true"
+                android:textColor="?android:attr/textColorSecondary" />
         </LinearLayout>
     </RelativeLayout>
 
@@ -122,6 +126,7 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:background="@drawable/bg_circle_blue"
+                android:backgroundTint="#4842FF"
                 android:src="@drawable/ic_storage"
                 android:padding="8dp"
                 android:layout_marginEnd="8dp" />
@@ -131,14 +136,27 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <TextView android:id="@+id/tvStorageTitle" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="Storage" android:textStyle="bold" android:textSize="14sp"
-                    android:maxLines="1" android:ellipsize="end" />
-                <TextView android:id="@+id/tvStorageValue" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="Calculating..." android:textSize="11sp"
-                    android:maxLines="1" android:ellipsize="end" />
+                <TextView
+                    android:id="@+id/tvStorageTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Storage"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textColor="?android:attr/textColorPrimary" />
 
-                <!-- WIDTH REDUCED FOR COMPACT PILL LOOK -->
+                <TextView
+                    android:id="@+id/tvStorageValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Calculating..."
+                    android:textSize="11sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textColor="?android:attr/textColorSecondary" />
+
                 <ProgressBar android:id="@+id/pbStorage" style="?android:attr/progressBarStyleHorizontal"
                     android:layout_width="100dp" android:layout_height="14dp" android:layout_marginTop="4dp"
                     android:progressDrawable="@drawable/bg_rounded_progress" />
@@ -158,6 +176,7 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:background="@drawable/bg_circle_blue"
+                android:backgroundTint="#4842FF"
                 android:src="@drawable/ic_battery"
                 android:padding="8dp"
                 android:layout_marginEnd="8dp" />
@@ -167,14 +186,27 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <TextView android:id="@+id/tvBatteryTitle" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="Battery" android:textStyle="bold" android:textSize="14sp"
-                    android:maxLines="1" android:ellipsize="end" />
-                <TextView android:id="@+id/tvBatteryValue" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="Checking..." android:textSize="11sp"
-                    android:maxLines="1" android:ellipsize="end" />
+                <TextView
+                    android:id="@+id/tvBatteryTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Battery"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textColor="?android:attr/textColorPrimary" />
 
-                <!-- WIDTH REDUCED FOR COMPACT PILL LOOK -->
+                <TextView
+                    android:id="@+id/tvBatteryValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Checking..."
+                    android:textSize="11sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textColor="?android:attr/textColorSecondary" />
+
                 <ProgressBar android:id="@+id/pbBattery" style="?android:attr/progressBarStyleHorizontal"
                     android:layout_width="100dp" android:layout_height="14dp" android:layout_marginTop="4dp"
                     android:progressDrawable="@drawable/bg_rounded_progress" android:max="100"/>

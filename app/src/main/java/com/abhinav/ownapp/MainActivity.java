@@ -20,7 +20,10 @@ import androidx.annotation.NonNull;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -41,6 +44,24 @@ public class MainActivity extends AppCompatActivity {
         Window window = getWindow();
         WindowCompat.setDecorFitsSystemWindows(window, true);
         setContentView(R.layout.activity_main);
+
+        // --- Navigation Bar Clipping Fix ---
+        // Dynamically pad the bottom of the ScrollView above the 3-button nav bar
+        View gridScrollView = findViewById(R.id.grid_scroll_view);
+        if (gridScrollView != null) {
+            ViewCompat.setOnApplyWindowInsetsListener(gridScrollView, (v, insets) -> {
+                Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                // Preserves existing left/top/right padding while adding system navigation bar height to bottom
+                v.setPadding(
+                        v.getPaddingLeft(),
+                        v.getPaddingTop(),
+                        v.getPaddingRight(),
+                        systemBars.bottom + 48 // 48px extra padding for safe clearance
+                );
+                return insets;
+            });
+        }
+        // -----------------------------------
 
         DeviceStatsHelper.setupDashboard(this, isDarkTheme);
 

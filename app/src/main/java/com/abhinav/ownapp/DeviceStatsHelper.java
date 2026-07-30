@@ -84,19 +84,26 @@ public class DeviceStatsHelper {
         Runnable ramUpdater = new Runnable() {
             @Override
             public void run() {
-                if (ramGraphView == null || !ramGraphView.isAttachedToWindow()) return;
+                // FIX: Stop the loop safely only if the activity is actually closed or destroyed.
+                // This prevents the loop from killing itself prematurely on first launch.
+                if (activity.isFinishing() || activity.isDestroyed()) return;
 
-                actManager.getMemoryInfo(memInfo);
-                long totalRamMB = memInfo.totalMem / 1048576L;
-                long availRamMB = memInfo.availMem / 1048576L;
-                long usedRamMB = totalRamMB - availRamMB;
-                float percentUsed = ((float) usedRamMB / totalRamMB) * 100f;
+                // Ensure the view exists and is ready to be drawn on
+                if (ramGraphView != null && ramGraphView.isAttachedToWindow()) {
+                    actManager.getMemoryInfo(memInfo);
+                    long totalRamMB = memInfo.totalMem / 1048576L;
+                    long availRamMB = memInfo.availMem / 1048576L;
+                    long usedRamMB = totalRamMB - availRamMB;
+                    float percentUsed = ((float) usedRamMB / totalRamMB) * 100f;
 
-                tvRamTotal.setText(String.format(Locale.US, "%d MB Total", totalRamMB));
-                tvRamUsed.setText(String.format(Locale.US, "%d MB Used", usedRamMB));
-                tvRamFree.setText(String.format(Locale.US, "%d MB Free", availRamMB));
+                    tvRamTotal.setText(String.format(Locale.US, "%d MB Total", totalRamMB));
+                    tvRamUsed.setText(String.format(Locale.US, "%d MB Used", usedRamMB));
+                    tvRamFree.setText(String.format(Locale.US, "%d MB Free", availRamMB));
 
-                ramGraphView.addRamData(percentUsed);
+                    ramGraphView.addRamData(percentUsed);
+                }
+
+                // Keep the loop running every 1 second
                 handler.postDelayed(this, 1000);
             }
         };
