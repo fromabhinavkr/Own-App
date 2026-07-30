@@ -7,27 +7,84 @@
     android:padding="16dp"
     android:fitsSystemWindows="true">
 
-    <!-- 1. Dark/Light Mode Toggle -->
-    <ImageButton
-        android:id="@+id/btn_app_theme_toggle"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:contentDescription="@string/theme_toggle_desc"
-        android:src="@drawable/ic_moon"
-        android:scaleType="fitCenter"
-        android:padding="8dp"
-        tools:ignore="ImageContrastCheck" />
-
-    <!-- 2. Device Stats Dashboard -->
-    <LinearLayout
+    <!-- 1. Dynamic Top Header & Theme Toggle -->
+    <RelativeLayout
+        android:id="@+id/header_layout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/btn_app_theme_toggle"
-        android:layout_above="@id/grid_scroll_view"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="8dp">
+
+        <ImageButton
+            android:id="@+id/btn_app_theme_toggle"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/theme_toggle_desc"
+            android:src="@drawable/ic_moon"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            tools:ignore="ImageContrastCheck" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/btn_app_theme_toggle"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="8dp"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/tvGreeting"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Good Evening"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/tvWelcome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Welcome back!"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/date_pill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/modern_button"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/ivCalendar"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@android:drawable/ic_menu_my_calendar"
+                android:layout_marginEnd="6dp" />
+            <TextView
+                android:id="@+id/tvDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="May 20, 2025"
+                android:textSize="12sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- 2. Device Stats Dashboard (Adaptive Height) -->
+    <LinearLayout
+        android:id="@+id/dashboard_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/header_layout"
         android:layout_marginTop="20dp"
+        android:layout_marginBottom="16dp"
         android:gravity="top"
         android:orientation="vertical">
 
@@ -35,13 +92,12 @@
 
     </LinearLayout>
 
-    <!-- 3. The 2x2 Grid Layout -->
+    <!-- 3. The 2x2 Grid Layout (Adaptive Scroll) -->
     <ScrollView
         android:id="@+id/grid_scroll_view"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_marginBottom="8dp"
+        android:layout_height="match_parent"
+        android:layout_below="@id/dashboard_container"
         android:scrollbars="none"
         android:fillViewport="true">
 
@@ -50,7 +106,13 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center">
+            android:gravity="center_horizontal">
+
+            <!-- Spacer: Pushes grid to bottom on tall screens, shrinks to 0 on short screens -->
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
             <!-- ROW 1: Widgets & Games -->
             <LinearLayout
@@ -61,7 +123,6 @@
                 android:baselineAligned="false"
                 android:layout_marginBottom="12dp">
 
-                <!-- Widgets Card (Shadow Removed) -->
                 <LinearLayout
                     android:id="@+id/btnPlaceWidget"
                     android:layout_width="0dp"
@@ -71,35 +132,38 @@
                     android:background="@drawable/modern_button"
                     android:layout_marginEnd="6dp"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="24dp"
+                    android:gravity="center">
 
                     <FrameLayout
                         android:layout_width="match_parent"
-                        android:layout_height="120dp">
+                        android:layout_height="100dp">
                         <ImageView
                             android:id="@+id/ivWidgetIcon"
-                            android:layout_width="100dp"
-                            android:layout_height="100dp"
+                            android:layout_width="75dp"
+                            android:layout_height="75dp"
                             android:layout_gravity="center"
                             android:scaleType="fitCenter"
                             android:src="@drawable/icon_main_widgets" />
                     </FrameLayout>
-                    <View
-                        android:id="@+id/divWidget"
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp" />
                     <TextView
                         android:id="@+id/tvWidgetText"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Widgets"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:padding="16dp" />
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/tvWidgetSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Customize your home"
+                        android:textSize="12sp"
+                        android:layout_marginTop="2dp" />
                 </LinearLayout>
 
-                <!-- Games Card (Shadow Removed) -->
                 <LinearLayout
                     android:id="@+id/btnGames"
                     android:layout_width="0dp"
@@ -109,32 +173,36 @@
                     android:background="@drawable/modern_button"
                     android:layout_marginStart="6dp"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="24dp"
+                    android:gravity="center">
 
                     <FrameLayout
                         android:layout_width="match_parent"
-                        android:layout_height="120dp">
+                        android:layout_height="100dp">
                         <ImageView
                             android:id="@+id/ivGamesIcon"
-                            android:layout_width="100dp"
-                            android:layout_height="100dp"
+                            android:layout_width="75dp"
+                            android:layout_height="75dp"
                             android:layout_gravity="center"
                             android:scaleType="fitCenter"
                             android:src="@drawable/icon_main_games" />
                     </FrameLayout>
-                    <View
-                        android:id="@+id/divGames"
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp" />
                     <TextView
                         android:id="@+id/tvGamesText"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Games"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:padding="16dp" />
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/tvGamesSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Play and enjoy"
+                        android:textSize="12sp"
+                        android:layout_marginTop="2dp" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -146,7 +214,6 @@
                 android:weightSum="2"
                 android:baselineAligned="false">
 
-                <!-- Tools Card (Shadow Removed) -->
                 <LinearLayout
                     android:id="@+id/btnTools"
                     android:layout_width="0dp"
@@ -156,35 +223,38 @@
                     android:background="@drawable/modern_button"
                     android:layout_marginEnd="6dp"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="24dp"
+                    android:gravity="center">
 
                     <FrameLayout
                         android:layout_width="match_parent"
-                        android:layout_height="120dp">
+                        android:layout_height="100dp">
                         <ImageView
                             android:id="@+id/ivToolsIcon"
-                            android:layout_width="100dp"
-                            android:layout_height="100dp"
+                            android:layout_width="75dp"
+                            android:layout_height="75dp"
                             android:layout_gravity="center"
                             android:scaleType="fitCenter"
                             android:src="@drawable/icon_main_tools" />
                     </FrameLayout>
-                    <View
-                        android:id="@+id/divTools"
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp" />
                     <TextView
                         android:id="@+id/tvToolsText"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Tools"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:padding="16dp" />
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/tvToolsSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Handy tools for you"
+                        android:textSize="12sp"
+                        android:layout_marginTop="2dp" />
                 </LinearLayout>
 
-                <!-- Utilities Card (Shadow Removed) -->
                 <LinearLayout
                     android:id="@+id/btnUtilities"
                     android:layout_width="0dp"
@@ -194,32 +264,36 @@
                     android:background="@drawable/modern_button"
                     android:layout_marginStart="6dp"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="24dp"
+                    android:gravity="center">
 
                     <FrameLayout
                         android:layout_width="match_parent"
-                        android:layout_height="120dp">
+                        android:layout_height="100dp">
                         <ImageView
                             android:id="@+id/ivUtilitiesIcon"
-                            android:layout_width="100dp"
-                            android:layout_height="100dp"
+                            android:layout_width="75dp"
+                            android:layout_height="75dp"
                             android:layout_gravity="center"
                             android:scaleType="fitCenter"
                             android:src="@drawable/icon_main_utilities" />
                     </FrameLayout>
-                    <View
-                        android:id="@+id/divUtilities"
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp" />
                     <TextView
                         android:id="@+id/tvUtilitiesText"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Utilities"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:padding="16dp" />
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/tvUtilitiesSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Essential utilities"
+                        android:textSize="12sp"
+                        android:layout_marginTop="2dp" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>

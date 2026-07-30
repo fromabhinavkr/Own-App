@@ -92,7 +92,7 @@ public class DeviceStatsHelper {
                 long usedRamMB = totalRamMB - availRamMB;
                 float percentUsed = ((float) usedRamMB / totalRamMB) * 100f;
 
-                tvRamTotal.setText(String.format(Locale.US, "RAM - %d MB Total", totalRamMB));
+                tvRamTotal.setText(String.format(Locale.US, "%d MB Total", totalRamMB));
                 tvRamUsed.setText(String.format(Locale.US, "%d MB Used", usedRamMB));
                 tvRamFree.setText(String.format(Locale.US, "%d MB Free", availRamMB));
 
