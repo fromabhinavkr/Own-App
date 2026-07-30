@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
                 "Wanna Play?",
                 "Chill Out!",
                 "Let's go!",
-                "Dont Panic!",
+                "Don't Panic!",
                 "Stay Strong!",
                 "Enjoy Life",
                 "Inhale, Exhale",
