@@ -3,12 +3,16 @@ package com.abhinav.ownapp;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.view.Choreographer;
 import android.view.MotionEvent;
 import android.view.View;
@@ -19,13 +23,19 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
+@SuppressWarnings("all")
 @SuppressLint("SetTextI18n")
 public class BreakoutActivity extends AppCompatActivity {
 
     private boolean isDarkTheme;
     private int highScore = 0;
+    private boolean isVibrationEnabled = true;
     private SharedPreferences prefs;
 
     private TextView tvCurrentScore, tvHighScore, tvFinalScore, tvTapToStart, tvGameOverTitle, tvNewHighScoreBanner;
@@ -35,13 +45,23 @@ public class BreakoutActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_breakout);
 
+        View root = findViewById(R.id.breakoutRoot);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
+
+        // FIX: Pointing strictly to your app's main global Shared Preferences!
         prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
         isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
-        highScore = prefs.getInt("breakout_high_score", 0);
 
-        View root = findViewById(R.id.breakoutRoot);
+        highScore = prefs.getInt("breakout_high_score", 0);
+        isVibrationEnabled = prefs.getBoolean("breakout_vibration_enabled", true);
+
         FrameLayout gameContainer = findViewById(R.id.gameContainer);
 
         tvCurrentScore = findViewById(R.id.tvCurrentScore);
@@ -61,15 +81,17 @@ public class BreakoutActivity extends AppCompatActivity {
         Button btnRestart = findViewById(R.id.btnRestart);
         Button btnQuit = findViewById(R.id.btnQuit);
         Button btnQuitFromPause = findViewById(R.id.btnQuitFromPause);
+        Button btnToggleVibration = findViewById(R.id.btnToggleVibration);
 
-        // Apply Theming
+        // Apply Theming strictly based on main app toggle
         int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
         int cardColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
         int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
+        int subTextColor = isDarkTheme ? Color.parseColor("#AAAAAA") : Color.parseColor("#666666");
 
         root.setBackgroundColor(bgColor);
         tvCurrentScore.setTextColor(textColor);
-        tvHighScore.setTextColor(textColor);
+        tvHighScore.setTextColor(subTextColor);
         tvTapToStart.setTextColor(textColor);
         tvHighScore.setText("Best: " + highScore);
 
@@ -86,8 +108,20 @@ public class BreakoutActivity extends AppCompatActivity {
         pauseCard.setBackground(gdCard);
         gameOverCard.setBackground(gdCard);
 
+        // Setup Vibration Toggle Button
+        btnToggleVibration.setText("Vibration: " + (isVibrationEnabled ? "ON" : "OFF"));
+        btnToggleVibration.setOnClickListener(v -> {
+            isVibrationEnabled = !isVibrationEnabled;
+            prefs.edit().putBoolean("breakout_vibration_enabled", isVibrationEnabled).apply();
+            btnToggleVibration.setText("Vibration: " + (isVibrationEnabled ? "ON" : "OFF"));
+            if (gameEngine != null) {
+                gameEngine.setVibrationEnabled(isVibrationEnabled);
+            }
+        });
+
         // Initialize Game Engine
         gameEngine = new BreakoutEngine(this, isDarkTheme);
+        gameEngine.setVibrationEnabled(isVibrationEnabled);
         gameContainer.addView(gameEngine);
 
         // Callbacks
@@ -150,6 +184,11 @@ public class BreakoutActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
         if (gameEngine != null && gameEngine.isPlaying() && !gameEngine.isGameOver()) {
@@ -183,6 +222,7 @@ public class BreakoutActivity extends AppCompatActivity {
         private int[] brickColors;
 
         private boolean playing = false, paused = false, gameOver = false;
+        private boolean vibrationEnabled = true;
         private int score = 0;
         private int bricksRemaining = 0;
 
@@ -213,13 +253,17 @@ public class BreakoutActivity extends AppCompatActivity {
             this.listener = listener;
         }
 
+        public void setVibrationEnabled(boolean enabled) {
+            this.vibrationEnabled = enabled;
+        }
+
         @Override
         protected void onSizeChanged(int w, int h, int oldw, int oldh) {
             super.onSizeChanged(w, h, oldw, oldh);
             screenW = w;
             screenH = h;
 
-            // Dimensions
+            // Dimensions dynamically adapted to layout bounds
             ballRadius = screenW * 0.02f;
             paddleW = screenW * 0.25f;
             paddleH = screenH * 0.015f;
@@ -228,9 +272,17 @@ public class BreakoutActivity extends AppCompatActivity {
             brickPadding = screenW * 0.02f;
             brickW = (screenW - (brickPadding * (BRICK_COLS + 1))) / BRICK_COLS;
             brickH = screenH * 0.035f;
-            brickOffsetTop = screenH * 0.15f; // Leave space for HUD
+            brickOffsetTop = screenH * 0.18f; // Leave space for HUD
 
-            resetGame();
+            if (oldw == 0 || oldh == 0) {
+                resetGame();
+            } else {
+                // If rotating device, elegantly scale the object positions so the game doesn't restart
+                paddleX = (paddleX / oldw) * screenW;
+                ballX = (ballX / oldw) * screenW;
+                ballY = (ballY / oldh) * screenH;
+                baseSpeed = screenH * 0.012f;
+            }
         }
 
         public void resetGame() {
@@ -254,12 +306,47 @@ public class BreakoutActivity extends AppCompatActivity {
             ballDX = (float) (baseSpeed * (Math.random() > 0.5 ? 1 : -1) * 0.5f);
             ballDY = -baseSpeed;
 
-            // Reset bricks
-            bricksRemaining = BRICK_ROWS * BRICK_COLS;
+            bricksRemaining = 0;
+
+            // Randomly select a pattern (0 to 5) for different building shapes
+            int patternType = (int) (Math.random() * 6);
+
             for (int r = 0; r < BRICK_ROWS; r++) {
                 for (int c = 0; c < BRICK_COLS; c++) {
-                    bricks[r][c] = true;
+                    boolean isBrickActive = false;
+
+                    switch (patternType) {
+                        case 0: // Solid Rectangle (Classic)
+                            isBrickActive = true;
+                            break;
+                        case 1: // Checkerboard
+                            isBrickActive = (r + c) % 2 == 0;
+                            break;
+                        case 2: // Pyramid (Triangle pointing up)
+                            isBrickActive = Math.abs(c - (BRICK_COLS / 2)) <= r;
+                            break;
+                        case 3: // Inverted Pyramid (Triangle pointing down)
+                            isBrickActive = Math.abs(c - (BRICK_COLS / 2)) <= (BRICK_ROWS - 1 - r);
+                            break;
+                        case 4: // X-Shape
+                            isBrickActive = (c == r) || (c == (BRICK_COLS - 1 - r));
+                            break;
+                        case 5: // Hollow Box
+                            isBrickActive = (r == 0 || r == BRICK_ROWS - 1 || c == 0 || c == BRICK_COLS - 1);
+                            break;
+                    }
+
+                    bricks[r][c] = isBrickActive;
+                    if (isBrickActive) {
+                        bricksRemaining++;
+                    }
                 }
+            }
+
+            // Failsafe: Ensure at least one brick spawns just in case of odd grid scaling
+            if (bricksRemaining == 0) {
+                bricks[0][0] = true;
+                bricksRemaining = 1;
             }
         }
 
@@ -267,6 +354,19 @@ public class BreakoutActivity extends AppCompatActivity {
         public void resumeGame() { paused = false; Choreographer.getInstance().postFrameCallback(this); }
         public boolean isPlaying() { return playing; }
         public boolean isGameOver() { return gameOver; }
+
+        private void triggerVibration(int duration) {
+            if (vibrationEnabled) {
+                Vibrator v = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+                if (v != null && v.hasVibrator()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        v.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE));
+                    } else {
+                        v.vibrate(duration);
+                    }
+                }
+            }
+        }
 
         @SuppressLint("ClickableViewAccessibility")
         @Override
@@ -315,6 +415,7 @@ public class BreakoutActivity extends AppCompatActivity {
             if (ballY + ballRadius > screenH) {
                 gameOver = true;
                 playing = false;
+                triggerVibration(800); // Heavy Game Over vibration
                 if (listener != null) listener.onGameOver(score);
                 return;
             }
@@ -346,6 +447,8 @@ public class BreakoutActivity extends AppCompatActivity {
                             bricks[r][c] = false; // Destroy brick
                             hitBrick = true;
                             bricksRemaining--;
+
+                            triggerVibration(20); // Tiny tactile pop on breaking block
 
                             score += (BRICK_ROWS - r) * 10; // Higher bricks = more points
                             if (listener != null) listener.onScoreUpdated(score);
