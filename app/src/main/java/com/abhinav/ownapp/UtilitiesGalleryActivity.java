@@ -48,18 +48,27 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
         TextView title = findViewById(R.id.tvUtilitiesTitle);
         TextView subtitle = findViewById(R.id.tvUtilitiesSubtitle);
 
+        // Tool 1: Browser
         LinearLayout cardBrowser = findViewById(R.id.cardPrivateBrowser);
         TextView textBrowser = findViewById(R.id.textPrivateBrowser);
         View divBrowser = findViewById(R.id.divPrivateBrowser);
 
+        // Tool 2: Doc Reader
         LinearLayout cardDocReader = findViewById(R.id.cardDocReader);
         TextView textDocReader = findViewById(R.id.textDocReader);
         View divDocReader = findViewById(R.id.divDocReader);
 
+        // Tool 3: Slate
+        LinearLayout cardSlate = findViewById(R.id.cardSlate);
+        TextView textSlate = findViewById(R.id.textSlate);
+        View divSlate = findViewById(R.id.divSlate);
+
+        // Apply Global Themes
         if (root != null) root.setBackgroundColor(bgColor);
         if (title != null) title.setTextColor(textColor);
         if (subtitle != null) subtitle.setTextColor(subtitleColor);
 
+        // Apply Themes to Individual Cards
         if (cardBrowser != null) {
             cardBrowser.setBackgroundTintList(ColorStateList.valueOf(cardColor));
             textBrowser.setTextColor(textColor);
@@ -70,6 +79,12 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
             cardDocReader.setBackgroundTintList(ColorStateList.valueOf(cardColor));
             textDocReader.setTextColor(textColor);
             divDocReader.setBackgroundColor(divColor);
+        }
+
+        if (cardSlate != null) {
+            cardSlate.setBackgroundTintList(ColorStateList.valueOf(cardColor));
+            textSlate.setTextColor(textColor);
+            divSlate.setBackgroundColor(divColor);
         }
 
         // --- Handle Circular Reveal Entry Animation ---
@@ -126,6 +141,7 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
             }
         });
 
+        // Help Button Logic for Browser
         TextView btnBrowserHelp = findViewById(R.id.btnBrowserHelp);
         if (btnBrowserHelp != null) {
             GradientDrawable helpGd = new GradientDrawable();
@@ -174,11 +190,15 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
             });
         }
 
+        // --- Click Listeners to Launch Activities ---
         if (cardBrowser != null) {
             cardBrowser.setOnClickListener(v -> startActivity(new Intent(UtilitiesGalleryActivity.this, PrivateBrowserActivity.class)));
         }
         if (cardDocReader != null) {
             cardDocReader.setOnClickListener(v -> startActivity(new Intent(UtilitiesGalleryActivity.this, DocReaderActivity.class)));
+        }
+        if (cardSlate != null) {
+            cardSlate.setOnClickListener(v -> startActivity(new Intent(UtilitiesGalleryActivity.this, SlateActivity.class)));
         }
     }
 }

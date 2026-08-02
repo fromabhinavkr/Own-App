@@ -191,6 +191,13 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
+        <!-- NEW: High-Performance Slate Utility Tool -->
+        <activity
+            android:name=".SlateActivity"
+            android:exported="true"
+            android:screenOrientation="fullSensor"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
+
         <!-- Hyper-Secure Private Browser Activity -->
         <activity
             android:name=".PrivateBrowserActivity"
