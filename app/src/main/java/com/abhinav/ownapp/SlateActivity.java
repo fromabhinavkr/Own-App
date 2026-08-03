@@ -19,8 +19,14 @@ public class SlateActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState); EdgeToEdge.enable(this); setContentView(R.layout.activity_slate);
+        super.onCreate(savedInstanceState);
+
+        // --- NEW: Lock the orientation to whatever state the app was launched in ---
+        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LOCKED);
+
+        EdgeToEdge.enable(this); setContentView(R.layout.activity_slate);
         View root = findViewById(R.id.slateRoot);
+
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> { Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars()); v.setPadding(sys.left, sys.top, sys.right, sys.bottom); return WindowInsetsCompat.CONSUMED; });
         prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE); isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
         slateCanvas = new SlateCanvas(this, isDarkTheme); ((FrameLayout) findViewById(R.id.slateContainer)).addView(slateCanvas);
@@ -98,7 +104,6 @@ public class SlateActivity extends AppCompatActivity {
     private void toggleMenu(boolean open, TextView btn) {
         if (isMenuOpen == open) return; isMenuOpen = open;
 
-        // Fluid "Water Surface" Ripple Animation for the floating button
         btn.animate().scaleX(0.85f).scaleY(0.85f).setDuration(120).setInterpolator(new android.view.animation.DecelerateInterpolator()).withEndAction(() -> {
             btn.setText(open ? "Close" : "Menu");
             btn.animate().scaleX(1.10f).scaleY(1.10f).setDuration(150).setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator()).withEndAction(() -> {
@@ -316,13 +321,6 @@ public class SlateActivity extends AppCompatActivity {
         }
 
         @SuppressLint("ClickableViewAccessibility") @Override public boolean onTouchEvent(MotionEvent e) {
-            boolean isPalm = e.getActionMasked() == MotionEvent.ACTION_CANCEL;
-            for (int i = 0; i < e.getPointerCount(); i++) {
-                if (e.getToolType(i) == 5 || e.getToolType(i) == MotionEvent.TOOL_TYPE_ERASER) isPalm = true;
-                if (e.getTouchMajor(i) > 120f || e.getSize(i) > 0.25f) isPalm = true;
-            }
-            if (isPalm) { synchronized(paintLock) { currentStroke = null; } return true; }
-
             if (e.getPointerCount() > 1) {
                 if (!isZoomEnabled) return true;
                 scaleDetector.onTouchEvent(e);

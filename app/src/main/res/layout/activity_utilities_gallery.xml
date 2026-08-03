@@ -135,7 +135,7 @@
                     android:textColor="#FFFFFF" />
             </LinearLayout>
 
-            <!-- 3. NEW: Slate Studio Card -->
+            <!-- 3. Slate Studio Card -->
             <LinearLayout
                 android:id="@+id/cardSlate"
                 android:layout_width="0dp"
@@ -154,8 +154,8 @@
                     <!-- Note: You will need to add an image named "slate_icon" to your res/drawable folder -->
                     <ImageView
                         android:id="@+id/ivSlatePreview"
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
+                        android:layout_width="110dp"
+                        android:layout_height="110dp"
                         android:layout_gravity="center"
                         android:scaleType="fitCenter"
                         android:src="@drawable/slate_icon" />
@@ -169,6 +169,47 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Slate"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:padding="16dp"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
+
+            <!-- 4. NEW: Text Pad Card -->
+            <LinearLayout
+                android:id="@+id/cardTextPad"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:orientation="vertical"
+                android:background="@drawable/bg_gallery_card"
+                android:clipToOutline="true"
+                android:layout_margin="8dp"
+                android:elevation="2dp"
+                android:clickable="true"
+                android:focusable="true">
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="120dp">
+                    <!-- Note: You will need to add an image named "textpad_icon" to your res/drawable folder -->
+                    <ImageView
+                        android:id="@+id/ivTextPadPreview"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:layout_gravity="center"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/textpad_icon" />
+                </FrameLayout>
+                <View
+                    android:id="@+id/divTextPad"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp" />
+                <TextView
+                    android:id="@+id/textTextPad"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Text Pad"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:gravity="center"

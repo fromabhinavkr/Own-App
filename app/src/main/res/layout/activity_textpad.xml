@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/textPadRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:fitsSystemWindows="true" android:clipChildren="false">
+
+    <!-- Infinite Bidirectional Scrolling Canvas -->
+    <ScrollView android:id="@+id/textScrollView" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
+        <HorizontalScrollView android:layout_width="wrap_content" android:layout_height="match_parent" android:fillViewport="true">
+
+            <EditText
+                android:id="@+id/ideEditText"
+                android:layout_width="wrap_content" android:layout_height="match_parent"
+                android:minWidth="1000dp" android:minHeight="1000dp"
+                android:padding="24dp" android:gravity="top|start"
+                android:background="@null"
+                android:fontFamily="monospace" android:textSize="16sp"
+                android:scrollHorizontally="true"
+                android:inputType="textMultiLine|textNoSuggestions|textVisiblePassword"
+                android:hint="Type here..." />
+
+        </HorizontalScrollView>
+    </ScrollView>
+
+    <!-- PERFECT CIRCULAR REFRESH BUTTON -->
+    <TextView
+        android:id="@+id/btnRefreshHdl"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="16dp"
+        android:gravity="center"
+        android:text="↻"
+        android:textColor="#FFFFFF"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:includeFontPadding="false"
+        android:paddingBottom="3dp"
+        android:visibility="gone"
+        android:elevation="8dp"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <LinearLayout
+        android:id="@+id/flowerMenuLayout" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_above="@id/btnFlowerMenu" android:layout_alignParentEnd="true" android:layout_marginEnd="24dp" android:layout_marginBottom="12dp"
+        android:gravity="end" android:orientation="vertical" android:visibility="gone" android:elevation="16dp" android:clipChildren="false">
+
+        <!-- Changed to TextViews to completely eradicate the Android Pink Button bug -->
+        <TextView android:id="@+id/menuHdlDet" android:layout_width="175dp" android:layout_height="48dp" android:layout_marginBottom="8dp" android:gravity="center" android:text="HDL Det" android:textColor="#FFFFFF" android:textStyle="bold" android:clickable="true" android:focusable="true" />
+        <TextView android:id="@+id/menuSave" android:layout_width="175dp" android:layout_height="48dp" android:layout_marginBottom="8dp" android:gravity="center" android:text="Save .txl Draft" android:textColor="#FFFFFF" android:textStyle="bold" android:clickable="true" android:focusable="true" />
+        <TextView android:id="@+id/menuDrafts" android:layout_width="175dp" android:layout_height="48dp" android:layout_marginBottom="8dp" android:gravity="center" android:text="Drafts" android:textColor="#FFFFFF" android:textStyle="bold" android:clickable="true" android:focusable="true" />
+        <TextView android:id="@+id/menuTheme" android:layout_width="175dp" android:layout_height="48dp" android:layout_marginBottom="8dp" android:gravity="center" android:text="Theme" android:textColor="#FFFFFF" android:textStyle="bold" android:clickable="true" android:focusable="true" />
+        <TextView android:id="@+id/menuClear" android:layout_width="175dp" android:layout_height="48dp" android:layout_marginBottom="8dp" android:gravity="center" android:text="Clear Pad" android:textColor="#FFFFFF" android:textStyle="bold" android:clickable="true" android:focusable="true" />
+        <TextView android:id="@+id/menuExit" android:layout_width="175dp" android:layout_height="48dp" android:layout_marginBottom="8dp" android:gravity="center" android:text="Exit" android:textColor="#FFFFFF" android:textStyle="bold" android:clickable="true" android:focusable="true" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/btnFlowerMenu" android:layout_width="64dp" android:layout_height="64dp" android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true" android:layout_margin="24dp" android:background="@drawable/ic_flower_bg"
+        android:elevation="16dp" android:gravity="center" android:includeFontPadding="false" android:text="Menu" android:textSize="14sp" android:textStyle="bold" android:textColor="#FFFFFF" android:clickable="true" android:focusable="true" />
+
+    <LinearLayout
+        android:id="@+id/loadingOverlay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="20dp"
+        android:visibility="gone"
+        android:elevation="20dp">
+
+        <ProgressBar
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:indeterminateTint="#FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Parsing HDL..."
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</RelativeLayout>

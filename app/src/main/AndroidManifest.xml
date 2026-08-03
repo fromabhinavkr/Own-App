@@ -142,7 +142,7 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
-        <!-- NEW: Rotating Globe Game Activity -->
+        <!-- Rotating Globe Game Activity -->
         <activity
             android:name=".GlobeGameActivity"
             android:exported="false"
@@ -177,7 +177,7 @@
             </intent-filter>
         </activity>
 
-        <!-- NEW: Audio Gallery Activity -->
+        <!-- Audio Gallery Activity -->
         <activity
             android:name=".AudioGalleryActivity"
             android:exported="false"
@@ -191,11 +191,18 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
-        <!-- NEW: High-Performance Slate Utility Tool -->
+        <!-- High-Performance Slate Utility Tool -->
         <activity
             android:name=".SlateActivity"
             android:exported="true"
             android:screenOrientation="fullSensor"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
+
+        <!-- NEW: Text Pad IDE Utility -->
+        <activity
+            android:name=".TextPadActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
         <!-- Hyper-Secure Private Browser Activity -->

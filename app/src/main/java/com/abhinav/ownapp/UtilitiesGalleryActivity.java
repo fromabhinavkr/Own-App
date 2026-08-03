@@ -63,6 +63,11 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
         TextView textSlate = findViewById(R.id.textSlate);
         View divSlate = findViewById(R.id.divSlate);
 
+        // Tool 4: Text Pad
+        LinearLayout cardTextPad = findViewById(R.id.cardTextPad);
+        TextView textTextPad = findViewById(R.id.textTextPad);
+        View divTextPad = findViewById(R.id.divTextPad);
+
         // Apply Global Themes
         if (root != null) root.setBackgroundColor(bgColor);
         if (title != null) title.setTextColor(textColor);
@@ -85,6 +90,12 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
             cardSlate.setBackgroundTintList(ColorStateList.valueOf(cardColor));
             textSlate.setTextColor(textColor);
             divSlate.setBackgroundColor(divColor);
+        }
+
+        if (cardTextPad != null) {
+            cardTextPad.setBackgroundTintList(ColorStateList.valueOf(cardColor));
+            textTextPad.setTextColor(textColor);
+            divTextPad.setBackgroundColor(divColor);
         }
 
         // --- Handle Circular Reveal Entry Animation ---
@@ -199,6 +210,9 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
         }
         if (cardSlate != null) {
             cardSlate.setOnClickListener(v -> startActivity(new Intent(UtilitiesGalleryActivity.this, SlateActivity.class)));
+        }
+        if (cardTextPad != null) {
+            cardTextPad.setOnClickListener(v -> startActivity(new Intent(UtilitiesGalleryActivity.this, TextPadActivity.class)));
         }
     }
 }
