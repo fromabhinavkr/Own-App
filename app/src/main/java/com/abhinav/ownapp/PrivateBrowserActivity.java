@@ -331,11 +331,11 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         addHomeShortcut("Google", "Secure Search", "https://www.google.com/", "G", cardBg, textColor, secondaryColor, iconBg, false, -1);
         addHomeShortcut("DuckDuckGo", "Secure Search", "https://duckduckgo.com/", "D", cardBg, textColor, secondaryColor, iconBg, false, -1);
         addHomeShortcut("Yahoo", "Secure Search", "https://search.yahoo.com/", "Y", cardBg, textColor, secondaryColor, iconBg, false, -1);
-        addHomeShortcut("Instagram", "Social Media", "https://www.instagram.com/", "◎", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        addHomeShortcut("Instagram", "Social Media", "https://www.instagram.com/", "IG", cardBg, textColor, secondaryColor, iconBg, false, -1);
         addHomeShortcut("LinkedIn", "Professional", "https://www.linkedin.com/", "in", cardBg, textColor, secondaryColor, iconBg, false, -1);
         addHomeShortcut("GitHub", "Development", "https://github.com/", "GH", cardBg, textColor, secondaryColor, iconBg, false, -1);
         addHomeShortcut("YouTube", "Video", "https://www.youtube.com/", "▶", cardBg, textColor, secondaryColor, iconBg, false, -1);
-        addHomeShortcut("Gmail", "Email", "https://mail.google.com/", "✉", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        addHomeShortcut("Bing", "Secure Search", "https://search.bing.com/", "B", cardBg, textColor, secondaryColor, iconBg, false, -1);
 
         // Load multiple dynamic custom shortcuts
         try {
@@ -688,7 +688,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             info.webView.loadUrl(url);
             hideHomePage();
         } else {
-            info.webView.loadUrl("about:blank");
+            info.webView.loadUrl("");
             showHomePage();
         }
     }
@@ -1272,9 +1272,11 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 if (view == getCurrentWeb() && !isFullscreen) {
-                    if (url != null && url.startsWith("http://startpage")) {
+                    if (url == null || url.equals("about:blank") || url.startsWith("http://startpage") || url.isEmpty()) {
                         etSearchUrl.setText("");
+                        showHomePage();
                     } else {
+                        hideHomePage();
                         etSearchUrl.setText(url);
                     }
                 }
