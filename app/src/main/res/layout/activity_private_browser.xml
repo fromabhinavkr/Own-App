@@ -25,6 +25,46 @@
         android:layout_below="@id/browserProgressBar" />
 
     <LinearLayout
+        android:id="@+id/homeOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="100dp"
+        android:background="#1C1C1E"
+        android:visibility="visible"
+        android:elevation="4dp">
+
+        <TextView
+            android:id="@+id/tvHomeTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Private Browser"
+            android:textColor="#FFFFFF"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="16dp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:scrollbars="none">
+
+            <!-- CHANGED: Replaced LinearLayout with GridLayout to automatically handle 2-Column layout properly! -->
+            <GridLayout
+                android:id="@+id/homeShortcutList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="2"
+                android:alignmentMode="alignMargins" />
+        </ScrollView>
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/searchCapsule"
         android:layout_width="match_parent"
         android:layout_height="55dp"

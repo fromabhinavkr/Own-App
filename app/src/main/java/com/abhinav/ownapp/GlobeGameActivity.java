@@ -5,10 +5,13 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -30,15 +33,16 @@ public class GlobeGameActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
         isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
 
-        // Hide system bars for full screen
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        if (controller != null) {
-            controller.hide(WindowInsetsCompat.Type.systemBars());
-            controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-        }
+        // Apply true immersive full-screen mode before setting content view
+        hideSystemUI();
 
         setContentView(R.layout.activity_globe_game);
+
+        // Double check no residual padding exists from MainApplication
+        View contentView = findViewById(android.R.id.content);
+        if (contentView != null) {
+            contentView.setPadding(0, 0, 0, 0);
+        }
 
         ufoOverlay = findViewById(R.id.ufo_overlay);
         GlobeGLSurfaceView globeView = findViewById(R.id.globe_view_game);
@@ -51,6 +55,33 @@ public class GlobeGameActivity extends AppCompatActivity {
         ufoOverlay.setOnGameOverListener(finalScore -> {
             runOnUiThread(() -> showGameOverDialog(finalScore));
         });
+    }
+
+    // Ensures the game stays in full screen even if the user swipes down the notification bar
+    @Override
+    protected void onResume() {
+        super.onResume();
+        hideSystemUI();
+    }
+
+    // Method to force absolute full screen and draw into the notch area
+    private void hideSystemUI() {
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+        // FIX: Aggressively force status bar color to transparent
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+
+        WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
+
+        // Hide both the status bar and the navigation bar
+        controller.hide(WindowInsetsCompat.Type.systemBars());
+        controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+
+        // Ensure the game draws completely into the notch/cutout area to prevent the white letterbox bar
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
     }
 
     @Override
@@ -187,6 +218,8 @@ public class GlobeGameActivity extends AppCompatActivity {
         if (dialog.getWindow() != null) {
             dialog.getWindow().getDecorView().setSystemUiVisibility(getWindow().getDecorView().getSystemUiVisibility());
             dialog.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
+            // Ensure status bar hides again after dialog shows
+            hideSystemUI();
         }
     }
 }

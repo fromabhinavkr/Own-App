@@ -69,6 +69,10 @@ public class PdfStudioActivity extends AppCompatActivity {
     private ScanToPdfHelper scanToPdfHelper; private boolean isDarkTheme, isAddingScan = false; private int currentPageIndex = 0; private Uri cropOutputUri; private CustomCropView customCropView;
     private Dialog customProgressDialog; private TextView customProgressText;
 
+    // --- 3-State Theme Variables ---
+    private int themeState;
+    private int colorBg, colorDrawerBg, colorText, colorPillBg, colorToolBg, colorDialogBg;
+
     private static class PdfPageItem { int originalIndex; Uri sourceUri; Bitmap thumbnail; ImageView ivRef; boolean isImage; public PdfPageItem(int i, Uri u, boolean img) { originalIndex=i; sourceUri=u; isImage=img; } }
     private final List<PdfPageItem> pdfPages = new ArrayList<>();
 
@@ -78,8 +82,8 @@ public class PdfStudioActivity extends AppCompatActivity {
                 customProgressDialog = new Dialog(this); customProgressDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
                 if (customProgressDialog.getWindow() != null) customProgressDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT)); customProgressDialog.setCancelable(false);
                 LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(80, 80, 80, 80); root.setGravity(android.view.Gravity.CENTER);
-                GradientDrawable bg = new GradientDrawable(); bg.setColor(Color.parseColor(isDarkTheme ? "#CC1C1C1E" : "#CCF2F2F7")); bg.setCornerRadius(100f); root.setBackground(bg);
-                customProgressText = new TextView(this); customProgressText.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); customProgressText.setTextSize(18f); customProgressText.setTypeface(null, Typeface.BOLD); customProgressText.setGravity(android.view.Gravity.CENTER);
+                GradientDrawable bg = new GradientDrawable(); bg.setColor(colorDialogBg); bg.setCornerRadius(100f); root.setBackground(bg);
+                customProgressText = new TextView(this); customProgressText.setTextColor(colorText); customProgressText.setTextSize(18f); customProgressText.setTypeface(null, Typeface.BOLD); customProgressText.setGravity(android.view.Gravity.CENTER);
                 root.addView(customProgressText); customProgressDialog.setContentView(root, new ViewGroup.LayoutParams((int)(getResources().getDisplayMetrics().widthPixels * 0.85), -2));
             }
             customProgressText.setText(message); if (!customProgressDialog.isShowing()) customProgressDialog.show();
@@ -147,7 +151,39 @@ public class PdfStudioActivity extends AppCompatActivity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState); setContentView(R.layout.activity_pdf_studio);
         PDFBoxResourceLoader.init(getApplicationContext());
-        isDarkTheme = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE).getBoolean(SnakeWidget.PREF_IS_DARK, true);
+
+        // --- 3-STATE THEME LOGIC INJECTION ---
+        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+        themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+        isDarkTheme = (themeState != 0); // Legacy check for boolean utilities
+
+        if (themeState == 0) { // Light Mode
+            colorBg = Color.parseColor("#F2F2F7");
+            colorDrawerBg = Color.parseColor("#CCF2F2F7");
+            colorText = Color.BLACK;
+            colorPillBg = Color.WHITE;
+            colorToolBg = Color.parseColor("#E5E5EA");
+            colorDialogBg = Color.parseColor("#CCF2F2F7");
+        } else if (themeState == 1) { // Standard Dark Mode
+            colorBg = Color.parseColor("#1C1C1E");
+            colorDrawerBg = Color.parseColor("#CC1C1C1E");
+            colorText = Color.WHITE;
+            colorPillBg = Color.parseColor("#332D2B");
+            colorToolBg = Color.parseColor("#2C2C2E");
+            colorDialogBg = Color.parseColor("#CC1C1C1E");
+        } else { // Star Mode (AMOLED Pure Black)
+            colorBg = Color.parseColor("#000000"); // Pure Black canvas
+            colorDrawerBg = Color.parseColor("#E61C1C1E"); // Slightly translucent dark gray to hover above black
+            colorText = Color.WHITE;
+            colorPillBg = Color.parseColor("#1C1C1E");
+            colorToolBg = Color.parseColor("#1C1C1E");
+            colorDialogBg = Color.parseColor("#E61C1C1E");
+        }
+
         initViews(); applyTheme(); setupListeners();
         scanToPdfHelper = new ScanToPdfHelper(this);
         scanToPdfHelper.setOnScanCompletedListener(new ScanToPdfHelper.OnScanCompletedListener() {
@@ -173,16 +209,15 @@ public class PdfStudioActivity extends AppCompatActivity {
     private void styleTool(TextView tv, int icon, int bg, int txt) { tv.setBackground(createPill(bg)); tv.setTextColor(txt); tv.setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0); tv.setCompoundDrawablePadding(32); if(tv.getCompoundDrawables()[0]!=null) tv.getCompoundDrawables()[0].setColorFilter(new PorterDuffColorFilter(txt, PorterDuff.Mode.SRC_IN)); }
 
     private void applyTheme() {
-        int bg = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7"), drwBg = isDarkTheme ? Color.parseColor("#CC1C1C1E") : Color.parseColor("#CCF2F2F7");
-        int txt = isDarkTheme ? Color.WHITE : Color.BLACK, pillBg = isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE, toolBg = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#E5E5EA"); int accent = Color.parseColor("#5A9AF4");
-        mainContent.setBackgroundColor(bg); leftDrawer.setBackgroundColor(drwBg); rightDrawer.setBackgroundColor(drwBg); getWindow().setStatusBarColor(bg);
-        tvTitle.setTextColor(txt); ((TextView)findViewById(R.id.tvLeftTitle)).setTextColor(txt); ((TextView)findViewById(R.id.tvRightTitle)).setTextColor(txt);
-        btnGallery.setBackground(createPill(pillBg)); btnGallery.setTextColor(txt); btnExport.setBackground(createPill(pillBg)); btnExport.setTextColor(txt);
-        btnPages.setBackground(createPill(pillBg)); btnPages.setTextColor(txt); btnTools.setBackground(createPill(pillBg)); btnTools.setTextColor(txt);
+        int accent = Color.parseColor("#5A9AF4");
+        mainContent.setBackgroundColor(colorBg); leftDrawer.setBackgroundColor(colorDrawerBg); rightDrawer.setBackgroundColor(colorDrawerBg); getWindow().setStatusBarColor(colorBg);
+        tvTitle.setTextColor(colorText); ((TextView)findViewById(R.id.tvLeftTitle)).setTextColor(colorText); ((TextView)findViewById(R.id.tvRightTitle)).setTextColor(colorText);
+        btnGallery.setBackground(createPill(colorPillBg)); btnGallery.setTextColor(colorText); btnExport.setBackground(createPill(colorPillBg)); btnExport.setTextColor(colorText);
+        btnPages.setBackground(createPill(colorPillBg)); btnPages.setTextColor(colorText); btnTools.setBackground(createPill(colorPillBg)); btnTools.setTextColor(colorText);
         btnLoadPdf.setBackground(createPill(accent)); btnScanPdf.setBackground(createPill(Color.parseColor("#34C759")));
-        pageNavContainer.setBackground(createPill(isDarkTheme ? Color.parseColor("#332D2B") : Color.parseColor("#E5E5EA"))); tvPageIndicator.setTextColor(txt); btnPrevPage.setTextColor(txt); btnNextPage.setTextColor(txt);
+        pageNavContainer.setBackground(createPill(colorPillBg)); tvPageIndicator.setTextColor(colorText); btnPrevPage.setTextColor(colorText); btnNextPage.setTextColor(colorText);
         float density = getResources().getDisplayMetrics().density; GradientDrawable thumb = new GradientDrawable(); thumb.setShape(GradientDrawable.RECTANGLE); thumb.setCornerRadius(100f); thumb.setColor(Color.parseColor("#665A9AF4")); thumb.setSize((int)(48*density), (int)(36*density)); pageSeekBar.setThumb(thumb);
-        styleTool(toolCropPage, android.R.drawable.ic_menu_crop, toolBg, txt); styleTool(toolAddImage, android.R.drawable.ic_menu_gallery, toolBg, txt); styleTool(toolAddPdf, android.R.drawable.ic_menu_add, toolBg, txt); styleTool(toolAddScannedPdf, android.R.drawable.ic_menu_camera, toolBg, txt); styleTool(toolDeletePage, android.R.drawable.ic_menu_delete, toolBg, txt);
+        styleTool(toolCropPage, android.R.drawable.ic_menu_crop, colorToolBg, colorText); styleTool(toolAddImage, android.R.drawable.ic_menu_gallery, colorToolBg, colorText); styleTool(toolAddPdf, android.R.drawable.ic_menu_add, colorToolBg, colorText); styleTool(toolAddScannedPdf, android.R.drawable.ic_menu_camera, colorToolBg, colorText); styleTool(toolDeletePage, android.R.drawable.ic_menu_delete, colorToolBg, colorText);
         btnCropCancel.setBackground(createPill(Color.parseColor("#FF4444"))); btnCropFree.setBackground(createPill(accent)); btnCropFull.setBackground(createPill(accent)); btnCrop11.setBackground(createPill(accent)); btnCropA4.setBackground(createPill(accent)); btnCropRotate.setBackground(createPill(accent)); btnCropMirror.setBackground(createPill(accent)); btnCropApply.setBackground(createPill(Color.parseColor("#34C759")));
     }
 
@@ -247,12 +282,12 @@ public class PdfStudioActivity extends AppCompatActivity {
     private void showDeletePagesDialog() {
         Dialog d = new Dialog(this); d.requestWindowFeature(Window.FEATURE_NO_TITLE); if (d.getWindow() != null) d.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(80, 80, 80, 80);
-        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(Color.parseColor(isDarkTheme ? "#CC1C1C1E" : "#CCF2F2F7")); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
-        TextView title = new TextView(this); title.setText("Delete Pages"); title.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
+        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(colorDialogBg); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
+        TextView title = new TextView(this); title.setText("Delete Pages"); title.setTextColor(colorText); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
         LinearLayout inputs = new LinearLayout(this); inputs.setOrientation(LinearLayout.HORIZONTAL); inputs.setGravity(android.view.Gravity.CENTER); inputs.setPadding(0, 0, 0, 60);
-        EditText etFrom = new EditText(this); etFrom.setHint("From"); etFrom.setInputType(InputType.TYPE_CLASS_NUMBER); etFrom.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); etFrom.setHintTextColor(Color.GRAY); etFrom.setBackground(createPill(isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE)); etFrom.setPadding(40, 40, 40, 40); etFrom.setGravity(android.view.Gravity.CENTER); LinearLayout.LayoutParams pFrom = new LinearLayout.LayoutParams(0, -2, 1f); inputs.addView(etFrom, pFrom);
-        TextView tvTo = new TextView(this); tvTo.setText(" to "); tvTo.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); tvTo.setTextSize(16f); tvTo.setTypeface(null, Typeface.BOLD); tvTo.setPadding(20, 0, 20, 0); inputs.addView(tvTo);
-        EditText etTo = new EditText(this); etTo.setHint("To"); etTo.setInputType(InputType.TYPE_CLASS_NUMBER); etTo.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); etTo.setHintTextColor(Color.GRAY); etTo.setBackground(createPill(isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE)); etTo.setPadding(40, 40, 40, 40); etTo.setGravity(android.view.Gravity.CENTER); LinearLayout.LayoutParams pTo = new LinearLayout.LayoutParams(0, -2, 1f); inputs.addView(etTo, pTo);
+        EditText etFrom = new EditText(this); etFrom.setHint("From"); etFrom.setInputType(InputType.TYPE_CLASS_NUMBER); etFrom.setTextColor(colorText); etFrom.setHintTextColor(Color.GRAY); etFrom.setBackground(createPill(colorPillBg)); etFrom.setPadding(40, 40, 40, 40); etFrom.setGravity(android.view.Gravity.CENTER); LinearLayout.LayoutParams pFrom = new LinearLayout.LayoutParams(0, -2, 1f); inputs.addView(etFrom, pFrom);
+        TextView tvTo = new TextView(this); tvTo.setText(" to "); tvTo.setTextColor(colorText); tvTo.setTextSize(16f); tvTo.setTypeface(null, Typeface.BOLD); tvTo.setPadding(20, 0, 20, 0); inputs.addView(tvTo);
+        EditText etTo = new EditText(this); etTo.setHint("To"); etTo.setInputType(InputType.TYPE_CLASS_NUMBER); etTo.setTextColor(colorText); etTo.setHintTextColor(Color.GRAY); etTo.setBackground(createPill(colorPillBg)); etTo.setPadding(40, 40, 40, 40); etTo.setGravity(android.view.Gravity.CENTER); LinearLayout.LayoutParams pTo = new LinearLayout.LayoutParams(0, -2, 1f); inputs.addView(etTo, pTo);
         root.addView(inputs);
         TextView btnDel = new TextView(this); btnDel.setText("Delete Range"); btnDel.setTextColor(Color.WHITE); btnDel.setTextSize(16f); btnDel.setTypeface(null, Typeface.BOLD); btnDel.setGravity(android.view.Gravity.CENTER); btnDel.setPadding(40, 40, 40, 40); btnDel.setBackground(createPill(Color.parseColor("#FF4444")));
         btnDel.setOnClickListener(v -> {
@@ -269,13 +304,12 @@ public class PdfStudioActivity extends AppCompatActivity {
     private void showCustomDialog(String titleText, List<String> items, DialogCallback callback) {
         Dialog d = new Dialog(this); d.requestWindowFeature(Window.FEATURE_NO_TITLE); if (d.getWindow() != null) d.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(80, 80, 80, 80);
-        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(Color.parseColor(isDarkTheme ? "#CC1C1C1E" : "#CCF2F2F7")); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
-        TextView title = new TextView(this); title.setText(titleText); title.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
+        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(colorDialogBg); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
+        TextView title = new TextView(this); title.setText(titleText); title.setTextColor(colorText); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
         ScrollView scroll = new ScrollView(this); LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL);
-        int pillBg = isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE, txtCol = isDarkTheme ? Color.WHITE : Color.BLACK;
         for (int i = 0; i < items.size(); i++) {
-            TextView item = new TextView(this); item.setText(items.get(i)); item.setTextColor(txtCol); item.setTextSize(16f); item.setTypeface(null, Typeface.BOLD); item.setPadding(40, 40, 40, 40); item.setGravity(android.view.Gravity.CENTER);
-            item.setBackground(createPill(pillBg)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.setMargins(0, 0, 0, 24); item.setLayoutParams(lp);
+            TextView item = new TextView(this); item.setText(items.get(i)); item.setTextColor(colorText); item.setTextSize(16f); item.setTypeface(null, Typeface.BOLD); item.setPadding(40, 40, 40, 40); item.setGravity(android.view.Gravity.CENTER);
+            item.setBackground(createPill(colorPillBg)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.setMargins(0, 0, 0, 24); item.setLayoutParams(lp);
             final int idx = i; item.setOnClickListener(v -> { d.dismiss(); callback.onSelect(idx); }); list.addView(item);
         }
         scroll.addView(list); root.addView(scroll); d.setContentView(root, new ViewGroup.LayoutParams((int)(getResources().getDisplayMetrics().widthPixels * 0.85), -2)); d.show();
@@ -286,12 +320,11 @@ public class PdfStudioActivity extends AppCompatActivity {
         if(pdfPages.isEmpty()) { Toast.makeText(this, "No PDF loaded to export!", Toast.LENGTH_SHORT).show(); return; }
         Dialog d = new Dialog(this); d.requestWindowFeature(Window.FEATURE_NO_TITLE); if (d.getWindow() != null) d.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(80, 80, 80, 80);
-        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(Color.parseColor(isDarkTheme ? "#CC1C1C1E" : "#CCF2F2F7")); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
-        TextView title = new TextView(this); title.setText("Export Options"); title.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
-        int pillBg = isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE, txtCol = isDarkTheme ? Color.WHITE : Color.BLACK;
-        TextView btn = new TextView(this); btn.setText("Original (Lossless)"); btn.setTextColor(txtCol); btn.setTextSize(16f); btn.setTypeface(null, Typeface.BOLD); btn.setGravity(android.view.Gravity.CENTER_VERTICAL); btn.setPadding(40, 40, 40, 40);
-        btn.setCompoundDrawablesWithIntrinsicBounds(android.R.drawable.ic_menu_save, 0, 0, 0); btn.setCompoundDrawablePadding(32); if(btn.getCompoundDrawables()[0]!=null) btn.getCompoundDrawables()[0].setColorFilter(new PorterDuffColorFilter(txtCol, PorterDuff.Mode.SRC_IN));
-        btn.setBackground(createPill(pillBg)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.setMargins(0, 0, 0, 24); btn.setLayoutParams(lp);
+        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(colorDialogBg); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
+        TextView title = new TextView(this); title.setText("Export Options"); title.setTextColor(colorText); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
+        TextView btn = new TextView(this); btn.setText("Original (Lossless)"); btn.setTextColor(colorText); btn.setTextSize(16f); btn.setTypeface(null, Typeface.BOLD); btn.setGravity(android.view.Gravity.CENTER_VERTICAL); btn.setPadding(40, 40, 40, 40);
+        btn.setCompoundDrawablesWithIntrinsicBounds(android.R.drawable.ic_menu_save, 0, 0, 0); btn.setCompoundDrawablePadding(32); if(btn.getCompoundDrawables()[0]!=null) btn.getCompoundDrawables()[0].setColorFilter(new PorterDuffColorFilter(colorText, PorterDuff.Mode.SRC_IN));
+        btn.setBackground(createPill(colorPillBg)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.setMargins(0, 0, 0, 24); btn.setLayoutParams(lp);
         btn.setOnClickListener(v -> { d.dismiss(); exportLosslessPdf("Original"); }); root.addView(btn);
         d.setContentView(root, new ViewGroup.LayoutParams((int)(getResources().getDisplayMetrics().widthPixels * 0.90), -2)); d.show();
     }
@@ -418,7 +451,7 @@ public class PdfStudioActivity extends AppCompatActivity {
             LinearLayout rightCol = new LinearLayout(this); rightCol.setOrientation(LinearLayout.VERTICAL); rightCol.setGravity(android.view.Gravity.CENTER);
             LinearLayout.LayoutParams rightColLp = new LinearLayout.LayoutParams(0, -1, 1f); rightColLp.setMargins((int)(16*density), 0, 0, 0); rightCol.setLayoutParams(rightColLp);
 
-            TextView tv = new TextView(this); tv.setText("Page " + (i + 1)); tv.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); tv.setTextSize(18f); tv.setTypeface(null, Typeface.BOLD); tv.setGravity(android.view.Gravity.CENTER);
+            TextView tv = new TextView(this); tv.setText("Page " + (i + 1)); tv.setTextColor(colorText); tv.setTextSize(18f); tv.setTypeface(null, Typeface.BOLD); tv.setGravity(android.view.Gravity.CENTER);
             LinearLayout.LayoutParams tvLp = new LinearLayout.LayoutParams(-1, -2); tvLp.setMargins(0, 0, 0, (int)(24*density)); tv.setLayoutParams(tvLp);
 
             TextView btnDel = new TextView(this); btnDel.setText("✖"); btnDel.setTextColor(Color.RED); btnDel.setTextSize(32f); btnDel.setTypeface(null, Typeface.BOLD); btnDel.setGravity(android.view.Gravity.CENTER);
@@ -437,7 +470,7 @@ public class PdfStudioActivity extends AppCompatActivity {
             LinearLayout row = (LinearLayout) drawerPagesContainer.getChildAt(i);
             LinearLayout rightCol = (LinearLayout) row.getChildAt(1);
             TextView tv = (TextView) rightCol.getChildAt(0); tv.setText("Page " + (i + 1));
-            GradientDrawable bg = createPill(Color.parseColor(isDarkTheme ? "#332D2B" : "#FFFFFF"));
+            GradientDrawable bg = createPill(colorPillBg);
             if (i == currentPageIndex) bg.setStroke((int)(4 * density), Color.parseColor("#5A9AF4"));
             row.setBackground(bg);
         }

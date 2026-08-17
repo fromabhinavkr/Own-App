@@ -7,18 +7,21 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.ViewTreeObserver;
+import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 @SuppressWarnings("all")
 public class UtilitiesGalleryActivity extends AppCompatActivity {
@@ -27,22 +30,55 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
     private int revealX;
     private int revealY;
 
+    // --- State variables ---
+    private int themeState;
+    private int bgColor;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Make the window transparent so MainActivity renders underneath during reveal animations
-        getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-
         super.onCreate(savedInstanceState);
+
+        // FIX: Keep the underlying window PERMANENTLY transparent to avoid animation glitching
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        }
+
         setContentView(R.layout.activity_utilities_gallery);
 
+        // --- 3-STATE THEME SYNC LOGIC ---
         SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
-        boolean isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+        themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
 
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
-        int cardColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
-        int textColor = isDarkTheme ? Color.WHITE : Color.BLACK;
-        int subtitleColor = isDarkTheme ? Color.parseColor("#AAAAAA") : Color.parseColor("#555555");
-        int divColor = isDarkTheme ? Color.parseColor("#33FFFFFF") : Color.parseColor("#1A000000");
+        // Define colors based on the 3-state theme
+        final int cardColor;
+        final int textColor;
+        final int subtitleColor;
+        final int divColor;
+
+        if (themeState == 0) { // Light Mode (Pure White BG, Light Grey Cards)
+            bgColor = Color.WHITE;
+            cardColor = Color.parseColor("#F2F2F7");
+            textColor = Color.parseColor("#333333");
+            subtitleColor = Color.parseColor("#555555");
+            divColor = Color.parseColor("#1A000000");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1C1C1E");
+            cardColor = Color.parseColor("#2C2C2E");
+            textColor = Color.WHITE;
+            subtitleColor = Color.parseColor("#AAAAAA");
+            divColor = Color.parseColor("#33FFFFFF");
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000");
+            cardColor = Color.parseColor("#1C1C1E");
+            textColor = Color.WHITE;
+            subtitleColor = Color.parseColor("#AAAAAA");
+            divColor = Color.parseColor("#33FFFFFF");
+        }
 
         root = findViewById(R.id.utilitiesGalleryRoot);
         TextView title = findViewById(R.id.tvUtilitiesTitle);
@@ -98,6 +134,9 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
             divTextPad.setBackgroundColor(divColor);
         }
 
+        // Apply Status Bar Icons immediately
+        enforceStatusBarIcons();
+
         // --- Handle Circular Reveal Entry Animation ---
         Intent intent = getIntent();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -113,7 +152,8 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
                         revealX = intent.getIntExtra("REVEAL_X", root.getWidth() / 2);
                         revealY = intent.getIntExtra("REVEAL_Y", root.getHeight() / 2);
 
-                        float finalRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+                        // Use hypotenuse to ensure the circle covers the entire screen perfectly
+                        float finalRadius = (float) Math.hypot(root.getWidth(), root.getHeight());
 
                         Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, 0, finalRadius);
                         circularReveal.setDuration(350);
@@ -131,7 +171,8 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
             @Override
             public void handleOnBackPressed() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && root.isAttachedToWindow()) {
-                    float startRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+
+                    float startRadius = (float) Math.hypot(root.getWidth(), root.getHeight());
                     Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, startRadius, 0);
                     circularReveal.setDuration(350);
                     circularReveal.setInterpolator(new DecelerateInterpolator());
@@ -157,7 +198,7 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
         if (btnBrowserHelp != null) {
             GradientDrawable helpGd = new GradientDrawable();
             helpGd.setShape(GradientDrawable.OVAL);
-            helpGd.setColor(isDarkTheme ? Color.parseColor("#4A90E2") : Color.parseColor("#007AFF"));
+            helpGd.setColor(themeState == 0 ? Color.parseColor("#007AFF") : Color.parseColor("#4A90E2"));
 
             btnBrowserHelp.setBackground(helpGd);
             btnBrowserHelp.setTextColor(Color.WHITE);
@@ -213,6 +254,46 @@ public class UtilitiesGalleryActivity extends AppCompatActivity {
         }
         if (cardTextPad != null) {
             cardTextPad.setOnClickListener(v -> startActivity(new Intent(UtilitiesGalleryActivity.this, TextPadActivity.class)));
+        }
+    }
+
+    // --- Smart Lifecycle Interceptor ---
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Force the window to remain transparent to override any MainApplication callbacks seamlessly
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        enforceStatusBarIcons();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            enforceStatusBarIcons();
+        }
+    }
+
+    // Method to forcibly correct the icons for Light/Dark/Star mode safely
+    private void enforceStatusBarIcons() {
+        // Keep the main window background untouched (transparent), ONLY tint the status bar area
+        getWindow().setStatusBarColor(bgColor);
+
+        View decor = getWindow().getDecorView();
+        WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), decor);
+
+        if (themeState == 0) { // Light Mode -> Icons MUST be Dark
+            controller.setAppearanceLightStatusBars(true);
+            controller.setAppearanceLightNavigationBars(true);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getWindow().setNavigationBarColor(bgColor);
+            }
+        } else { // Dark or Star Mode -> Icons MUST be White
+            controller.setAppearanceLightStatusBars(false);
+            controller.setAppearanceLightNavigationBars(false);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getWindow().setNavigationBarColor(bgColor);
+            }
         }
     }
 }

@@ -8,11 +8,13 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.BatteryManager;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.StatFs;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -47,8 +49,9 @@ public class DeviceStatsHelper {
 
         int cardBgColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#F0F0F5");
 
-        ColorStateList trackColor = ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA"));
-        ColorStateList progressColor = ColorStateList.valueOf(Color.parseColor("#4A90E2"));
+        // Capsule Colors
+        int trackColorInt = isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA");
+        int progressColorInt = Color.parseColor("#4A90E2");
 
         // Safely tint the XML backgrounds to preserve clipToOutline
         if (ramCardBg != null) {
@@ -68,10 +71,30 @@ public class DeviceStatsHelper {
         ProgressBar[] bars = {pbStorage, pbBattery};
 
         for (TextView t : titles) t.setTextColor(textColor);
-        for (TextView v : values) v.setTextColor(subTextColor);
+
+        // --- COMPACT CAPSULE PROGRAMMATIC STYLING ---
         for (ProgressBar b : bars) {
-            b.setProgressBackgroundTintList(trackColor);
-            b.setProgressTintList(progressColor);
+            GradientDrawable track = new GradientDrawable();
+            track.setColor(trackColorInt);
+            track.setCornerRadius(100f);
+
+            GradientDrawable prog = new GradientDrawable();
+            prog.setColor(progressColorInt);
+            prog.setCornerRadius(100f);
+
+            android.graphics.drawable.ClipDrawable clipProg = new android.graphics.drawable.ClipDrawable(prog, Gravity.LEFT, android.graphics.drawable.ClipDrawable.HORIZONTAL);
+
+            android.graphics.drawable.LayerDrawable layerDrawable = new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{track, clipProg});
+            layerDrawable.setId(0, android.R.id.background);
+            layerDrawable.setId(1, android.R.id.progress);
+
+            b.setProgressDrawable(layerDrawable);
+        }
+
+        // Apply White text with a sleek drop shadow so it pops perfectly over BOTH the dark blue progress and the grey track
+        for (TextView v : values) {
+            v.setTextColor(Color.WHITE);
+            v.setShadowLayer(4f, 0f, 2f, Color.parseColor("#80000000"));
         }
 
         if (ramGraphView != null) ramGraphView.setTheme(isDarkTheme);
@@ -85,7 +108,6 @@ public class DeviceStatsHelper {
             @Override
             public void run() {
                 // FIX: Stop the loop safely only if the activity is actually closed or destroyed.
-                // This prevents the loop from killing itself prematurely on first launch.
                 if (activity.isFinishing() || activity.isDestroyed()) return;
 
                 // Ensure the view exists and is ready to be drawn on
@@ -128,7 +150,8 @@ public class DeviceStatsHelper {
             }
         }
         double usedStorageGb = advertisedStorageGb - rawAvailStorageGb;
-        tvStorageVal.setText(String.format(Locale.US, "%.1fGB Used", usedStorageGb));
+
+        tvStorageVal.setText(String.format(Locale.US, "%.1f GB", usedStorageGb));
         pbStorage.setMax(advertisedStorageGb * 10);
         pbStorage.setProgress((int) (usedStorageGb * 10));
 

@@ -24,6 +24,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
+import android.text.TextUtils;
 import android.transition.TransitionManager;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -60,6 +61,9 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -76,13 +80,20 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private LinearLayout searchCapsule;
     private EditText etSearchUrl;
     private ProgressBar progressBar;
+
+    // --- 3-STATE THEME VARIABLES ---
     private boolean isDarkTheme;
+    private int themeState;
+
     private ImageView btnBack, btnForward, btnGo, btnMenu;
     private TextView btnFullscreenToggle;
     private boolean isFullscreen = false;
     private LinearLayout tabsOverlay;
     private GridLayout tabsGrid;
     private LinearLayout downloadsOverlay, downloadsList;
+
+    private SharedPreferences prefs;
+    private SharedPreferences browserPrefs;
 
     private static class TabInfo {
         WebView webView;
@@ -103,6 +114,12 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private boolean isMenuOpen = false;
 
+    // --- PRIVATE BROWSER HOME / SEARCH SHORTCUTS ---
+    private LinearLayout homeOverlay;
+    private GridLayout homeShortcutList;
+    private static final String BROWSER_PREFS = "private_browser_shortcuts";
+    private static final String PREF_CUSTOM_LINKS = "custom_links_json";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -121,8 +138,16 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         } catch (Exception ignored) {
         }
 
-        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
-        isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+        // --- PREFERENCES LOGIC INJECTION ---
+        prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+        browserPrefs = getSharedPreferences(BROWSER_PREFS, MODE_PRIVATE);
+
+        themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+        isDarkTheme = (themeState != 0);
 
         webViewContainer = findViewById(R.id.webViewContainer);
         searchCapsule = findViewById(R.id.searchCapsule);
@@ -136,6 +161,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         tabsOverlay = findViewById(R.id.tabsOverlay);
         tabsGrid = findViewById(R.id.tabsGrid);
 
+        homeOverlay = findViewById(R.id.homeOverlay);
+        homeShortcutList = findViewById(R.id.homeShortcutList);
+
         findViewById(R.id.btnCloseTabsOverlay).setOnClickListener(v -> {
             tabsOverlay.setVisibility(View.GONE);
             updateBackgroundBlur();
@@ -144,7 +172,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         findViewById(R.id.btnAddNewTab).setOnClickListener(v -> {
             tabsOverlay.setVisibility(View.GONE);
             updateBackgroundBlur();
-            createNewTab("https://duckduckgo.com/");
+            createNewTab(null);
         });
 
         downloadsOverlay = findViewById(R.id.downloadsOverlay);
@@ -155,6 +183,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         });
 
         applyTheme();
+        renderHomeShortcuts();
         setupModernBackGesture();
 
         etSearchUrl.setOnFocusChangeListener((v, hasFocus) -> {
@@ -185,11 +214,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
         btnGo.setOnClickListener(v -> loadUrlOrSearch());
         btnMenu.setOnClickListener(this::showRoundedMenu);
-
-        // This handles normal clicks when the capsule is expanded
         btnFullscreenToggle.setOnClickListener(v -> toggleFullscreenCapsule());
 
-        // --- NEW: Butter-Smooth Dragging Logic for the Shrunk Capsule ---
+        // --- Butter-Smooth Dragging Logic for the Shrunk Capsule ---
         btnFullscreenToggle.setOnTouchListener(new View.OnTouchListener() {
             private float dX;
             private float startX;
@@ -197,41 +224,28 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
             @Override
             public boolean onTouch(View view, MotionEvent event) {
-                // If it's fully expanded, ignore touch events and let the standard onClick work
                 if (!isFullscreen) return false;
-
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        // Calculate offset between raw screen touch and current capsule position
                         dX = searchCapsule.getX() - event.getRawX();
                         startX = event.getRawX();
                         isDragging = false;
-                        return true; // Consume DOWN to receive MOVE and UP events
-
+                        return true;
                     case MotionEvent.ACTION_MOVE:
                         float newX = event.getRawX() + dX;
                         int screenWidth = getResources().getDisplayMetrics().widthPixels;
                         int margin = (int) (16 * getResources().getDisplayMetrics().density);
-
-                        // Prevent dragging off-screen
                         if (newX < margin) newX = margin;
                         if (newX > screenWidth - searchCapsule.getWidth() - margin) {
                             newX = screenWidth - searchCapsule.getWidth() - margin;
                         }
-
-                        // Apply new position instantly
                         searchCapsule.setX(newX);
-
-                        // If user moved finger more than 10px, it's a drag, not a tap
                         if (Math.abs(event.getRawX() - startX) > 10) {
                             isDragging = true;
                         }
                         return true;
-
                     case MotionEvent.ACTION_UP:
                         if (!isDragging) {
-                            // Since we consumed ACTION_DOWN, onClick won't fire automatically.
-                            // Trigger it manually here if it was just a tap.
                             toggleFullscreenCapsule();
                         }
                         return true;
@@ -239,7 +253,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
                 return false;
             }
         });
-        // ----------------------------------------------------------------
 
         etSearchUrl.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_GO || (event != null && event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
@@ -249,7 +262,292 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             return false;
         });
 
-        createNewTab("https://duckduckgo.com/");
+        createNewTab(null);
+    }
+
+    private void loadUrlOrSearch() {
+        String query = etSearchUrl.getText().toString().trim();
+        etSearchUrl.clearFocus();
+        if (query.isEmpty() || getCurrentWeb() == null) return;
+        InputMethodManager imm = getSystemService(InputMethodManager.class);
+        if (imm != null) imm.hideSoftInputFromWindow(etSearchUrl.getWindowToken(), 0);
+
+        hideHomePage();
+        if (!query.contains(" ") && (query.contains(".") || query.startsWith("http"))) {
+            if (!query.startsWith("http://") && !query.startsWith("https://")) query = "https://" + query;
+            getCurrentWeb().loadUrl(query);
+        } else {
+            getCurrentWeb().loadUrl("https://www.google.com/search?q=" + query);
+        }
+    }
+
+    private TabInfo getTabForWeb(WebView web) {
+        for (TabInfo t : tabs) if (t.webView == web) return t;
+        return tabs.isEmpty() ? null : tabs.get(0);
+    }
+
+    private void showHomePage() {
+        etSearchUrl.clearFocus();
+        etSearchUrl.setText("");
+        if (homeOverlay != null) {
+            renderHomeShortcuts();
+            homeOverlay.setVisibility(View.VISIBLE);
+        }
+        updateBackgroundBlur();
+    }
+
+    private void hideHomePage() {
+        if (homeOverlay != null) homeOverlay.setVisibility(View.GONE);
+    }
+
+    private void openShortcut(String url) {
+        if (url == null || url.trim().isEmpty() || getCurrentWeb() == null) return;
+        hideHomePage();
+        getCurrentWeb().loadUrl(url);
+    }
+
+    private void renderHomeShortcuts() {
+        if (homeShortcutList == null) return;
+        homeShortcutList.removeAllViews();
+
+        int cardBg, textColor, secondaryColor, iconBg;
+        if (themeState == 0) { // Light
+            cardBg = Color.parseColor("#F5F5F7");
+            textColor = Color.parseColor("#222222");
+            secondaryColor = Color.parseColor("#777777");
+            iconBg = Color.parseColor("#E5E5EA");
+        } else if (themeState == 1) { // Standard Dark
+            cardBg = Color.parseColor("#1C1C1E");
+            textColor = Color.WHITE;
+            secondaryColor = Color.parseColor("#AAAAAA");
+            iconBg = Color.parseColor("#2C2C2E");
+        } else { // Star Mode (Pure Black Canvas, Dark Grey Pills)
+            cardBg = Color.parseColor("#141414");
+            textColor = Color.WHITE;
+            secondaryColor = Color.parseColor("#888888");
+            iconBg = Color.parseColor("#242424");
+        }
+
+        addHomeShortcut("Google", "Secure Search", "https://www.google.com/", "G", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        addHomeShortcut("DuckDuckGo", "Secure Search", "https://duckduckgo.com/", "D", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        addHomeShortcut("Yahoo", "Secure Search", "https://search.yahoo.com/", "Y", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        addHomeShortcut("Instagram", "Social Media", "https://www.instagram.com/", "◎", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        addHomeShortcut("LinkedIn", "Professional", "https://www.linkedin.com/", "in", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        addHomeShortcut("GitHub", "Development", "https://github.com/", "GH", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        addHomeShortcut("YouTube", "Video", "https://www.youtube.com/", "▶", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        addHomeShortcut("Gmail", "Email", "https://mail.google.com/", "✉", cardBg, textColor, secondaryColor, iconBg, false, -1);
+
+        // Load multiple dynamic custom shortcuts
+        try {
+            JSONArray arr = new JSONArray(browserPrefs.getString(PREF_CUSTOM_LINKS, "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject obj = arr.getJSONObject(i);
+                addHomeShortcut(obj.getString("name"), "Custom Link", obj.getString("url"), "★", cardBg, textColor, secondaryColor, iconBg, true, i);
+            }
+        } catch (Exception e) {}
+
+        addCustomShortcutCard(cardBg, textColor, secondaryColor, iconBg);
+    }
+
+    private void addHomeShortcut(String name, String subtitle, String url, String iconText, int cardBg, int textColor, int secondaryColor, int iconBg, boolean isCustom, int customIndex) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(12), dp(10), dp(12), dp(10));
+
+        GridLayout.LayoutParams cardParams = new GridLayout.LayoutParams();
+        cardParams.width = 0;
+        cardParams.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        cardParams.setMargins(dp(6), dp(6), dp(6), dp(6));
+        card.setLayoutParams(cardParams);
+
+        GradientDrawable cardDrawable = new GradientDrawable();
+        cardDrawable.setColor(cardBg);
+        cardDrawable.setCornerRadius(dp(100)); // Beautiful Pill Shape
+        card.setBackground(cardDrawable);
+
+        TextView icon = new TextView(this);
+        icon.setText(iconText);
+        icon.setTextColor(textColor);
+        icon.setTextSize(iconText.length() > 1 ? 12f : 16f);
+        icon.setGravity(Gravity.CENTER);
+        icon.setTypeface(null, android.graphics.Typeface.BOLD);
+        GradientDrawable iconDrawable = new GradientDrawable();
+        iconDrawable.setColor(iconBg);
+        iconDrawable.setShape(GradientDrawable.OVAL);
+        icon.setBackground(iconDrawable);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        iconParams.setMargins(0, 0, dp(10), 0);
+        icon.setLayoutParams(iconParams);
+
+        LinearLayout textBox = new LinearLayout(this);
+        textBox.setOrientation(LinearLayout.VERTICAL);
+        textBox.setGravity(Gravity.CENTER_VERTICAL);
+        textBox.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView title = new TextView(this);
+        title.setText(name);
+        title.setTextColor(textColor);
+        title.setTextSize(14f);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+
+        TextView sub = new TextView(this);
+        sub.setText(subtitle);
+        sub.setTextColor(secondaryColor);
+        sub.setTextSize(11f);
+        sub.setSingleLine(true);
+        sub.setEllipsize(TextUtils.TruncateAt.END);
+
+        textBox.addView(title);
+        textBox.addView(sub);
+
+        card.addView(icon);
+        card.addView(textBox);
+
+        card.setOnClickListener(v -> openShortcut(url));
+
+        if (isCustom) {
+            card.setOnLongClickListener(v -> {
+                showDeleteCustomShortcutDialog(customIndex, name);
+                return true;
+            });
+        }
+
+        homeShortcutList.addView(card);
+    }
+
+    private void addCustomShortcutCard(int cardBg, int textColor, int secondaryColor, int iconBg) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(12), dp(10), dp(12), dp(10));
+
+        GridLayout.LayoutParams cardParams = new GridLayout.LayoutParams();
+        cardParams.width = 0;
+        cardParams.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        cardParams.setMargins(dp(6), dp(6), dp(6), dp(6));
+        card.setLayoutParams(cardParams);
+
+        GradientDrawable cardDrawable = new GradientDrawable();
+        cardDrawable.setColor(cardBg);
+        cardDrawable.setCornerRadius(dp(100)); // Beautiful Pill Shape
+        card.setBackground(cardDrawable);
+
+        TextView icon = new TextView(this);
+        icon.setText("+");
+        icon.setTextColor(textColor);
+        icon.setTextSize(18f);
+        icon.setGravity(Gravity.CENTER);
+        GradientDrawable iconDrawable = new GradientDrawable();
+        iconDrawable.setColor(iconBg);
+        iconDrawable.setShape(GradientDrawable.OVAL);
+        icon.setBackground(iconDrawable);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        iconParams.setMargins(0, 0, dp(10), 0);
+        icon.setLayoutParams(iconParams);
+
+        LinearLayout textBox = new LinearLayout(this);
+        textBox.setOrientation(LinearLayout.VERTICAL);
+        textBox.setGravity(Gravity.CENTER_VERTICAL);
+        textBox.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView title = new TextView(this);
+        title.setText("Add Shortcut");
+        title.setTextColor(textColor);
+        title.setTextSize(14f);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+
+        TextView sub = new TextView(this);
+        sub.setText("Custom URL");
+        sub.setTextColor(secondaryColor);
+        sub.setTextSize(11f);
+
+        textBox.addView(title);
+        textBox.addView(sub);
+        card.addView(icon);
+        card.addView(textBox);
+        card.setOnClickListener(v -> showCustomShortcutDialog());
+        homeShortcutList.addView(card);
+    }
+
+    private void showCustomShortcutDialog() {
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(4);
+
+        EditText nameInput = new EditText(this);
+        nameInput.setHint("Name (e.g. Reddit)");
+        nameInput.setSingleLine(true);
+        nameInput.setPadding(pad, pad, pad, pad);
+
+        EditText urlInput = new EditText(this);
+        urlInput.setHint("Website URL");
+        urlInput.setSingleLine(true);
+        urlInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        urlInput.setPadding(pad, pad, pad, pad);
+
+        form.addView(nameInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(55)));
+        form.addView(urlInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(55)));
+
+        int dialogStyle = isDarkTheme ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, dialogStyle);
+        builder.setTitle("Add Custom Shortcut");
+        builder.setView(form);
+
+        builder.setPositiveButton("Save", (dialog, which) -> {
+            String name = nameInput.getText().toString().trim();
+            String url = urlInput.getText().toString().trim();
+            if (name.isEmpty() || url.isEmpty()) {
+                Toast.makeText(this, "Enter both a name and URL.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!url.startsWith("http://") && !url.startsWith("https://")) url = "https://" + url;
+            saveCustomShortcut(name, url);
+        });
+        builder.setNegativeButton("Cancel", null);
+
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> styleDialogButtons(dialog));
+        dialog.show();
+    }
+
+    private void saveCustomShortcut(String name, String url) {
+        try {
+            JSONArray arr = new JSONArray(browserPrefs.getString(PREF_CUSTOM_LINKS, "[]"));
+            JSONObject obj = new JSONObject();
+            obj.put("name", name);
+            obj.put("url", url);
+            arr.put(obj);
+            browserPrefs.edit().putString(PREF_CUSTOM_LINKS, arr.toString()).apply();
+            renderHomeShortcuts();
+        } catch (Exception e) {}
+    }
+
+    private void showDeleteCustomShortcutDialog(int index, String name) {
+        int dialogStyle = isDarkTheme ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, dialogStyle);
+        builder.setTitle("Remove Shortcut");
+        builder.setMessage("Remove '" + name + "' from shortcuts?");
+        builder.setPositiveButton("Remove", (dialog, which) -> {
+            try {
+                JSONArray arr = new JSONArray(browserPrefs.getString(PREF_CUSTOM_LINKS, "[]"));
+                if (index >= 0 && index < arr.length()) {
+                    arr.remove(index);
+                    browserPrefs.edit().putString(PREF_CUSTOM_LINKS, arr.toString()).apply();
+                    renderHomeShortcuts();
+                }
+            } catch (Exception e) {}
+        });
+        builder.setNegativeButton("Cancel", null);
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> styleDialogButtons(dialog));
+        dialog.show();
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     private void updateBackgroundBlur() {
@@ -365,7 +663,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             btnFullscreenToggle.setText("><");
             params.width = ViewGroup.LayoutParams.MATCH_PARENT;
             params.removeRule(RelativeLayout.ALIGN_PARENT_END);
-            // Reset manual X dragging translation so it stretches back perfectly to the margins
             searchCapsule.setTranslationX(0);
         }
         searchCapsule.setLayoutParams(params);
@@ -386,7 +683,14 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         tabs.add(info);
         webViewContainer.addView(info.webView);
         switchTab(tabs.size() - 1);
-        if (url != null) info.webView.loadUrl(url);
+
+        if (url != null) {
+            info.webView.loadUrl(url);
+            hideHomePage();
+        } else {
+            info.webView.loadUrl("about:blank");
+            showHomePage();
+        }
     }
 
     private void switchTab(int index) {
@@ -398,7 +702,12 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         WebView current = getCurrentWeb();
         if (current != null) {
             String currentUrl = current.getUrl();
-            etSearchUrl.setText(currentUrl != null ? currentUrl : "");
+            if (currentUrl == null || currentUrl.isEmpty() || "about:blank".equals(currentUrl)) {
+                showHomePage();
+            } else {
+                etSearchUrl.setText(currentUrl);
+                hideHomePage();
+            }
         }
         tabsOverlay.setVisibility(View.GONE);
         updateBackgroundBlur();
@@ -409,6 +718,8 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         webViewContainer.removeView(closing.webView);
         closing.webView.clearHistory();
         closing.webView.clearCache(true);
+        closing.webView.clearFormData();
+        closing.webView.loadUrl("about:blank");
         closing.webView.destroy();
         if (closing.preview != null) closing.preview.recycle();
         tabs.remove(index);
@@ -447,11 +758,28 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void renderVisualTabsGrid() {
         tabsGrid.removeAllViews();
-        int unselectedCardBg = isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE;
-        int selectedCardBg = isDarkTheme ? Color.parseColor("#FFB59F") : Color.parseColor("#D0BCFF");
-        int unselectedText = isDarkTheme ? Color.WHITE : Color.BLACK;
-        int selectedText = isDarkTheme ? Color.parseColor("#3E211A") : Color.parseColor("#381E72");
-        int emptyPreviewBg = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
+
+        int unselectedCardBg, selectedCardBg, unselectedText, selectedText, emptyPreviewBg;
+
+        if (themeState == 0) { // Light Mode
+            unselectedCardBg = Color.WHITE;
+            selectedCardBg = Color.parseColor("#D0BCFF");
+            unselectedText = Color.BLACK;
+            selectedText = Color.parseColor("#381E72");
+            emptyPreviewBg = Color.parseColor("#F2F2F7");
+        } else if (themeState == 1) { // Standard Dark Mode
+            unselectedCardBg = Color.parseColor("#332D2B");
+            selectedCardBg = Color.parseColor("#FFB59F");
+            unselectedText = Color.WHITE;
+            selectedText = Color.parseColor("#3E211A");
+            emptyPreviewBg = Color.parseColor("#1C1C1E");
+        } else { // Star Mode (AMOLED Black)
+            unselectedCardBg = Color.parseColor("#1C1C1E");
+            selectedCardBg = Color.parseColor("#FFB59F");
+            unselectedText = Color.WHITE;
+            selectedText = Color.parseColor("#3E211A");
+            emptyPreviewBg = Color.parseColor("#000000");
+        }
 
         for (int i = 0; i < tabs.size(); i++) {
             final int index = i;
@@ -508,8 +836,18 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         etSearchUrl.clearFocus();
         LinearLayout menuLayout = new LinearLayout(this);
         menuLayout.setOrientation(LinearLayout.VERTICAL);
-        int bgColor = isDarkTheme ? Color.parseColor("#992C2C2E") : Color.parseColor("#99FFFFFF");
-        int textColor = isDarkTheme ? Color.WHITE : Color.BLACK;
+
+        int bgColor, textColor;
+        if (themeState == 0) { // Light
+            bgColor = Color.parseColor("#99FFFFFF");
+            textColor = Color.BLACK;
+        } else if (themeState == 1) { // Standard Dark
+            bgColor = Color.parseColor("#992C2C2E");
+            textColor = Color.WHITE;
+        } else { // Star Mode
+            bgColor = Color.parseColor("#E61C1C1E"); // Smooth translucent black/gray
+            textColor = Color.WHITE;
+        }
 
         GradientDrawable gd = new GradientDrawable();
         gd.setColor(bgColor);
@@ -520,6 +858,13 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         final PopupWindow[] popupWindow = new PopupWindow[1];
         WebView current = getCurrentWeb();
         if (current == null) return;
+
+        TextView tvHome = createMenuItem("Home / Start Page", android.R.drawable.ic_menu_compass, textColor);
+        tvHome.setOnClickListener(v -> {
+            popupWindow[0].dismiss();
+            current.loadUrl("about:blank");
+            showHomePage();
+        });
 
         TextView tvReload = createMenuItem("Reload Page", android.R.drawable.ic_popup_sync, textColor);
         tvReload.setOnClickListener(v -> {
@@ -543,7 +888,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         TextView tvNewTab = createMenuItem("New Tab", android.R.drawable.ic_menu_add, textColor);
         tvNewTab.setOnClickListener(v -> {
             popupWindow[0].dismiss();
-            createNewTab("https://duckduckgo.com/");
+            createNewTab(null);
         });
 
         TextView tvSwitch = createMenuItem("Manage Tabs (" + tabs.size() + ")", android.R.drawable.ic_menu_manage, textColor);
@@ -552,6 +897,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             openVisualTabSwitcher();
         });
 
+        menuLayout.addView(tvHome);
         menuLayout.addView(tvReload);
         menuLayout.addView(tvDesktop);
         menuLayout.addView(tvDownloads);
@@ -601,9 +947,20 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         Arrays.sort(files, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
         SimpleDateFormat sdf = new SimpleDateFormat("MMM d, yyyy", Locale.US);
 
-        int primaryText = isDarkTheme ? Color.WHITE : Color.BLACK;
-        int secondaryText = isDarkTheme ? Color.parseColor("#AAAAAA") : Color.parseColor("#555555");
-        int iconBg = isDarkTheme ? Color.parseColor("#3D322F") : Color.parseColor("#E0E0E0");
+        int primaryText, secondaryText, iconBg;
+        if (themeState == 0) { // Light
+            primaryText = Color.BLACK;
+            secondaryText = Color.parseColor("#555555");
+            iconBg = Color.parseColor("#E0E0E0");
+        } else if (themeState == 1) { // Dark
+            primaryText = Color.WHITE;
+            secondaryText = Color.parseColor("#AAAAAA");
+            iconBg = Color.parseColor("#3D322F");
+        } else { // Star
+            primaryText = Color.WHITE;
+            secondaryText = Color.parseColor("#AAAAAA");
+            iconBg = Color.parseColor("#1C1C1E");
+        }
 
         for (File file : files) {
             TextView dateHeader = new TextView(this);
@@ -870,6 +1227,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
         web.addJavascriptInterface(new JavascriptBridge(), "OwnBrowser");
+        web.addJavascriptInterface(new JavascriptBridge(), "control");
         web.setOnLongClickListener(v -> {
             WebView.HitTestResult result = ((WebView) v).getHitTestResult();
             if (result.getType() == WebView.HitTestResult.IMAGE_TYPE || result.getType() == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE || result.getType() == WebView.HitTestResult.SRC_ANCHOR_TYPE) {
@@ -913,7 +1271,13 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
-                if (view == getCurrentWeb() && !isFullscreen) etSearchUrl.setText(url);
+                if (view == getCurrentWeb() && !isFullscreen) {
+                    if (url != null && url.startsWith("http://startpage")) {
+                        etSearchUrl.setText("");
+                    } else {
+                        etSearchUrl.setText(url);
+                    }
+                }
             }
 
             @Override
@@ -939,35 +1303,37 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         });
     }
 
-    private TabInfo getTabForWeb(WebView web) {
-        for (TabInfo t : tabs) if (t.webView == web) return t;
-        return tabs.get(0);
-    }
-
-    private void loadUrlOrSearch() {
-        String query = etSearchUrl.getText().toString().trim();
-        etSearchUrl.clearFocus();
-        if (query.isEmpty() || getCurrentWeb() == null) return;
-        InputMethodManager imm = getSystemService(InputMethodManager.class);
-        if (imm != null) imm.hideSoftInputFromWindow(etSearchUrl.getWindowToken(), 0);
-
-        if (!query.contains(" ") && query.contains(".")) {
-            if (!query.startsWith("http://") && !query.startsWith("https://")) query = "https://" + query;
-            getCurrentWeb().loadUrl(query);
-        } else {
-            getCurrentWeb().loadUrl("https://www.google.com/search?q=" + query);
-        }
-    }
-
     private void applyTheme() {
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
-        int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
-        int hintColor = isDarkTheme ? Color.parseColor("#888888") : Color.parseColor("#A0A0A0");
-        int buttonBgColor = isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE;
-        int accentBgColor = isDarkTheme ? Color.parseColor("#FFB59F") : Color.parseColor("#6750A4");
-        int accentTextColor = isDarkTheme ? Color.parseColor("#000000") : Color.WHITE;
-        int capsuleGlassColor = isDarkTheme ? Color.parseColor("#D92C2C2E") : Color.parseColor("#D9FFFFFF");
-        int overlayGlassColor = isDarkTheme ? Color.parseColor("#801C1C1E") : Color.parseColor("#80F2F2F7");
+        int bgColor, textColor, hintColor, buttonBgColor, accentBgColor, accentTextColor, capsuleGlassColor, overlayGlassColor;
+
+        if (themeState == 0) { // Light Mode
+            bgColor = Color.parseColor("#F2F2F7");
+            textColor = Color.parseColor("#333333");
+            hintColor = Color.parseColor("#A0A0A0");
+            buttonBgColor = Color.WHITE;
+            accentBgColor = Color.parseColor("#6750A4");
+            accentTextColor = Color.WHITE;
+            capsuleGlassColor = Color.parseColor("#D9FFFFFF");
+            overlayGlassColor = Color.parseColor("#80F2F2F7");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1C1C1E");
+            textColor = Color.WHITE;
+            hintColor = Color.parseColor("#888888");
+            buttonBgColor = Color.parseColor("#332D2B");
+            accentBgColor = Color.parseColor("#FFB59F");
+            accentTextColor = Color.parseColor("#000000");
+            capsuleGlassColor = Color.parseColor("#D92C2C2E");
+            overlayGlassColor = Color.parseColor("#801C1C1E");
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000"); // Infinite Pure Black Canvas
+            textColor = Color.WHITE;
+            hintColor = Color.parseColor("#888888");
+            buttonBgColor = Color.parseColor("#1C1C1E"); // Dark grey floating cards
+            accentBgColor = Color.parseColor("#FFB59F");
+            accentTextColor = Color.parseColor("#000000");
+            capsuleGlassColor = Color.parseColor("#D91C1C1E"); // Translucent Dark Grey Capsule
+            overlayGlassColor = Color.parseColor("#B3000000"); // Very dark overlay for pure black
+        }
 
         getWindow().setStatusBarColor(bgColor);
         findViewById(R.id.browserRoot).setBackgroundColor(bgColor);
@@ -979,6 +1345,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         searchCapsule.setClipToOutline(true);
         tabsOverlay.setBackgroundColor(overlayGlassColor);
         downloadsOverlay.setBackgroundColor(overlayGlassColor);
+        homeOverlay.setBackgroundColor(bgColor);
 
         etSearchUrl.setTextColor(textColor);
         etSearchUrl.setHintTextColor(hintColor);
@@ -987,6 +1354,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         btnGo.setColorFilter(textColor);
         btnMenu.setColorFilter(textColor);
         btnFullscreenToggle.setTextColor(textColor);
+
+        TextView tvHomeTitle = findViewById(R.id.tvHomeTitle);
+        if (tvHomeTitle != null) tvHomeTitle.setTextColor(textColor);
 
         TextView btnAddNewTab = findViewById(R.id.btnAddNewTab);
         ImageView btnCloseTabsOverlay = findViewById(R.id.btnCloseTabsOverlay);

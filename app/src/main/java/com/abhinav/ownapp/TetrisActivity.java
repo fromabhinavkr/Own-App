@@ -27,7 +27,7 @@ import java.util.Random;
 @SuppressLint("SetTextI18n")
 public class TetrisActivity extends AppCompatActivity {
 
-    private boolean isDarkTheme;
+    private int themeState; // --- 3-STATE THEME VARIABLE ---
     private int highScore = 0;
     private SharedPreferences prefs;
 
@@ -42,7 +42,14 @@ public class TetrisActivity extends AppCompatActivity {
         setContentView(R.layout.activity_tetris);
 
         prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
-        isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+
+        // --- 3-STATE THEME SYNC LOGIC ---
+        themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+
         highScore = prefs.getInt("tetris_high_score", 0);
 
         View root = findViewById(R.id.tetrisRoot);
@@ -68,10 +75,25 @@ public class TetrisActivity extends AppCompatActivity {
         Button btnQuit = findViewById(R.id.btnQuit);
         Button btnQuitFromPause = findViewById(R.id.btnQuitFromPause);
 
-        // Apply Theming
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
-        int cardColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
-        int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
+        // Apply Theming strictly based on 3-State
+        int bgColor, cardColor, textColor, quitBtnColor;
+
+        if (themeState == 0) { // Light Mode
+            bgColor = Color.parseColor("#F2F2F7");
+            cardColor = Color.WHITE;
+            textColor = Color.parseColor("#333333");
+            quitBtnColor = Color.parseColor("#E5E5EA");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1C1C1E");
+            cardColor = Color.parseColor("#2C2C2E");
+            textColor = Color.WHITE;
+            quitBtnColor = Color.parseColor("#3A3A3C");
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000"); // Pure AMOLED Black
+            cardColor = Color.parseColor("#1C1C1E"); // Elevated dark gray
+            textColor = Color.WHITE;
+            quitBtnColor = Color.parseColor("#2C2C2E");
+        }
 
         root.setBackgroundColor(bgColor);
         tvCurrentScore.setTextColor(textColor);
@@ -84,8 +106,10 @@ public class TetrisActivity extends AppCompatActivity {
         tvGameOverTitle.setTextColor(textColor);
         tvFinalScore.setTextColor(textColor);
 
-        btnQuit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA")));
+        btnQuit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(quitBtnColor));
         btnQuit.setTextColor(textColor);
+        btnQuitFromPause.setBackgroundTintList(android.content.res.ColorStateList.valueOf(quitBtnColor));
+        btnQuitFromPause.setTextColor(textColor);
 
         GradientDrawable gdCard = new GradientDrawable();
         gdCard.setColor(cardColor);
@@ -97,7 +121,8 @@ public class TetrisActivity extends AppCompatActivity {
         nextShapeView = new NextShapeView(this);
         nextShapeContainer.addView(nextShapeView);
 
-        gameEngine = new TetrisEngine(this, isDarkTheme, nextShapeView);
+        // Pass themeState to the engine instead of a boolean
+        gameEngine = new TetrisEngine(this, themeState, nextShapeView);
         gameContainer.addView(gameEngine);
 
         // Callbacks
@@ -110,7 +135,7 @@ public class TetrisActivity extends AppCompatActivity {
             @Override
             public void onGameOver(int finalScore) {
                 tvGameOverTitle.setText("GAME OVER");
-                tvGameOverTitle.setTextColor(isDarkTheme ? Color.WHITE : Color.parseColor("#333333"));
+                tvGameOverTitle.setTextColor(textColor);
 
                 if (finalScore > highScore && finalScore > 0) {
                     highScore = finalScore;
@@ -280,12 +305,13 @@ public class TetrisActivity extends AppCompatActivity {
             void onGameStarted();
         }
 
-        public TetrisEngine(Context context, boolean isDarkTheme, NextShapeView nextShapeView) {
+        public TetrisEngine(Context context, int themeState, NextShapeView nextShapeView) {
             super(context);
             this.nextShapeView = nextShapeView;
 
             gridPaint.setStyle(Paint.Style.STROKE);
-            gridPaint.setColor(isDarkTheme ? Color.argb(30, 255, 255, 255) : Color.argb(30, 0, 0, 0));
+            // If theme is 0 (Light), use dark grid lines. Otherwise (Dark or Star), use light grid lines.
+            gridPaint.setColor(themeState == 0 ? Color.argb(30, 0, 0, 0) : Color.argb(30, 255, 255, 255));
             gridPaint.setStrokeWidth(2f);
 
             // Black & White Bricks

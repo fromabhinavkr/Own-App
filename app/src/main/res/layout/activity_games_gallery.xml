@@ -50,8 +50,10 @@
 
                 <ImageView
                     android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:scaleType="centerCrop"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:padding="16dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/gamesnake_preview" />
 
                 <TextView
@@ -62,7 +64,7 @@
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:gravity="center"
-                    android:padding="16dp" />
+                    android:paddingBottom="16dp" />
             </LinearLayout>
 
             <!-- Flappy Bird Game Card -->
@@ -79,8 +81,10 @@
 
                 <ImageView
                     android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:scaleType="centerCrop"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:padding="16dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/flappy_preview" />
 
                 <TextView
@@ -91,7 +95,7 @@
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:gravity="center"
-                    android:padding="16dp" />
+                    android:paddingBottom="16dp" />
             </LinearLayout>
 
             <!-- Tetris Game Card -->
@@ -108,8 +112,10 @@
 
                 <ImageView
                     android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:scaleType="centerCrop"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:padding="16dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/tetris_preview" />
 
                 <TextView
@@ -120,7 +126,7 @@
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:gravity="center"
-                    android:padding="16dp" />
+                    android:paddingBottom="16dp" />
             </LinearLayout>
 
             <!-- Breakout Game Card -->
@@ -137,8 +143,10 @@
 
                 <ImageView
                     android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:scaleType="centerCrop"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:padding="16dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/breakout_preview" />
 
                 <TextView
@@ -149,7 +157,7 @@
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:gravity="center"
-                    android:padding="16dp" />
+                    android:paddingBottom="16dp" />
             </LinearLayout>
 
             <!-- Maze Ball Game Card -->
@@ -166,8 +174,10 @@
 
                 <ImageView
                     android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:scaleType="centerCrop"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:padding="16dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/maze_game" />
 
                 <TextView
@@ -178,7 +188,7 @@
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:gravity="center"
-                    android:padding="16dp" />
+                    android:paddingBottom="16dp" />
             </LinearLayout>
 
             <!-- Play My Planet Game Card -->
@@ -195,8 +205,10 @@
 
                 <ImageView
                     android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:scaleType="centerCrop"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:padding="16dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/myplanet_preview" />
 
                 <!-- Horizontal layout for the Title and the Question Mark Icon -->
@@ -205,7 +217,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:padding="16dp">
+                    android:paddingBottom="16dp">
 
                     <TextView
                         android:id="@+id/textMyPlanet"

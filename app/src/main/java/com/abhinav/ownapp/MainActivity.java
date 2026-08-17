@@ -36,8 +36,18 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
-        boolean isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
-        AppCompatDelegate.setDefaultNightMode(isDarkTheme ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+
+        // --- 3-STATE THEME LOGIC ---
+        // 0 = Light, 1 = Dark, 2 = AMOLED Black (Star)
+        int themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            // Migrate legacy boolean users to the new int-based state
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+            prefs.edit().putInt("app_theme_state", themeState).apply();
+        }
+
+        AppCompatDelegate.setDefaultNightMode(themeState == 0 ? AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES);
 
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
@@ -61,6 +71,8 @@ public class MainActivity extends AppCompatActivity {
         }
         // -----------------------------------
 
+        // Dashboard requires a boolean. Both state 1 and 2 are considered "Dark" for the stats dashboard.
+        boolean isDarkTheme = (themeState != 0);
         DeviceStatsHelper.setupDashboard(this, isDarkTheme);
 
         // Header Elements
@@ -73,39 +85,29 @@ public class MainActivity extends AppCompatActivity {
 
         // 25 General Rotating Two-Word Greetings Logic
         String[] dynamicGreetings = {
-                "Welcome back",
-                "Hello again!",
-                "Hey there!",
-                "Think Twice",
-                "Wanna Play?",
-                "Chill Out!",
-                "Let's go!",
-                "Don't Panic!",
-                "Stay Strong!",
-                "Enjoy Life",
-                "Inhale, Exhale",
-                "Well Done!",
-                "Great day!",
-                "Hello! Hello!",
-                "Time's running",
-                "Get ready!",
-                "Hey Master!",
-                "Let's Play",
-                "How's life?",
-                "What's up?",
-                "All good?",
-                "Think Differently",
-                "Just Imagine",
-                "Hey Mate!",
-                "Howdy Partner"
+                "Welcome back", "Hello again!", "Hey there!", "Think Twice", "Wanna Play?",
+                "Chill Out!", "Let's go!", "Don't Panic!", "Stay Strong!", "Enjoy Life",
+                "Inhale, Exhale", "Well Done!", "Great day!", "Hello! Hello!", "Time's running",
+                "Get ready!", "Hey Master!", "Let's Play", "How's life?", "What's up?",
+                "All good?", "Think Differently", "Just Imagine", "Hey Mate!", "Howdy Partner"
         };
         int greetingIndex = prefs.getInt("greeting_index", 0);
         tvWelcome.setText(dynamicGreetings[greetingIndex]);
         int nextIndex = (greetingIndex + 1) % dynamicGreetings.length;
         prefs.edit().putInt("greeting_index", nextIndex).apply();
 
-        themeToggleBtn.setImageResource(isDarkTheme ? R.drawable.ic_moon : R.drawable.ic_sun);
-        themeToggleBtn.setColorFilter(isDarkTheme ? Color.WHITE : Color.BLACK);
+        // Apply Theme Toggle Icon based on Current State
+        if (themeState == 0) {
+            themeToggleBtn.setImageResource(R.drawable.ic_sun);
+            themeToggleBtn.setColorFilter(Color.BLACK);
+        } else if (themeState == 1) {
+            themeToggleBtn.setImageResource(R.drawable.ic_moon);
+            themeToggleBtn.setColorFilter(Color.WHITE);
+        } else {
+            // Using Android's default built-in star.
+            themeToggleBtn.setImageResource(android.R.drawable.star_on);
+            themeToggleBtn.setColorFilter(Color.WHITE);
+        }
 
         // Set Dynamic Date
         SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
@@ -123,10 +125,15 @@ public class MainActivity extends AppCompatActivity {
         }
 
         themeToggleBtn.setOnClickListener(v -> {
-            boolean newDark = !prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
-            prefs.edit().putBoolean(SnakeWidget.PREF_IS_DARK, newDark).apply();
+            int currentState = prefs.getInt("app_theme_state", 1);
+            int nextState = (currentState + 1) % 3; // Cycles: 0 -> 1 -> 2 -> 0
+
+            prefs.edit().putInt("app_theme_state", nextState).apply();
+            // Preserve legacy boolean mapping for widgets/other activities dependent on it
+            prefs.edit().putBoolean(SnakeWidget.PREF_IS_DARK, nextState != 0).apply();
+
             updateAllWidgets();
-            AppCompatDelegate.setDefaultNightMode(newDark ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+            AppCompatDelegate.setDefaultNightMode(nextState == 0 ? AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES);
             recreate();
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         });
@@ -151,17 +158,29 @@ public class MainActivity extends AppCompatActivity {
             ColorStateList themeBg;
             int themeText;
             int secondaryText;
+            int rootBg;
             int accentColor = Color.parseColor("#5A9AF4");
 
-            if (isDarkTheme) {
+            // --- 3-STATE THEME COLOR INJECTION ---
+            if (themeState == 0) { // Light Mode
+                rootBg = Color.WHITE;
+                themeBg = ColorStateList.valueOf(Color.parseColor("#F2F2F7"));
+                themeText = Color.parseColor("#333333");
+                secondaryText = Color.parseColor("#666666");
+            } else if (themeState == 1) { // Standard Dark Mode
+                rootBg = Color.parseColor("#1C1C1E");
                 themeBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E"));
                 themeText = Color.WHITE;
                 secondaryText = Color.parseColor("#BBBBBB");
-            } else {
-                themeBg = ColorStateList.valueOf(Color.parseColor("#F4F4F5"));
-                themeText = Color.parseColor("#333333");
-                secondaryText = Color.parseColor("#666666");
+            } else { // Star Mode (AMOLED PURE BLACK)
+                rootBg = Color.parseColor("#000000"); // Infinite Pure Black Canvas
+                themeBg = ColorStateList.valueOf(Color.parseColor("#1C1C1E")); // Deep grey floating cards
+                themeText = Color.WHITE;
+                secondaryText = Color.parseColor("#BBBBBB");
             }
+
+            // Apply the Background dynamically
+            findViewById(R.id.main_root).setBackgroundColor(rootBg);
 
             // Apply Theme to Top Header
             tvWelcome.setTextColor(themeText);

@@ -8,7 +8,13 @@ import com.google.android.material.slider.Slider; import org.json.*; import java
 public class ImageEditorActivity extends AppCompatActivity {
     private FrameLayout canvasContainer; public PhotoEditorView editorView; private View tapToStartView; private View rightToolsPanel; public View cropToolsBar; private LinearLayout leftLayersPanel; private View panelOverlay;
     private RecyclerView layersRecyclerView; private LayerAdapter layerAdapter; private Button btnZoom, btnGrid, btnLayerOut;
-    private boolean isDarkTheme; private int panelColor; private int textColor; private LayerSettingsUI layerSettingsUI; private FrameLayout loadingOverlay;
+
+    // --- 3-STATE THEME VARIABLES ---
+    private int themeState;
+    private boolean isDarkTheme;
+    private int panelColor, textColor, bgColor;
+
+    private LayerSettingsUI layerSettingsUI; private FrameLayout loadingOverlay;
     public interface EyedropperCallback { void onColorPicked(int color); }
 
     private final ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> { if (result.getResultCode() == RESULT_OK && result.getData() != null) loadImage(result.getData().getData(), false); });
@@ -20,7 +26,16 @@ public class ImageEditorActivity extends AppCompatActivity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState); setContentView(R.layout.activity_image_editor);
-        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, Context.MODE_PRIVATE); isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, Context.MODE_PRIVATE);
+
+        // --- 3-STATE THEME SYNC LOGIC ---
+        themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+        isDarkTheme = (themeState != 0); // Kept for legacy UI dependencies
+
         View root = findViewById(R.id.editorRoot); TextView tvTitle = findViewById(R.id.tvEditorTitle); canvasContainer = findViewById(R.id.canvasContainer); tapToStartView = findViewById(R.id.btnTapToStart);
         if (tapToStartView == null) tapToStartView = findViewById(R.id.tvTapToStart); leftLayersPanel = findViewById(R.id.leftLayersPanel); rightToolsPanel = findViewById(R.id.rightToolsPanel); cropToolsBar = findViewById(R.id.cropToolsBar); panelOverlay = findViewById(R.id.panelOverlay);
         if (panelOverlay != null) { panelOverlay.setOnClickListener(v -> { hideLeftPanel(); hideRightPanel(); }); }
@@ -43,12 +58,13 @@ public class ImageEditorActivity extends AppCompatActivity {
         Button btnCropCancel = findViewById(R.id.btnCropCancel); Button btnCropFull = findViewById(R.id.btnCropFull); Button btnCropFree = findViewById(R.id.btnCropFree); Button btnCrop1to1 = findViewById(R.id.btnCrop1to1); Button btnCrop16to9 = findViewById(R.id.btnCrop16to9); Button btnCrop9to16 = findViewById(R.id.btnCrop9to16); Button btnCrop4to3 = findViewById(R.id.btnCrop4to3); Button btnCrop4to1 = findViewById(R.id.btnCrop4to1); Button btnCropPerspective = findViewById(R.id.btnCropPerspective); Button btnCropCircle = findViewById(R.id.btnCropCircle); Button btnCropRotate = findViewById(R.id.btnCropRotate); Button btnCropMirror = findViewById(R.id.btnCropMirror); Button btnCropApply = findViewById(R.id.btnCropApply);
         Button btnToggleLayers = findViewById(R.id.btnToggleLayers); Button btnToggleTools = findViewById(R.id.btnToggleTools);
 
-        ColorStateList unifiedBtnColor = ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#FFFFFF"));
+        ColorStateList unifiedBtnColor = ColorStateList.valueOf(themeState == 0 ? Color.parseColor("#FFFFFF") : (themeState == 1 ? Color.parseColor("#3A3A3C") : Color.parseColor("#2C2C2E")));
         Button[] tools = {btnLoad, btnCrop, btnText, btnDraw, btnClear, btnCopy, btnLayerEdit, btnUndo, btnRedo, btnBgRemover, btnAdjust, btnZoom, btnGrid, btnLayerOut, btnAdvancedCanvas, btnCloneTool, btnSaveDraft};
         for (Button b : tools) { if (b != null) { b.setBackgroundTintList(unifiedBtnColor); b.setTextColor(textColor); } }
         if (btnSaveDraft != null) { btnSaveDraft.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#8A2BE2"))); btnSaveDraft.setTextColor(Color.WHITE); }
 
-        int capsuleColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#D1D1D6"); int capsuleTextColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
+        int capsuleColor = themeState == 0 ? Color.parseColor("#D1D1D6") : (themeState == 1 ? Color.parseColor("#2C2C2E") : Color.parseColor("#1C1C1E"));
+        int capsuleTextColor = themeState == 0 ? Color.parseColor("#333333") : Color.WHITE;
         setupCapsuleButton(btnToggleLayers, capsuleColor, capsuleTextColor); setupCapsuleButton(btnToggleTools, capsuleColor, capsuleTextColor); setupCapsuleButton(btnGallery, capsuleColor, capsuleTextColor); setupCapsuleButton(btnExport, capsuleColor, capsuleTextColor);
         if (tapToStartView != null) tapToStartView.setOnClickListener(v -> launchPicker(false)); if (btnLoad != null) btnLoad.setOnClickListener(v -> launchPicker(false));
         if (btnGallery != null) btnGallery.setOnClickListener(v -> megaGalLauncher.launch(new Intent(this, ImageStudioMegaGal.class)));
@@ -164,9 +180,26 @@ public class ImageEditorActivity extends AppCompatActivity {
         }
     }
 
-    private void bgColorSettings(View root, TextView tvTitle) { int bgColor = isDarkTheme ? Color.parseColor("#0A0A0C") : Color.parseColor("#FFFFFF"); panelColor = isDarkTheme ? Color.parseColor("#D91C1C1E") : Color.parseColor("#E6F2F2F7"); textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333"); root.setBackgroundColor(bgColor); canvasContainer.setBackgroundColor(bgColor); tvTitle.setTextColor(textColor); }
+    private void bgColorSettings(View root, TextView tvTitle) {
+        if (themeState == 0) { // Light Mode
+            bgColor = Color.parseColor("#FFFFFF");
+            panelColor = Color.parseColor("#E6F2F2F7");
+            textColor = Color.parseColor("#333333");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#0A0A0C");
+            panelColor = Color.parseColor("#D91C1C1E");
+            textColor = Color.WHITE;
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000"); // Pure AMOLED Black
+            panelColor = Color.parseColor("#E61C1C1E"); // Thicker translucent dark gray
+            textColor = Color.WHITE;
+        }
+
+        root.setBackgroundColor(bgColor); canvasContainer.setBackgroundColor(bgColor); tvTitle.setTextColor(textColor);
+    }
+
     private void setupCapsuleButton(Button btn, int capsuleColor, int capsuleTextColor) { if (btn != null) { GradientDrawable capsule = new GradientDrawable(); capsule.setColor(capsuleColor); capsule.setCornerRadius(100f); btn.setBackgroundTintList(null); btn.setBackground(capsule); btn.setTextColor(capsuleTextColor); } }
-    public void updateToolButtons() { if (btnZoom == null || btnGrid == null) return; int activeColor = Color.parseColor("#34C759"); int defaultBg = isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#FFFFFF"); btnZoom.setBackgroundTintList(ColorStateList.valueOf(editorView.isZoomMode ? activeColor : defaultBg)); btnZoom.setTextColor(editorView.isZoomMode ? Color.WHITE : textColor); btnZoom.setText(editorView.isZoomMode ? "Zoom: ON" : "Zoom: OFF"); btnGrid.setBackgroundTintList(ColorStateList.valueOf(editorView.isGridMode ? activeColor : defaultBg)); btnGrid.setTextColor(editorView.isGridMode ? Color.WHITE : textColor); btnGrid.setText(editorView.isGridMode ? "Grid: ON" : "Grid: OFF"); Button dBtn = findViewById(R.id.btnDraw); if (dBtn != null) { dBtn.setBackgroundTintList(ColorStateList.valueOf(editorView.drawingManager.isDrawMode ? activeColor : defaultBg)); dBtn.setTextColor(editorView.drawingManager.isDrawMode ? Color.WHITE : textColor); dBtn.setText(editorView.drawingManager.isDrawMode ? "Draw: ON" : "Draw Tool"); } }
+    public void updateToolButtons() { if (btnZoom == null || btnGrid == null) return; int activeColor = Color.parseColor("#34C759"); int defaultBg = themeState == 0 ? Color.parseColor("#FFFFFF") : (themeState == 1 ? Color.parseColor("#3A3A3C") : Color.parseColor("#2C2C2E")); btnZoom.setBackgroundTintList(ColorStateList.valueOf(editorView.isZoomMode ? activeColor : defaultBg)); btnZoom.setTextColor(editorView.isZoomMode ? Color.WHITE : textColor); btnZoom.setText(editorView.isZoomMode ? "Zoom: ON" : "Zoom: OFF"); btnGrid.setBackgroundTintList(ColorStateList.valueOf(editorView.isGridMode ? activeColor : defaultBg)); btnGrid.setTextColor(editorView.isGridMode ? Color.WHITE : textColor); btnGrid.setText(editorView.isGridMode ? "Grid: ON" : "Grid: OFF"); Button dBtn = findViewById(R.id.btnDraw); if (dBtn != null) { dBtn.setBackgroundTintList(ColorStateList.valueOf(editorView.drawingManager.isDrawMode ? activeColor : defaultBg)); dBtn.setTextColor(editorView.drawingManager.isDrawMode ? Color.WHITE : textColor); dBtn.setText(editorView.drawingManager.isDrawMode ? "Draw: ON" : "Draw Tool"); } }
     public void setDialogTextColor(View view, int color) { if (view instanceof TextView && !(view instanceof Button) && !(view instanceof EditText)) ((TextView) view).setTextColor(color); else if (view instanceof ViewGroup) { ViewGroup vg = (ViewGroup) view; for (int i = 0; i < vg.getChildCount(); i++) setDialogTextColor(vg.getChildAt(i), color); } }
     public AlertDialog createModernRoundedDialog(View view) { AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle); builder.setView(view); AlertDialog dialog = builder.create(); if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent); return dialog; }
     public void showExitDialog() { AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle); builder.setTitle("Unsaved Changes").setMessage("Do you want to export your current edited image before exiting?").setPositiveButton("Export", (dialog, which) -> findViewById(R.id.btnExport).performClick()).setNegativeButton("Exit Without Saving", (dialog, which) -> finish()).setNeutralButton("Cancel", null); AlertDialog dialog = builder.create(); if (dialog.getWindow() != null) { dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent); dialog.setOnShowListener(di -> { if (dialog.getWindow() != null) { forceDialogBackground(dialog.getWindow().getDecorView()); setDialogTextColor(dialog.getWindow().getDecorView(), textColor); } if (dialog.getButton(AlertDialog.BUTTON_POSITIVE) != null) dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(textColor); if (dialog.getButton(AlertDialog.BUTTON_NEGATIVE) != null) dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(textColor); if (dialog.getButton(AlertDialog.BUTTON_NEUTRAL) != null) dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(textColor); }); } dialog.show(); }
@@ -196,7 +229,7 @@ public class ImageEditorActivity extends AppCompatActivity {
         class LayerViewHolder extends RecyclerView.ViewHolder { LayerViewHolder(View itemView) { super(itemView); } }
         private List<LayerSettingsUI.GraphicLayer> getReversedLayers() { List<LayerSettingsUI.GraphicLayer> reversed = new ArrayList<>(editorView.getLayers()); Collections.reverse(reversed); return reversed; }
         @NonNull @Override public LayerViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) { TextView tv = new TextView(parent.getContext()); tv.setPadding(32, 40, 32, 40); tv.setTextSize(14f); RecyclerView.LayoutParams params = new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT); params.setMargins(0, 0, 0, 16); tv.setLayoutParams(params); return new LayerViewHolder(tv); }
-        @Override public void onBindViewHolder(@NonNull LayerViewHolder holder, int position) { List<LayerSettingsUI.GraphicLayer> rev = getReversedLayers(); if (position >= rev.size()) return; LayerSettingsUI.GraphicLayer layer = rev.get(position); TextView tv = (TextView) holder.itemView; tv.setText(layer.type == 0 ? "≡  Text: " + layer.text : "≡  Overlay Image"); if (layer == editorView.getActiveLayer()) { GradientDrawable bg = new GradientDrawable(); bg.setColor(Color.parseColor("#4A90E2")); bg.setCornerRadius(32f); tv.setBackground(bg); tv.setTextColor(Color.WHITE); } else { GradientDrawable bg = new GradientDrawable(); bg.setColor(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA")); bg.setCornerRadius(32f); tv.setBackground(bg); tv.setTextColor(textColor); } tv.setGravity(android.view.Gravity.CENTER_VERTICAL); tv.setOnClickListener(v -> editorView.setActiveLayer(layer)); }
+        @Override public void onBindViewHolder(@NonNull LayerViewHolder holder, int position) { List<LayerSettingsUI.GraphicLayer> rev = getReversedLayers(); if (position >= rev.size()) return; LayerSettingsUI.GraphicLayer layer = rev.get(position); TextView tv = (TextView) holder.itemView; tv.setText(layer.type == 0 ? "≡  Text: " + layer.text : "≡  Overlay Image"); if (layer == editorView.getActiveLayer()) { GradientDrawable bg = new GradientDrawable(); bg.setColor(Color.parseColor("#4A90E2")); bg.setCornerRadius(32f); tv.setBackground(bg); tv.setTextColor(Color.WHITE); } else { GradientDrawable bg = new GradientDrawable(); bg.setColor(themeState == 0 ? Color.parseColor("#E5E5EA") : (themeState == 1 ? Color.parseColor("#3A3A3C") : Color.parseColor("#2C2C2E"))); bg.setCornerRadius(32f); tv.setBackground(bg); tv.setTextColor(textColor); } tv.setGravity(android.view.Gravity.CENTER_VERTICAL); tv.setOnClickListener(v -> editorView.setActiveLayer(layer)); }
         @Override public int getItemCount() { return editorView.getLayers().size(); }
         @SuppressLint("NotifyDataSetChanged") public void moveItem(int fromPosition, int toPosition) { List<LayerSettingsUI.GraphicLayer> original = editorView.getLayers(); List<LayerSettingsUI.GraphicLayer> reversed = new ArrayList<>(original); Collections.reverse(reversed); LayerSettingsUI.GraphicLayer moved = reversed.remove(fromPosition); reversed.add(toPosition, moved); Collections.reverse(reversed); original.clear(); original.addAll(reversed); notifyItemMoved(fromPosition, toPosition); editorView.invalidate(); }
     }
@@ -215,7 +248,7 @@ public class ImageEditorActivity extends AppCompatActivity {
         public float currentSmoothLevel = 0f; public Bitmap rawEraseMask = null;
         public boolean isZoomMode = false; public boolean isGridMode = false; public boolean isLayerOutMode = false;
 
-        /* NEW: NATIVE FIELDS FOR BG REMOVER PRECISION EDITING & MULTI-TOUCH ZOOM */
+        /* NATIVE FIELDS FOR BG REMOVER PRECISION EDITING & MULTI-TOUCH ZOOM */
         public int tBgColor = 0; public int customBgRemoverBgColor = 0; public boolean isBgZoomMode = false;
 
         private boolean isColorPickerMode = false; private EyedropperCallback eyedropperCallback; private float pickerX = 0, pickerY = 0; private int pickerColor = Color.BLACK;

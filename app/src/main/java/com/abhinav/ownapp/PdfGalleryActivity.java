@@ -40,12 +40,42 @@ public class PdfGalleryActivity extends AppCompatActivity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState); setContentView(R.layout.activity_pdf_gallery);
-        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE); boolean isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7"), panelColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
-        int primaryTextColor = isDarkTheme ? Color.WHITE : Color.parseColor("#1C1C1E"), secondaryTextColor = isDarkTheme ? Color.parseColor("#BBBBBB") : Color.parseColor("#555555");
-        findViewById(R.id.galleryRoot).setBackgroundColor(bgColor); ((TextView) findViewById(R.id.tvGalleryTitle)).setTextColor(primaryTextColor); getWindow().setStatusBarColor(bgColor);
+
+        // --- 3-STATE THEME SYNC LOGIC ---
+        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+        int themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+
+        int bgColor, panelColor, primaryTextColor, secondaryTextColor;
+
+        if (themeState == 0) { // Light Mode
+            bgColor = Color.parseColor("#F2F2F7");
+            panelColor = Color.WHITE;
+            primaryTextColor = Color.parseColor("#1C1C1E");
+            secondaryTextColor = Color.parseColor("#555555");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1C1C1E");
+            panelColor = Color.parseColor("#2C2C2E");
+            primaryTextColor = Color.WHITE;
+            secondaryTextColor = Color.parseColor("#BBBBBB");
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000"); // Pure AMOLED Black
+            panelColor = Color.parseColor("#1C1C1E"); // Elevated dark gray for cards
+            primaryTextColor = Color.WHITE;
+            secondaryTextColor = Color.parseColor("#BBBBBB");
+        }
+
+        findViewById(R.id.galleryRoot).setBackgroundColor(bgColor);
+        ((TextView) findViewById(R.id.tvGalleryTitle)).setTextColor(primaryTextColor);
+        getWindow().setStatusBarColor(bgColor);
+
         rv = findViewById(R.id.rvPdfGallery); rv.setLayoutManager(new LinearLayoutManager(this));
-        List<PdfFile> pdfList = loadPdfs(); adapter = new PdfAdapter(pdfList, panelColor, primaryTextColor, secondaryTextColor); rv.setAdapter(adapter);
+        List<PdfFile> pdfList = loadPdfs();
+        adapter = new PdfAdapter(pdfList, panelColor, primaryTextColor, secondaryTextColor);
+        rv.setAdapter(adapter);
     }
 
     private TextView createPillBtn(android.content.Context ctx, String text, String color, float density, int ml, int mr) {
@@ -103,7 +133,12 @@ public class PdfGalleryActivity extends AppCompatActivity {
             btnRename.setOnClickListener(v -> {
                 LinearLayout dialogLayout = new LinearLayout(PdfGalleryActivity.this); dialogLayout.setOrientation(LinearLayout.VERTICAL); dialogLayout.setPadding(60, 60, 60, 60);
                 EditText et = new EditText(PdfGalleryActivity.this); et.setText(file.name.replace(".pdf", "")); et.setTextColor(primaryTextColor); et.setHintTextColor(secondaryTextColor);
-                GradientDrawable etBg = new GradientDrawable(); etBg.setColor(panelColor == Color.WHITE ? Color.parseColor("#E5E5EA") : Color.parseColor("#1C1C1E")); etBg.setCornerRadius(20f); et.setBackground(etBg); et.setPadding(40, 40, 40, 40); dialogLayout.addView(et);
+
+                // FIX: Adapt the EditText input box background dynamically for all 3 themes
+                int etBgColor = (panelColor == Color.WHITE) ? Color.parseColor("#E5E5EA") :
+                        ((panelColor == Color.parseColor("#1C1C1E")) ? Color.parseColor("#2C2C2E") : Color.parseColor("#1C1C1E"));
+
+                GradientDrawable etBg = new GradientDrawable(); etBg.setColor(etBgColor); etBg.setCornerRadius(20f); et.setBackground(etBg); et.setPadding(40, 40, 40, 40); dialogLayout.addView(et);
                 AlertDialog.Builder builder = new AlertDialog.Builder(PdfGalleryActivity.this, R.style.ModernDialogStyle); builder.setTitle("Rename PDF").setView(dialogLayout);
                 builder.setPositiveButton("Rename", (dialog, which) -> {
                     String newName = et.getText().toString().trim(); if (newName.isEmpty()) return; if (!newName.toLowerCase().endsWith(".pdf")) newName += ".pdf";

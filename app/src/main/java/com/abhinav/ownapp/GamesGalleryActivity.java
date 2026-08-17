@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -22,6 +24,7 @@ import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 public class GamesGalleryActivity extends AppCompatActivity {
 
@@ -29,17 +32,51 @@ public class GamesGalleryActivity extends AppCompatActivity {
     private int revealX;
     private int revealY;
 
+    // --- State variables ---
+    private int themeState;
+    private int bgColor;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Make the window transparent so MainActivity renders underneath during reveal animations
-        getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-
         super.onCreate(savedInstanceState);
+
+        // FIX: Keep the underlying window PERMANENTLY transparent to avoid animation glitching
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        }
+
         setContentView(R.layout.activity_games_gallery);
 
-        // Read the theme from your main app's SharedPreferences
+        // --- 3-STATE THEME LOGIC ---
         SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
-        boolean isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+        themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+
+        // Apply Theme Colors dynamically based on the 3 states
+        final int cardColor;
+        final int textColor;
+        final int subTextColor;
+
+        if (themeState == 0) { // Light Mode (Pure White BG, Light Grey Cards)
+            bgColor = Color.WHITE;
+            cardColor = Color.parseColor("#F2F2F7");
+            textColor = Color.parseColor("#333333");
+            subTextColor = Color.parseColor("#555555");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1C1C1E");
+            cardColor = Color.parseColor("#2C2C2E");
+            textColor = Color.WHITE;
+            subTextColor = Color.parseColor("#8E8E93");
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000");
+            cardColor = Color.parseColor("#1C1C1E");
+            textColor = Color.WHITE;
+            subTextColor = Color.parseColor("#8E8E93");
+        }
 
         // Link Views
         root = findViewById(R.id.gamesGalleryRoot);
@@ -65,15 +102,12 @@ public class GamesGalleryActivity extends AppCompatActivity {
         TextView textMyPlanet = findViewById(R.id.textMyPlanet);
         TextView btnHelpMyPlanet = findViewById(R.id.btnHelpMyPlanet);
 
-        // Apply Theme Colors dynamically
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
-        int cardColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
-        int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
-        int subTextColor = isDarkTheme ? Color.parseColor("#8E8E93") : Color.parseColor("#888888");
+        if (root != null) root.setBackgroundColor(bgColor);
+        if (title != null) title.setTextColor(textColor);
+        if (subtitle != null) subtitle.setTextColor(subTextColor);
 
-        root.setBackgroundColor(bgColor);
-        title.setTextColor(textColor);
-        subtitle.setTextColor(subTextColor);
+        // Apply Status Bar Icons immediately
+        enforceStatusBarIcons();
 
         // --- Handle Circular Reveal Entry Animation ---
         Intent intent = getIntent();
@@ -90,7 +124,8 @@ public class GamesGalleryActivity extends AppCompatActivity {
                         revealX = intent.getIntExtra("REVEAL_X", root.getWidth() / 2);
                         revealY = intent.getIntExtra("REVEAL_Y", root.getHeight() / 2);
 
-                        float finalRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+                        // Use hypotenuse to ensure the circle covers the entire screen perfectly
+                        float finalRadius = (float) Math.hypot(root.getWidth(), root.getHeight());
 
                         Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, 0, finalRadius);
                         circularReveal.setDuration(350);
@@ -108,7 +143,8 @@ public class GamesGalleryActivity extends AppCompatActivity {
             @Override
             public void handleOnBackPressed() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && root.isAttachedToWindow()) {
-                    float startRadius = (float) (Math.max(root.getWidth(), root.getHeight()) * 1.1);
+
+                    float startRadius = (float) Math.hypot(root.getWidth(), root.getHeight());
                     Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, startRadius, 0);
                     circularReveal.setDuration(350);
                     circularReveal.setInterpolator(new DecelerateInterpolator());
@@ -175,7 +211,9 @@ public class GamesGalleryActivity extends AppCompatActivity {
             btnHelpMyPlanet.setTextColor(subTextColor);
             btnHelpMyPlanet.setBackground(helpBg);
 
-            btnHelpMyPlanet.setOnClickListener(v -> showInstructionsDialog(isDarkTheme));
+            // Pass the current state to the dialog so it matches
+            final int finalThemeState = themeState;
+            btnHelpMyPlanet.setOnClickListener(v -> showInstructionsDialog(finalThemeState));
 
             cardMyPlanet.setOnClickListener(v -> {
                 startActivity(new Intent(GamesGalleryActivity.this, GlobeGameActivity.class));
@@ -183,19 +221,71 @@ public class GamesGalleryActivity extends AppCompatActivity {
         }
     }
 
-    private void showInstructionsDialog(boolean isDarkTheme) {
+    // --- Smart Lifecycle Interceptors ---
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Force the window to remain transparent to override any MainApplication callbacks seamlessly
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        enforceStatusBarIcons();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            enforceStatusBarIcons();
+        }
+    }
+
+    // Method to forcibly correct the icons for Light/Dark/Star mode safely
+    private void enforceStatusBarIcons() {
+        // Only target the status bar color, leaving the window background transparent
+        getWindow().setStatusBarColor(bgColor);
+
+        View decor = getWindow().getDecorView();
+        WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), decor);
+
+        if (themeState == 0) { // Light Mode -> Icons MUST be Dark
+            controller.setAppearanceLightStatusBars(true);
+            controller.setAppearanceLightNavigationBars(true);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getWindow().setNavigationBarColor(bgColor);
+            }
+        } else { // Dark or Star Mode -> Icons MUST be White
+            controller.setAppearanceLightStatusBars(false);
+            controller.setAppearanceLightNavigationBars(false);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getWindow().setNavigationBarColor(bgColor);
+            }
+        }
+    }
+
+    private void showInstructionsDialog(int themeState) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
-        int bgColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
-        int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#1C1C1E");
-        int subTextColor = isDarkTheme ? Color.parseColor("#B0B0B8") : Color.parseColor("#666666");
+        int dialogBgColor, dialogTextColor, dialogSubTextColor;
+
+        if (themeState == 0) { // Light Mode
+            dialogBgColor = Color.WHITE;
+            dialogTextColor = Color.parseColor("#1C1C1E");
+            dialogSubTextColor = Color.parseColor("#666666");
+        } else if (themeState == 1) { // Standard Dark Mode
+            dialogBgColor = Color.parseColor("#2C2C2E");
+            dialogTextColor = Color.WHITE;
+            dialogSubTextColor = Color.parseColor("#B0B0B8");
+        } else { // Star Mode (AMOLED Black)
+            dialogBgColor = Color.parseColor("#1C1C1E"); // Keep dialog card visible against pure black
+            dialogTextColor = Color.WHITE;
+            dialogSubTextColor = Color.parseColor("#B0B0B8");
+        }
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(60, 60, 60, 60);
 
         GradientDrawable bgGd = new GradientDrawable();
-        bgGd.setColor(bgColor);
+        bgGd.setColor(dialogBgColor);
         bgGd.setCornerRadius(50f);
         layout.setBackground(bgGd);
 
@@ -203,7 +293,7 @@ public class GamesGalleryActivity extends AppCompatActivity {
         tvTitle.setText("How to Play");
         tvTitle.setTextSize(24f);
         tvTitle.setTypeface(null, Typeface.BOLD);
-        tvTitle.setTextColor(textColor);
+        tvTitle.setTextColor(dialogTextColor);
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setPadding(0, 0, 0, 40);
 
@@ -217,7 +307,7 @@ public class GamesGalleryActivity extends AppCompatActivity {
                         "For every 25 points you score, you will unleash a majestic celestial shockwave that instantly destroys all nearby enemies."
         );
         tvMessage.setTextSize(15f);
-        tvMessage.setTextColor(subTextColor);
+        tvMessage.setTextColor(dialogSubTextColor);
         tvMessage.setLineSpacing(0, 1.3f);
         tvMessage.setPadding(0, 0, 0, 60);
 

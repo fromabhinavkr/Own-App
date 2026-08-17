@@ -45,7 +45,7 @@ import java.util.Locale;
 @SuppressLint("SetTextI18n")
 public class FlappyBirdActivity extends AppCompatActivity {
 
-    private boolean isDarkTheme;
+    private int themeState; // 3-State Theme Variable
     private int highScore = 0;
     private boolean isVibrationEnabled = true;
     private SharedPreferences prefs;
@@ -68,7 +68,14 @@ public class FlappyBirdActivity extends AppCompatActivity {
         });
 
         prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
-        isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+
+        // --- 3-STATE THEME SYNC LOGIC ---
+        themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+
         highScore = prefs.getInt("flappy_high_score", 0);
         isVibrationEnabled = prefs.getBoolean("flappy_vibration_enabled", true);
 
@@ -94,10 +101,28 @@ public class FlappyBirdActivity extends AppCompatActivity {
         Button btnQuitFromPause = findViewById(R.id.btnQuitFromPause);
         Button btnToggleVibration = findViewById(R.id.btnToggleVibration);
 
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
-        int cardColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
-        int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
-        int subTextColor = isDarkTheme ? Color.parseColor("#AAAAAA") : Color.parseColor("#666666");
+        // Define colors based on the 3-state theme
+        int bgColor, cardColor, textColor, subTextColor, quitBtnColor;
+
+        if (themeState == 0) { // Light Mode
+            bgColor = Color.parseColor("#F2F2F7");
+            cardColor = Color.WHITE;
+            textColor = Color.parseColor("#333333");
+            subTextColor = Color.parseColor("#888888");
+            quitBtnColor = Color.parseColor("#E5E5EA");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1C1C1E");
+            cardColor = Color.parseColor("#2C2C2E");
+            textColor = Color.WHITE;
+            subTextColor = Color.parseColor("#8E8E93");
+            quitBtnColor = Color.parseColor("#3A3A3C");
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000"); // Pure Black background
+            cardColor = Color.parseColor("#1C1C1E"); // Elevated dark gray
+            textColor = Color.WHITE;
+            subTextColor = Color.parseColor("#8E8E93");
+            quitBtnColor = Color.parseColor("#2C2C2E");
+        }
 
         root.setBackgroundColor(bgColor);
         tvCurrentScore.setTextColor(textColor);
@@ -108,8 +133,10 @@ public class FlappyBirdActivity extends AppCompatActivity {
         tvGameOverTitle.setTextColor(textColor);
         tvFinalScore.setTextColor(textColor);
 
-        btnQuit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA")));
+        btnQuit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(quitBtnColor));
         btnQuit.setTextColor(textColor);
+        btnQuitFromPause.setBackgroundTintList(android.content.res.ColorStateList.valueOf(quitBtnColor));
+        btnQuitFromPause.setTextColor(textColor);
 
         GradientDrawable gdCard = new GradientDrawable();
         gdCard.setColor(cardColor);
@@ -128,7 +155,8 @@ public class FlappyBirdActivity extends AppCompatActivity {
             }
         });
 
-        gameEngine = new FlappyGameEngine(this, isDarkTheme);
+        // Initialize engine with the new 3-State integer
+        gameEngine = new FlappyGameEngine(this, themeState);
         gameEngine.setVibrationEnabled(isVibrationEnabled);
         gameContainer.addView(gameEngine);
 
@@ -141,7 +169,7 @@ public class FlappyBirdActivity extends AppCompatActivity {
             @Override
             public void onGameOver(int finalScore) {
                 tvGameOverTitle.setText("GAME OVER");
-                tvGameOverTitle.setTextColor(isDarkTheme ? Color.WHITE : Color.parseColor("#333333"));
+                tvGameOverTitle.setTextColor(textColor);
 
                 if (finalScore > highScore && finalScore > 0) {
                     highScore = finalScore;
@@ -240,6 +268,10 @@ public class FlappyBirdActivity extends AppCompatActivity {
         private final Paint mountainPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint hillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
+        // --- Starry Night Elements ---
+        private final Paint starPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final List<Star> stars = new ArrayList<>();
+
         private final Paint pipeFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint pipeHighlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint pipeShadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -251,14 +283,14 @@ public class FlappyBirdActivity extends AppCompatActivity {
         private final Path hillPath = new Path();
         private final Path cloudPath = new Path();
 
-        private final boolean isDarkTheme;
+        private final int themeState;
         private GameListener listener;
 
         public interface GameListener { void onScoreUpdated(int score); void onGameOver(int finalScore); void onGameStarted(); }
 
-        public FlappyGameEngine(Context context, boolean isDarkTheme) {
+        public FlappyGameEngine(Context context, int themeState) {
             super(context);
-            this.isDarkTheme = isDarkTheme;
+            this.themeState = themeState;
 
             // Trail Effect
             trailPaint.setColor(Color.WHITE);
@@ -275,15 +307,20 @@ public class FlappyBirdActivity extends AppCompatActivity {
             pipeOutlinePaint.setStyle(Paint.Style.STROKE);
             pipeOutlinePaint.setStrokeWidth(6f);
 
-            // Setup Parallax Environment Colors based on Theme
-            if (isDarkTheme) {
-                mountainPaint.setColor(Color.parseColor("#2C5364"));
-                hillPaint.setColor(Color.parseColor("#182825"));
-                cloudPaint.setColor(Color.parseColor("#2A3B4C"));
-            } else {
+            // Setup Parallax Environment Colors based on Theme State
+            if (themeState == 0) { // Light
                 mountainPaint.setColor(Color.parseColor("#A1D4E6"));
                 hillPaint.setColor(Color.parseColor("#7CB342"));
                 cloudPaint.setColor(Color.parseColor("#FFFFFF"));
+            } else if (themeState == 1) { // Dark
+                mountainPaint.setColor(Color.parseColor("#2C5364"));
+                hillPaint.setColor(Color.parseColor("#182825"));
+                cloudPaint.setColor(Color.parseColor("#2A3B4C"));
+            } else { // AMOLED Star Mode
+                starPaint.setColor(Color.WHITE);
+                mountainPaint.setColor(Color.parseColor("#0A0A0A")); // Silhouette
+                hillPaint.setColor(Color.parseColor("#111111")); // Silhouette
+                cloudPaint.setColor(Color.parseColor("#1A1A1A")); // Very dark, barely visible clouds
             }
         }
 
@@ -323,11 +360,24 @@ public class FlappyBirdActivity extends AppCompatActivity {
             pipeWidth = refW * 0.18f;
             pipeGap = (screenH > screenW) ? (screenH * 0.30f) : (screenH * 0.48f);
 
-            // 1. Generate Beautiful Sky Gradient
-            if (isDarkTheme) {
-                skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, Color.parseColor("#0F2027"), Color.parseColor("#203A43"), Shader.TileMode.CLAMP));
-            } else {
+            // 1. Generate Beautiful Sky Gradient & Stars
+            if (themeState == 0) {
                 skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, Color.parseColor("#6DD5FA"), Color.parseColor("#E0F6FF"), Shader.TileMode.CLAMP));
+            } else if (themeState == 1) {
+                skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, Color.parseColor("#0F2027"), Color.parseColor("#203A43"), Shader.TileMode.CLAMP));
+            } else { // Star Mode
+                skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, Color.parseColor("#000000"), Color.parseColor("#05050A"), Shader.TileMode.CLAMP));
+                // Generate twinkling stars
+                stars.clear();
+                for (int i = 0; i < 80; i++) {
+                    stars.add(new Star(
+                            (float) Math.random() * screenW,
+                            (float) Math.random() * (screenH * 0.7f), // Keep stars in the upper 70% of the screen
+                            (float) Math.random() * 3f + 1f, // Random size
+                            (float) Math.random(), // Initial Alpha
+                            (float) Math.random() * 0.03f + 0.01f // Twinkle Speed
+                    ));
+                }
             }
 
             // 2. Generate Seamless Looping Mountains
@@ -622,6 +672,18 @@ public class FlappyBirdActivity extends AppCompatActivity {
             // 1. Draw Static Sky
             canvas.drawRect(0, 0, screenW, screenH, skyPaint);
 
+            // 1.5 Draw Twinkling Stars (Only in Star Mode)
+            if (themeState == 2) {
+                for (Star s : stars) {
+                    s.alpha += s.twinkleSpeed;
+                    if (s.alpha > 1f) { s.alpha = 1f; s.twinkleSpeed = -s.twinkleSpeed; }
+                    else if (s.alpha < 0.1f) { s.alpha = 0.1f; s.twinkleSpeed = -s.twinkleSpeed; }
+
+                    starPaint.setAlpha((int) (s.alpha * 255));
+                    canvas.drawCircle(s.x, s.y, s.radius, starPaint);
+                }
+            }
+
             // 2. Draw Parallax Clouds (Slowest)
             drawTiledPath(canvas, cloudPath, parallaxScroll, 0.15f, cloudPaint);
 
@@ -729,6 +791,8 @@ public class FlappyBirdActivity extends AppCompatActivity {
             }
         }
 
+        // --- Data Classes ---
+
         private static class Pipe {
             float x, topHeight; boolean passed = false;
             boolean hasWorm = false; boolean wormEaten = false;
@@ -738,6 +802,13 @@ public class FlappyBirdActivity extends AppCompatActivity {
         private static class TrailPoint {
             float x, y;
             TrailPoint(float x, float y) { this.x = x; this.y = y; }
+        }
+
+        private static class Star {
+            float x, y, radius, alpha, twinkleSpeed;
+            Star(float x, float y, float r, float a, float ts) {
+                this.x = x; this.y = y; this.radius = r; this.alpha = a; this.twinkleSpeed = ts;
+            }
         }
     }
 }

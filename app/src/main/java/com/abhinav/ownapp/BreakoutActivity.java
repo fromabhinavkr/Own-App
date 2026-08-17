@@ -4,10 +4,18 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
+import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,7 +41,7 @@ import androidx.core.view.WindowInsetsCompat;
 @SuppressLint("SetTextI18n")
 public class BreakoutActivity extends AppCompatActivity {
 
-    private boolean isDarkTheme;
+    private int themeState; // --- 3-STATE THEME VARIABLE ---
     private int highScore = 0;
     private boolean isVibrationEnabled = true;
     private SharedPreferences prefs;
@@ -55,9 +63,14 @@ public class BreakoutActivity extends AppCompatActivity {
             return WindowInsetsCompat.CONSUMED;
         });
 
-        // FIX: Pointing strictly to your app's main global Shared Preferences!
         prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
-        isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+
+        // --- 3-STATE THEME SYNC LOGIC ---
+        themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
 
         highScore = prefs.getInt("breakout_high_score", 0);
         isVibrationEnabled = prefs.getBoolean("breakout_vibration_enabled", true);
@@ -83,11 +96,28 @@ public class BreakoutActivity extends AppCompatActivity {
         Button btnQuitFromPause = findViewById(R.id.btnQuitFromPause);
         Button btnToggleVibration = findViewById(R.id.btnToggleVibration);
 
-        // Apply Theming strictly based on main app toggle
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7");
-        int cardColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
-        int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#333333");
-        int subTextColor = isDarkTheme ? Color.parseColor("#AAAAAA") : Color.parseColor("#666666");
+        // Apply Theming strictly based on 3-State
+        int bgColor, cardColor, textColor, subTextColor, quitBtnColor;
+
+        if (themeState == 0) { // Light Mode
+            bgColor = Color.parseColor("#F2F2F7");
+            cardColor = Color.WHITE;
+            textColor = Color.parseColor("#333333");
+            subTextColor = Color.parseColor("#888888");
+            quitBtnColor = Color.parseColor("#E5E5EA");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1C1C1E");
+            cardColor = Color.parseColor("#2C2C2E");
+            textColor = Color.WHITE;
+            subTextColor = Color.parseColor("#8E8E93");
+            quitBtnColor = Color.parseColor("#3A3A3C");
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000"); // Pure AMOLED Black
+            cardColor = Color.parseColor("#1C1C1E"); // Elevated dark gray
+            textColor = Color.WHITE;
+            subTextColor = Color.parseColor("#8E8E93");
+            quitBtnColor = Color.parseColor("#2C2C2E");
+        }
 
         root.setBackgroundColor(bgColor);
         tvCurrentScore.setTextColor(textColor);
@@ -99,8 +129,10 @@ public class BreakoutActivity extends AppCompatActivity {
         tvGameOverTitle.setTextColor(textColor);
         tvFinalScore.setTextColor(textColor);
 
-        btnQuit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA")));
+        btnQuit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(quitBtnColor));
         btnQuit.setTextColor(textColor);
+        btnQuitFromPause.setBackgroundTintList(android.content.res.ColorStateList.valueOf(quitBtnColor));
+        btnQuitFromPause.setTextColor(textColor);
 
         GradientDrawable gdCard = new GradientDrawable();
         gdCard.setColor(cardColor);
@@ -119,8 +151,8 @@ public class BreakoutActivity extends AppCompatActivity {
             }
         });
 
-        // Initialize Game Engine
-        gameEngine = new BreakoutEngine(this, isDarkTheme);
+        // Initialize Game Engine with Theme State
+        gameEngine = new BreakoutEngine(this, themeState);
         gameEngine.setVibrationEnabled(isVibrationEnabled);
         gameContainer.addView(gameEngine);
 
@@ -134,7 +166,7 @@ public class BreakoutActivity extends AppCompatActivity {
             @Override
             public void onGameOver(int finalScore) {
                 tvGameOverTitle.setText("GAME OVER");
-                tvGameOverTitle.setTextColor(isDarkTheme ? Color.WHITE : Color.parseColor("#333333"));
+                tvGameOverTitle.setTextColor(textColor);
 
                 if (finalScore > highScore && finalScore > 0) {
                     highScore = finalScore;
@@ -205,6 +237,11 @@ public class BreakoutActivity extends AppCompatActivity {
         private final Paint paddlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint brickPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
+        // Premium Texture Variables
+        private BitmapShader lavaShader = null;
+        private final Matrix textureMatrix = new Matrix();
+        private float textureOffset = 0f;
+
         private float screenW, screenH;
 
         // Ball Physics
@@ -234,10 +271,10 @@ public class BreakoutActivity extends AppCompatActivity {
             void onGameStarted();
         }
 
-        public BreakoutEngine(Context context, boolean isDarkTheme) {
+        public BreakoutEngine(Context context, int themeState) {
             super(context);
-            ballPaint.setColor(isDarkTheme ? Color.WHITE : Color.parseColor("#333333"));
-            paddlePaint.setColor(isDarkTheme ? Color.parseColor("#4A90E2") : Color.parseColor("#007AFF"));
+            ballPaint.setColor(themeState == 0 ? Color.parseColor("#333333") : Color.WHITE);
+            paddlePaint.setColor(themeState == 0 ? Color.parseColor("#007AFF") : Color.parseColor("#4A90E2"));
 
             brickColors = new int[]{
                     Color.parseColor("#FF3B30"), // Red
@@ -247,6 +284,16 @@ public class BreakoutActivity extends AppCompatActivity {
                     Color.parseColor("#5AC8FA"), // Light Blue
                     Color.parseColor("#5856D6")  // Purple
             };
+
+            // Attempt to load the physical lava texture if the user added it to their drawable folder
+            try {
+                @SuppressLint("DiscouragedApi") int lavaResId = getContext().getResources().getIdentifier("lava_texture", "drawable", getContext().getPackageName());
+                if (lavaResId != 0) {
+                    Bitmap rawLava = BitmapFactory.decodeResource(getContext().getResources(), lavaResId);
+                    Bitmap scaledLava = Bitmap.createScaledBitmap(rawLava, 400, 400, true);
+                    lavaShader = new BitmapShader(scaledLava, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT);
+                }
+            } catch (Exception ignored) { }
         }
 
         public void setGameListener(GameListener listener) {
@@ -402,6 +449,10 @@ public class BreakoutActivity extends AppCompatActivity {
         public void doFrame(long frameTimeNanos) {
             if (!playing || paused || gameOver) return;
 
+            // Increment the texture offset to create the "flowing lava" animation effect
+            textureOffset += (screenW * 0.003f);
+            if (textureOffset > 1000f) textureOffset = 0f;
+
             // 1. Move Ball
             ballX += ballDX;
             ballY += ballDY;
@@ -477,18 +528,51 @@ public class BreakoutActivity extends AppCompatActivity {
             Choreographer.getInstance().postFrameCallback(this);
         }
 
+        // Helper to smoothly brighten/darken the block colors for the procedural plasma effect
+        private int manipulateColor(int color, float factor) {
+            int a = Color.alpha(color);
+            int r = Math.round(Color.red(color) * factor);
+            int g = Math.round(Color.green(color) * factor);
+            int b = Math.round(Color.blue(color) * factor);
+            return Color.argb(a, Math.min(r, 255), Math.min(g, 255), Math.min(b, 255));
+        }
+
         @Override
         protected void onDraw(@NonNull Canvas canvas) {
             super.onDraw(canvas);
 
-            // Draw Bricks
+            // Shift texture matrix to animate the flowing lava
+            textureMatrix.reset();
+            textureMatrix.postTranslate(textureOffset, textureOffset * 0.5f);
+
+            // Draw Bricks with moving Premium Texture
             for (int r = 0; r < BRICK_ROWS; r++) {
-                brickPaint.setColor(brickColors[r % brickColors.length]);
+                int baseColor = brickColors[r % brickColors.length];
+
+                if (lavaShader != null) {
+                    // Physical Image Approach: Map the Lava image & tint it to the row's color
+                    lavaShader.setLocalMatrix(textureMatrix);
+                    brickPaint.setShader(lavaShader);
+                    brickPaint.setColorFilter(new PorterDuffColorFilter(baseColor, PorterDuff.Mode.MULTIPLY));
+                } else {
+                    // Programmatic Fallback: Generate a stunning procedural moving "liquid plasma" gradient
+                    int lightColor = manipulateColor(baseColor, 1.4f);
+                    int darkColor = manipulateColor(baseColor, 0.6f);
+
+                    LinearGradient fluidGradient = new LinearGradient(
+                            0, textureOffset, brickW, brickH + textureOffset,
+                            new int[]{darkColor, lightColor, baseColor, lightColor, darkColor},
+                            null, Shader.TileMode.MIRROR
+                    );
+                    brickPaint.setShader(fluidGradient);
+                    brickPaint.setColorFilter(null);
+                }
+
                 for (int c = 0; c < BRICK_COLS; c++) {
                     if (bricks[r][c]) {
                         float bx = c * (brickW + brickPadding) + brickPadding;
                         float by = r * (brickH + brickPadding) + brickOffsetTop;
-                        canvas.drawRoundRect(bx, by, bx + brickW, by + brickH, 8f, 8f, brickPaint);
+                        canvas.drawRoundRect(bx, by, bx + brickW, by + brickH, 12f, 12f, brickPaint);
                     }
                 }
             }

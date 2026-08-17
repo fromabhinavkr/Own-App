@@ -20,8 +20,28 @@ public class DocReaderActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState); setContentView(R.layout.activity_doc_reader);
         applyStatusBarTheme();
 
-        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE); boolean isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7"); int panelColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE; int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#1C1C1E");
+        // --- 3-STATE THEME SYNC LOGIC ---
+        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+        int themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+
+        int bgColor, panelColor, textColor;
+        if (themeState == 0) { // Light Mode
+            bgColor = Color.parseColor("#F2F2F7");
+            panelColor = Color.WHITE;
+            textColor = Color.parseColor("#1C1C1E");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1C1C1E");
+            panelColor = Color.parseColor("#2C2C2E");
+            textColor = Color.WHITE;
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000"); // Infinite Pure Black Canvas
+            panelColor = Color.parseColor("#1C1C1E"); // Elevated dark gray
+            textColor = Color.WHITE;
+        }
 
         LinearLayout root = findViewById(R.id.docReaderRoot); docPanel = findViewById(R.id.docPanel); scrollDocContent = findViewById(R.id.scrollDocContent);
         tvDocTitle = findViewById(R.id.tvDocTitle); tvDocContent = findViewById(R.id.tvDocContent); searchBarContainer = findViewById(R.id.searchBarContainer); etSearch = findViewById(R.id.etSearch);
@@ -35,7 +55,7 @@ public class DocReaderActivity extends AppCompatActivity {
 
         GradientDrawable gd = new GradientDrawable(); gd.setColor(panelColor); gd.setCornerRadius(30f); docPanel.setBackground(gd);
         GradientDrawable searchGd = new GradientDrawable(); searchGd.setColor(panelColor); searchGd.setCornerRadius(50f); searchGd.setStroke(2, Color.parseColor("#4A90E2")); searchBarContainer.setBackground(searchGd);
-        GradientDrawable thumbGd = new GradientDrawable(); thumbGd.setColor(isDarkTheme ? Color.parseColor("#4A90E2") : Color.parseColor("#007AFF")); thumbGd.setCornerRadius(20f); fastScrollThumb.setBackground(thumbGd);
+        GradientDrawable thumbGd = new GradientDrawable(); thumbGd.setColor(themeState == 0 ? Color.parseColor("#007AFF") : Color.parseColor("#4A90E2")); thumbGd.setCornerRadius(20f); fastScrollThumb.setBackground(thumbGd);
         GradientDrawable menuBtnGd = new GradientDrawable(); menuBtnGd.setColor(panelColor); menuBtnGd.setShape(GradientDrawable.OVAL); btnMenu.setBackground(menuBtnGd);
 
         wvDocContent.getSettings().setJavaScriptEnabled(true); wvDocContent.getSettings().setBuiltInZoomControls(true); wvDocContent.getSettings().setDisplayZoomControls(false); wvDocContent.getSettings().setSupportZoom(true); wvDocContent.getSettings().setUseWideViewPort(true); wvDocContent.getSettings().setLoadWithOverviewMode(true); wvDocContent.setBackgroundColor(Color.parseColor("#525659"));
@@ -64,10 +84,30 @@ public class DocReaderActivity extends AppCompatActivity {
 
     /* FIX: Removed Export/Print PDF option from the menu entirely! */
     private void showGlassmorphicMenu(View anchor) {
-        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE); boolean isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
-        int popupBgColor = isDarkTheme ? Color.parseColor("#E61C1C1E") : Color.parseColor("#F2FFFFFF"); int popupTextColor = isDarkTheme ? Color.WHITE : Color.parseColor("#1C1C1E"); int divColor = isDarkTheme ? Color.parseColor("#33FFFFFF") : Color.parseColor("#1A000000");
+        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+        int themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+
+        int popupBgColor, popupTextColor, divColor;
+        if (themeState == 0) { // Light
+            popupBgColor = Color.parseColor("#F2FFFFFF");
+            popupTextColor = Color.parseColor("#1C1C1E");
+            divColor = Color.parseColor("#1A000000");
+        } else if (themeState == 1) { // Standard Dark
+            popupBgColor = Color.parseColor("#E62C2C2E");
+            popupTextColor = Color.WHITE;
+            divColor = Color.parseColor("#33FFFFFF");
+        } else { // Star Mode
+            popupBgColor = Color.parseColor("#E61C1C1E"); // Smooth translucent dark gray
+            popupTextColor = Color.WHITE;
+            divColor = Color.parseColor("#33FFFFFF");
+        }
+
         LinearLayout menuLayout = new LinearLayout(this); menuLayout.setOrientation(LinearLayout.VERTICAL); menuLayout.setPadding(16, 16, 16, 16);
-        GradientDrawable bg = new GradientDrawable(); bg.setColor(popupBgColor); bg.setCornerRadius(50f); if (!isDarkTheme) bg.setStroke(2, Color.parseColor("#D1D1D6")); menuLayout.setBackground(bg);
+        GradientDrawable bg = new GradientDrawable(); bg.setColor(popupBgColor); bg.setCornerRadius(50f); if (themeState == 0) bg.setStroke(2, Color.parseColor("#D1D1D6")); menuLayout.setBackground(bg);
         android.widget.PopupWindow popup = new android.widget.PopupWindow(menuLayout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true); popup.setElevation(40f); popup.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
         String[] titles = {"📂 Open File", "🔍 Search Text", isPdfModeActive ? "📄 Switch to Text View" : "🖨️ Switch to PDF View"};
         for (int i = 0; i < titles.length; i++) {
@@ -85,15 +125,39 @@ public class DocReaderActivity extends AppCompatActivity {
 
     private void applyStatusBarTheme() {
         try {
-            SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE); boolean isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
-            int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7"); Window window = getWindow();
+            SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+            int themeState = prefs.getInt("app_theme_state", -1);
+            if (themeState == -1) {
+                boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+                themeState = oldDark ? 1 : 0;
+            }
+
+            int bgColor;
+            if (themeState == 0) bgColor = Color.parseColor("#F2F2F7");
+            else if (themeState == 1) bgColor = Color.parseColor("#1C1C1E");
+            else bgColor = Color.parseColor("#000000"); // Star Mode
+
+            Window window = getWindow();
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS); window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
             window.setStatusBarColor(bgColor); window.setNavigationBarColor(bgColor); window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(bgColor));
             View decor = window.getDecorView(); int flags = decor.getSystemUiVisibility();
-            if (!isDarkTheme) { flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR; if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR; }
-            else { flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR; if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR; }
+
+            if (themeState == 0) { // Light Mode
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            } else { // Dark Mode & Star Mode
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
             decor.setSystemUiVisibility(flags);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) { android.view.WindowInsetsController wic = window.getInsetsController(); if (wic != null) { int lightAppearance = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS; wic.setSystemBarsAppearance(!isDarkTheme ? lightAppearance : 0, lightAppearance); } }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.view.WindowInsetsController wic = window.getInsetsController();
+                if (wic != null) {
+                    int lightAppearance = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                    wic.setSystemBarsAppearance(themeState == 0 ? lightAppearance : 0, lightAppearance);
+                }
+            }
         } catch (Throwable ignored) {}
     }
 

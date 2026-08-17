@@ -115,6 +115,7 @@ public class CollageStudioActivity extends AppCompatActivity {
     private final Stack<CollageState> redoStack = new Stack<>();
 
     // UI Theme
+    private int themeState; // --- 3-STATE THEME VARIABLE ---
     private boolean isDarkTheme;
     private int textColor;
     private int themeButtonColor;
@@ -129,7 +130,14 @@ public class CollageStudioActivity extends AppCompatActivity {
         setContentView(R.layout.activity_collage_studio);
 
         SharedPreferences appPrefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
-        isDarkTheme = appPrefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+
+        // --- 3-STATE THEME SYNC LOGIC ---
+        themeState = appPrefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = appPrefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+        isDarkTheme = (themeState != 0); // Preserved for default boolean checks
 
         applyModernTheme();
 
@@ -154,15 +162,36 @@ public class CollageStudioActivity extends AppCompatActivity {
     }
 
     private void applyModernTheme() {
-        int mainBg = isDarkTheme ? Color.parseColor("#000000") : Color.parseColor("#F2F2F7");
-        int topBarBg = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.WHITE;
-        int loadingCardBg = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.WHITE;
+        int mainBg, topBarBg, loadingCardBg, glassBgColor, glassStrokeColor;
 
-        textColor = isDarkTheme ? Color.WHITE : Color.BLACK;
+        if (themeState == 0) { // Light Mode
+            mainBg = Color.parseColor("#F2F2F7");
+            topBarBg = Color.WHITE;
+            loadingCardBg = Color.WHITE;
+            glassBgColor = Color.parseColor("#CCFFFFFF");
+            glassStrokeColor = Color.parseColor("#26000000");
+            textColor = Color.BLACK;
+        } else if (themeState == 1) { // Standard Dark Mode
+            mainBg = Color.parseColor("#1C1C1E");
+            topBarBg = Color.parseColor("#1C1C1E");
+            loadingCardBg = Color.parseColor("#2C2C2E");
+            glassBgColor = Color.parseColor("#CC1C1C1E");
+            glassStrokeColor = Color.parseColor("#33FFFFFF");
+            textColor = Color.WHITE;
+        } else { // Star Mode (AMOLED Pure Black)
+            mainBg = Color.parseColor("#000000"); // Infinite Pure Black Canvas
+            topBarBg = Color.parseColor("#000000");
+            loadingCardBg = Color.parseColor("#1C1C1E"); // Elevated dark gray
+            glassBgColor = Color.parseColor("#E61C1C1E"); // Thicker translucent dark gray
+            glassStrokeColor = Color.parseColor("#33FFFFFF");
+            textColor = Color.WHITE;
+        }
+
         themeButtonColor = Color.parseColor("#4049EA");
 
         findViewById(R.id.mainContentRoot).setBackgroundColor(mainBg);
         findViewById(R.id.topBar).setBackgroundColor(topBarBg);
+        getWindow().setStatusBarColor(topBarBg);
 
         // =========================================================
         // GLASSMORPHISM DRAWER UI DESIGN (ONLY FOR DRAWERS!)
@@ -170,8 +199,6 @@ public class CollageStudioActivity extends AppCompatActivity {
         View leftDrawer = findViewById(R.id.leftDrawer);
         View rightDrawer = findViewById(R.id.rightDrawer);
 
-        int glassBgColor = isDarkTheme ? Color.parseColor("#CC1C1C1E") : Color.parseColor("#CCFFFFFF");
-        int glassStrokeColor = isDarkTheme ? Color.parseColor("#33FFFFFF") : Color.parseColor("#26000000");
         int strokeWidthPx = (int) (1.5f * getResources().getDisplayMetrics().density);
         float cornerRadiusPx = 20f * getResources().getDisplayMetrics().density;
 
@@ -414,17 +441,24 @@ public class CollageStudioActivity extends AppCompatActivity {
             layout.setPadding(60, 60, 60, 60);
 
             GradientDrawable bg = new GradientDrawable();
-            bg.setColor(isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#FFFFFF"));
+            if (themeState == 0) {
+                bg.setColor(Color.WHITE);
+                bg.setStroke(2, Color.parseColor("#DDDDDD"));
+            } else if (themeState == 1) {
+                bg.setColor(Color.parseColor("#2C2C2E"));
+                bg.setStroke(2, Color.parseColor("#444444"));
+            } else {
+                bg.setColor(Color.parseColor("#1C1C1E"));
+                bg.setStroke(2, Color.parseColor("#33FFFFFF"));
+            }
             bg.setCornerRadius(50f);
-            if (isDarkTheme) bg.setStroke(2, Color.parseColor("#444444"));
-            else bg.setStroke(2, Color.parseColor("#DDDDDD"));
             layout.setBackground(bg);
 
             TextView title = new TextView(this);
             title.setText("Free Mode");
             title.setTextSize(20f);
             title.setTypeface(null, android.graphics.Typeface.BOLD);
-            title.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+            title.setTextColor(textColor);
             title.setPadding(0, 0, 0, 30);
 
             TextView msg = new TextView(this);
@@ -538,9 +572,17 @@ public class CollageStudioActivity extends AppCompatActivity {
         popupLayout.setMinimumWidth(450);
 
         GradientDrawable popupBg = new GradientDrawable();
-        popupBg.setColor(isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#FFFFFF"));
+        if (themeState == 0) {
+            popupBg.setColor(Color.WHITE);
+            popupBg.setStroke(2, Color.parseColor("#DDDDDD"));
+        } else if (themeState == 1) {
+            popupBg.setColor(Color.parseColor("#2C2C2E"));
+            popupBg.setStroke(2, Color.parseColor("#444444"));
+        } else {
+            popupBg.setColor(Color.parseColor("#1C1C1E"));
+            popupBg.setStroke(2, Color.parseColor("#444444"));
+        }
         popupBg.setCornerRadius(50f);
-        popupBg.setStroke(2, isDarkTheme ? Color.parseColor("#444444") : Color.parseColor("#DDDDDD"));
         popupLayout.setBackground(popupBg);
 
         Button btnPng = new Button(this);
@@ -684,7 +726,7 @@ public class CollageStudioActivity extends AppCompatActivity {
     private void setupHexInput(EditText et, int type) {
         if (et == null) return;
         et.setTextColor(textColor);
-        et.setHintTextColor(isDarkTheme ? Color.GRAY : Color.LTGRAY);
+        et.setHintTextColor(themeState == 0 ? Color.LTGRAY : Color.GRAY);
         et.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}

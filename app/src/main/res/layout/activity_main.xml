@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main_root"
     android:layout_width="match_parent"
@@ -7,11 +8,13 @@
     android:padding="16dp"
     android:fitsSystemWindows="true">
 
-    <!-- 1. Dynamic Top Header & Theme Toggle -->
-    <RelativeLayout
+    <!-- 1. Dynamic Top Header & Theme Toggle (FIXED: Switched to Horizontal LinearLayout for Flex) -->
+    <LinearLayout
         android:id="@+id/header_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:layout_alignParentTop="true"
         android:layout_marginTop="8dp">
 
@@ -19,8 +22,6 @@
             android:id="@+id/btn_app_theme_toggle"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/theme_toggle_desc"
             android:src="@drawable/ic_moon"
@@ -29,53 +30,65 @@
             tools:ignore="ImageContrastCheck" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_toEndOf="@id/btn_app_theme_toggle"
-            android:layout_centerVertical="true"
+            android:layout_weight="1"
             android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
             android:orientation="vertical">
+
+            <!-- FIX: Auto-sizing applied -->
             <TextView
                 android:id="@+id/tvGreeting"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Good Evening"
-                android:textSize="13sp" />
+                android:textSize="13sp"
+                android:maxLines="1"
+                app:autoSizeTextType="uniform"
+                app:autoSizeMinTextSize="10sp"
+                app:autoSizeMaxTextSize="13sp" />
+
             <TextView
                 android:id="@+id/tvWelcome"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Welcome back!"
+                android:text="Welcome!"
                 android:textSize="22sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:maxLines="1"
+                app:autoSizeTextType="uniform"
+                app:autoSizeMinTextSize="14sp"
+                app:autoSizeMaxTextSize="22sp" />
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/date_pill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
             android:background="@drawable/modern_button"
             android:orientation="horizontal"
             android:paddingHorizontal="14dp"
             android:paddingVertical="10dp"
             android:gravity="center_vertical">
+
             <ImageView
                 android:id="@+id/ivCalendar"
                 android:layout_width="14dp"
                 android:layout_height="14dp"
                 android:src="@android:drawable/ic_menu_my_calendar"
                 android:layout_marginEnd="6dp" />
+
             <TextView
                 android:id="@+id/tvDate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="May 20, 2025"
                 android:textSize="12sp"
-                android:textStyle="bold"/>
+                android:textStyle="bold"
+                android:maxLines="1" />
         </LinearLayout>
-    </RelativeLayout>
+    </LinearLayout>
 
     <!-- 2. Device Stats Dashboard (Adaptive Height) -->
     <LinearLayout
@@ -92,215 +105,244 @@
 
     </LinearLayout>
 
-    <!-- 3. The 2x2 Grid Layout (Adaptive Scroll) -->
+    <!-- 3. The 2x2 Grid Layout (Adaptive Scroll & Resize) -->
     <ScrollView
         android:id="@+id/grid_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/dashboard_container"
         android:clipToPadding="false"
-        android:paddingBottom="40dp"
         android:scrollbars="none"
         android:fillViewport="true">
 
         <LinearLayout
-            android:id="@+id/bottom_button_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center_horizontal">
+            android:orientation="vertical">
 
-            <!-- Spacer: Pushes grid to bottom on tall screens, shrinks to 0 on short screens -->
+            <!-- Spacer: Dynamically pushes the grid to the bottom of the screen if there's extra room -->
             <Space
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1" />
 
-            <!-- ROW 1: Widgets & Games -->
-            <LinearLayout
+            <!-- Highly Adaptive GridLayout: Maintains structure regardless of text scaling or display size -->
+            <GridLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:weightSum="2"
-                android:baselineAligned="false"
-                android:layout_marginBottom="12dp">
+                android:columnCount="2"
+                android:alignmentMode="alignMargins">
 
+                <!-- CARD 1: Widgets -->
                 <LinearLayout
                     android:id="@+id/btnPlaceWidget"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill"
                     android:orientation="vertical"
                     android:background="@drawable/modern_button"
-                    android:layout_marginEnd="6dp"
+                    android:layout_margin="6dp"
                     android:clickable="true"
                     android:focusable="true"
-                    android:paddingTop="12dp"
+                    android:paddingTop="16dp"
                     android:paddingBottom="24dp"
                     android:gravity="center">
 
-                    <FrameLayout
+                    <ImageView
+                        android:id="@+id/ivWidgetIcon"
                         android:layout_width="match_parent"
-                        android:layout_height="100dp">
-                        <ImageView
-                            android:id="@+id/ivWidgetIcon"
-                            android:layout_width="75dp"
-                            android:layout_height="75dp"
-                            android:layout_gravity="center"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/icon_main_widgets" />
-                    </FrameLayout>
+                        android:layout_height="80dp"
+                        android:scaleType="fitCenter"
+                        android:padding="6dp"
+                        android:layout_marginBottom="6dp"
+                        android:src="@drawable/icon_main_widgets" />
+
+                    <!-- FIX: MaxLines & Auto-size guarantees text never breaks the layout -->
                     <TextView
                         android:id="@+id/tvWidgetText"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Widgets"
                         android:textSize="17sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="12sp"
+                        app:autoSizeMaxTextSize="17sp" />
                     <TextView
                         android:id="@+id/tvWidgetSub"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Customize your home"
                         android:textSize="12sp"
-                        android:layout_marginTop="2dp" />
+                        android:gravity="center"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="2"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="9sp"
+                        app:autoSizeMaxTextSize="12sp" />
                 </LinearLayout>
 
-                <!-- Added transitionName for the Shared Element Morph -->
+                <!-- CARD 2: Games -->
                 <LinearLayout
                     android:id="@+id/btnGames"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill"
                     android:orientation="vertical"
                     android:background="@drawable/modern_button"
-                    android:layout_marginStart="6dp"
+                    android:layout_margin="6dp"
                     android:clickable="true"
                     android:focusable="true"
-                    android:paddingTop="12dp"
+                    android:paddingTop="16dp"
                     android:paddingBottom="24dp"
                     android:gravity="center"
                     android:transitionName="shared_games_container">
 
-                    <FrameLayout
+                    <ImageView
+                        android:id="@+id/ivGamesIcon"
                         android:layout_width="match_parent"
-                        android:layout_height="100dp">
-                        <ImageView
-                            android:id="@+id/ivGamesIcon"
-                            android:layout_width="75dp"
-                            android:layout_height="75dp"
-                            android:layout_gravity="center"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/icon_main_games" />
-                    </FrameLayout>
+                        android:layout_height="80dp"
+                        android:scaleType="fitCenter"
+                        android:padding="6dp"
+                        android:layout_marginBottom="6dp"
+                        android:src="@drawable/icon_main_games" />
+
+                    <!-- FIX: MaxLines & Auto-size -->
                     <TextView
                         android:id="@+id/tvGamesText"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Games"
                         android:textSize="17sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="12sp"
+                        app:autoSizeMaxTextSize="17sp" />
                     <TextView
                         android:id="@+id/tvGamesSub"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Play and enjoy"
                         android:textSize="12sp"
-                        android:layout_marginTop="2dp" />
+                        android:gravity="center"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="2"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="9sp"
+                        app:autoSizeMaxTextSize="12sp" />
                 </LinearLayout>
-            </LinearLayout>
 
-            <!-- ROW 2: Tools & Utilities -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:weightSum="2"
-                android:baselineAligned="false">
-
+                <!-- CARD 3: Tools -->
                 <LinearLayout
                     android:id="@+id/btnTools"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill"
                     android:orientation="vertical"
                     android:background="@drawable/modern_button"
-                    android:layout_marginEnd="6dp"
+                    android:layout_margin="6dp"
                     android:clickable="true"
                     android:focusable="true"
-                    android:paddingTop="12dp"
+                    android:paddingTop="16dp"
                     android:paddingBottom="24dp"
                     android:gravity="center">
 
-                    <FrameLayout
+                    <ImageView
+                        android:id="@+id/ivToolsIcon"
                         android:layout_width="match_parent"
-                        android:layout_height="100dp">
-                        <ImageView
-                            android:id="@+id/ivToolsIcon"
-                            android:layout_width="75dp"
-                            android:layout_height="75dp"
-                            android:layout_gravity="center"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/icon_main_tools" />
-                    </FrameLayout>
+                        android:layout_height="80dp"
+                        android:scaleType="fitCenter"
+                        android:padding="6dp"
+                        android:layout_marginBottom="6dp"
+                        android:src="@drawable/icon_main_tools" />
+
+                    <!-- FIX: MaxLines & Auto-size -->
                     <TextView
                         android:id="@+id/tvToolsText"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Tools"
                         android:textSize="17sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="12sp"
+                        app:autoSizeMaxTextSize="17sp" />
                     <TextView
                         android:id="@+id/tvToolsSub"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Handy tools for you"
                         android:textSize="12sp"
-                        android:layout_marginTop="2dp" />
+                        android:gravity="center"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="2"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="9sp"
+                        app:autoSizeMaxTextSize="12sp" />
                 </LinearLayout>
 
+                <!-- CARD 4: Utilities -->
                 <LinearLayout
                     android:id="@+id/btnUtilities"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_columnWeight="1"
+                    android:layout_gravity="fill"
                     android:orientation="vertical"
                     android:background="@drawable/modern_button"
-                    android:layout_marginStart="6dp"
+                    android:layout_margin="6dp"
                     android:clickable="true"
                     android:focusable="true"
-                    android:paddingTop="12dp"
+                    android:paddingTop="16dp"
                     android:paddingBottom="24dp"
                     android:gravity="center">
 
-                    <FrameLayout
+                    <ImageView
+                        android:id="@+id/ivUtilitiesIcon"
                         android:layout_width="match_parent"
-                        android:layout_height="100dp">
-                        <ImageView
-                            android:id="@+id/ivUtilitiesIcon"
-                            android:layout_width="75dp"
-                            android:layout_height="75dp"
-                            android:layout_gravity="center"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/icon_main_utilities" />
-                    </FrameLayout>
+                        android:layout_height="80dp"
+                        android:scaleType="fitCenter"
+                        android:padding="6dp"
+                        android:layout_marginBottom="6dp"
+                        android:src="@drawable/icon_main_utilities" />
+
+                    <!-- FIX: MaxLines & Auto-size -->
                     <TextView
                         android:id="@+id/tvUtilitiesText"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Utilities"
                         android:textSize="17sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="12sp"
+                        app:autoSizeMaxTextSize="17sp" />
                     <TextView
                         android:id="@+id/tvUtilitiesSub"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Essential utilities"
                         android:textSize="12sp"
-                        android:layout_marginTop="2dp" />
+                        android:gravity="center"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="2"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="9sp"
+                        app:autoSizeMaxTextSize="12sp" />
                 </LinearLayout>
-            </LinearLayout>
+
+            </GridLayout>
         </LinearLayout>
     </ScrollView>
-
 </RelativeLayout>

@@ -62,13 +62,46 @@ public class StickerMakerActivity extends AppCompatActivity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState); setContentView(R.layout.activity_sticker_maker);
-        prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE); isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+        prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+
+        // --- 3-STATE THEME LOGIC ---
+        int themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+
+        // Fallback boolean for Crop Studio backgrounds
+        isDarkTheme = (themeState != 0);
+
         View root = findViewById(R.id.stickerMakerRoot); etTitle = findViewById(R.id.etStickerTitle); tvSubtitle = findViewById(R.id.tvStickerSubtitle);
         btnPick = findViewById(R.id.btnPickImage); btnAddWA = findViewById(R.id.btnAddWhatsApp); stickerGrid = findViewById(R.id.stickerGrid);
         packSelectorContainer = findViewById(R.id.packSelectorContainer); packScrollView = findViewById(R.id.packScrollView);
 
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7"); cardColor = isDarkTheme ? Color.parseColor("#E62C2C2E") : Color.parseColor("#F2FFFFFF"); panelColor = isDarkTheme ? Color.parseColor("#E63A3A3C") : Color.parseColor("#E6E5E5EA"); textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#1C1C1E"); glassBorderColor = isDarkTheme ? Color.parseColor("#33FFFFFF") : Color.parseColor("#D1D1D6");
-        root.setBackgroundColor(bgColor); etTitle.setTextColor(textColor); etTitle.setHintTextColor(isDarkTheme ? Color.parseColor("#8E8E93") : Color.parseColor("#888888"));
+        int bgColor;
+        if (themeState == 0) { // Light Mode
+            bgColor = Color.parseColor("#F2F2F7");
+            cardColor = Color.parseColor("#F2FFFFFF");
+            panelColor = Color.parseColor("#E6E5E5EA");
+            textColor = Color.parseColor("#1C1C1E");
+            glassBorderColor = Color.parseColor("#D1D1D6");
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1C1C1E");
+            cardColor = Color.parseColor("#E62C2C2E");
+            panelColor = Color.parseColor("#E63A3A3C");
+            textColor = Color.WHITE;
+            glassBorderColor = Color.parseColor("#33FFFFFF");
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000"); // Pure Black background
+            cardColor = Color.parseColor("#1C1C1E"); // Dark grey cards to float
+            panelColor = Color.parseColor("#2C2C2E");
+            textColor = Color.WHITE;
+            glassBorderColor = Color.parseColor("#33FFFFFF");
+        }
+
+        root.setBackgroundColor(bgColor);
+        etTitle.setTextColor(textColor);
+        etTitle.setHintTextColor(isDarkTheme ? Color.parseColor("#8E8E93") : Color.parseColor("#888888"));
         tvSubtitle.setTextColor(isDarkTheme ? Color.parseColor("#8E8E93") : Color.parseColor("#666666"));
 
         staticPackCount = prefs.getInt("static_pack_count", 3); refreshPackTabBar(); switchPack("ownphoto_pack_1");
@@ -160,7 +193,25 @@ public class StickerMakerActivity extends AppCompatActivity {
     }
 
     private void addStickerToGrid(File file, Bitmap bitmap) {
-        LinearLayout frame = new LinearLayout(this); GridLayout.LayoutParams params = new GridLayout.LayoutParams(); params.width = 240; params.height = 240; params.setMargins(14, 14, 14, 14); frame.setLayoutParams(params);
+        LinearLayout frame = new LinearLayout(this);
+
+        // --- FIX: Dynamic Grid Sizing to remove the massive empty space ---
+        float density = getResources().getDisplayMetrics().density;
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int rootPadding = (int) (40 * density); // 20dp left + 20dp right from root XML
+        int itemMargin = (int) (6 * density);   // 6dp margin on all sides of the box
+        int totalMargins = itemMargin * 6;      // 3 items * (left+right margins)
+
+        // Calculate the absolute perfect width for a 3-column layout based on screen size
+        int itemSize = (screenWidth - rootPadding - totalMargins) / 3;
+
+        GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+        params.width = itemSize;
+        params.height = itemSize; // Keeps it a perfect square
+        params.setMargins(itemMargin, itemMargin, itemMargin, itemMargin);
+        frame.setLayoutParams(params);
+        // ------------------------------------------------------------------
+
         GradientDrawable gd = new GradientDrawable(); gd.setColor(cardColor); gd.setCornerRadius(40f); gd.setStroke(2, glassBorderColor); frame.setBackground(gd); frame.setGravity(Gravity.CENTER); frame.setPadding(16, 16, 16, 16);
         frame.setOnLongClickListener(v -> {
             AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle); builder.setTitle("Delete Sticker").setMessage("Remove this sticker from the pack?").setPositiveButton("DELETE", (dialog, which) -> { if (file.delete()) { File thumbFile = new File(file.getParentFile(), file.getName().replace(".webp", "_thumb.png")); if (thumbFile.exists()) thumbFile.delete(); ensureValidTrayIcon(file.getParentFile()); Toast.makeText(this, "Sticker deleted", Toast.LENGTH_SHORT).show(); loadExistingStickers(); } }).setNegativeButton("CANCEL", null);

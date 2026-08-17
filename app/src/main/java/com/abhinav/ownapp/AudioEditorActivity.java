@@ -74,6 +74,10 @@ public class AudioEditorActivity extends AppCompatActivity {
     private float msPerPx = 0f; private long maxTimelineMs = 1, playheadMs = 0;
     private final List<List<AudioTrackItem>> undoStack = new ArrayList<>(); private final List<List<AudioTrackItem>> redoStack = new ArrayList<>();
 
+    // --- 3-State Theme Variables ---
+    private int themeState;
+    private int colorBg, colorDrawerBg, colorText, colorPillBg, colorToolBg, colorDialogBg;
+
     public static class AudioTrackItem { public String name, path; public int offsetPx = 0; public boolean isMuted = false, isBase = false; public long durMs = 0, originalDurMs = 0; public float volume = 1.0f, speed = 1.0f; public int bassType = 0, trebleType = 0; public float[] waveCache = null; public AudioTrackItem(String name, String path) { this.name = name; this.path = path; } }
     public static class PcmAudio { public short[] pcm; public int sampleRate, channels; public PcmAudio(short[] p, int sr, int c) { pcm = p; sampleRate = sr; channels = c; } }
 
@@ -141,7 +145,40 @@ public class AudioEditorActivity extends AppCompatActivity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState); setContentView(R.layout.activity_audio_editor); initViews(); setupEdgeToEdge();
-        isDarkTheme = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE).getBoolean(SnakeWidget.PREF_IS_DARK, true); applyTheme(); setupListeners(); setupPlayheadScrubbing(); setupSplitPlayhead(); handleSharedIntent(getIntent());
+
+        // --- 3-STATE THEME LOGIC INJECTION ---
+        android.content.SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+        themeState = prefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
+        isDarkTheme = (themeState != 0); // Preserved for Waveform view dependency
+
+        if (themeState == 0) { // Light Mode
+            colorBg = Color.parseColor("#F2F2F7");
+            colorDrawerBg = Color.parseColor("#CCF2F2F7");
+            colorText = Color.BLACK;
+            colorPillBg = Color.WHITE;
+            colorToolBg = Color.parseColor("#E5E5EA");
+            colorDialogBg = Color.parseColor("#CCF2F2F7");
+        } else if (themeState == 1) { // Standard Dark Mode
+            colorBg = Color.parseColor("#1C1C1E");
+            colorDrawerBg = Color.parseColor("#CC1C1C1E");
+            colorText = Color.WHITE;
+            colorPillBg = Color.parseColor("#332D2B");
+            colorToolBg = Color.parseColor("#2C2C2E");
+            colorDialogBg = Color.parseColor("#CC1C1C1E");
+        } else { // Star Mode (AMOLED Pure Black)
+            colorBg = Color.parseColor("#000000"); // Pure Black canvas
+            colorDrawerBg = Color.parseColor("#E61C1C1E"); // Translucent dark gray to hover above black
+            colorText = Color.WHITE;
+            colorPillBg = Color.parseColor("#1C1C1E");
+            colorToolBg = Color.parseColor("#1C1C1E");
+            colorDialogBg = Color.parseColor("#E61C1C1E");
+        }
+
+        applyTheme(); setupListeners(); setupPlayheadScrubbing(); setupSplitPlayhead(); handleSharedIntent(getIntent());
     }
 
     private void handleSharedIntent(Intent intent) {
@@ -236,13 +273,12 @@ public class AudioEditorActivity extends AppCompatActivity {
     private void showCustomDialog(String titleText, List<String> items, DialogCallback callback) {
         Dialog d = new Dialog(this); d.requestWindowFeature(Window.FEATURE_NO_TITLE); if (d.getWindow() != null) d.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(80, 80, 80, 80);
-        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(Color.parseColor(isDarkTheme ? "#CC1C1C1E" : "#CCF2F2F7")); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
-        TextView title = new TextView(this); title.setText(titleText); title.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
+        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(colorDialogBg); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
+        TextView title = new TextView(this); title.setText(titleText); title.setTextColor(colorText); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
         ScrollView scroll = new ScrollView(this); LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL);
-        int pillBg = isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE, txtCol = isDarkTheme ? Color.WHITE : Color.BLACK;
         for (int i = 0; i < items.size(); i++) {
-            TextView item = new TextView(this); item.setText(items.get(i)); item.setTextColor(txtCol); item.setTextSize(16f); item.setTypeface(null, Typeface.BOLD); item.setPadding(40, 40, 40, 40); item.setGravity(android.view.Gravity.CENTER);
-            item.setBackground(createPill(pillBg)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.setMargins(0, 0, 0, 24); item.setLayoutParams(lp);
+            TextView item = new TextView(this); item.setText(items.get(i)); item.setTextColor(colorText); item.setTextSize(16f); item.setTypeface(null, Typeface.BOLD); item.setPadding(40, 40, 40, 40); item.setGravity(android.view.Gravity.CENTER);
+            item.setBackground(createPill(colorPillBg)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.setMargins(0, 0, 0, 24); item.setLayoutParams(lp);
             final int idx = i; item.setOnClickListener(v -> { d.dismiss(); callback.onSelect(idx); }); list.addView(item);
         }
         scroll.addView(list); root.addView(scroll); d.setContentView(root, new ViewGroup.LayoutParams((int)(getResources().getDisplayMetrics().widthPixels * 0.85), -2)); d.show();
@@ -264,8 +300,8 @@ public class AudioEditorActivity extends AppCompatActivity {
     private void showVolumeDialog(int trackIndex) {
         saveState(); AudioTrackItem item = projectTracks.get(trackIndex); Dialog d = new Dialog(this); d.requestWindowFeature(Window.FEATURE_NO_TITLE); if (d.getWindow() != null) d.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(80, 80, 80, 80);
-        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(Color.parseColor(isDarkTheme ? "#CC1C1C1E" : "#CCF2F2F7")); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
-        TextView title = new TextView(this); title.setText("Volume: " + (int)(item.volume * 100) + "%"); title.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
+        GradientDrawable rootBg = new GradientDrawable(); rootBg.setColor(colorDialogBg); rootBg.setCornerRadius(100f); root.setBackground(rootBg);
+        TextView title = new TextView(this); title.setText("Volume: " + (int)(item.volume * 100) + "%"); title.setTextColor(colorText); title.setTextSize(20f); title.setTypeface(null, Typeface.BOLD); title.setPadding(0, 0, 0, 60); title.setGravity(android.view.Gravity.CENTER); root.addView(title);
         android.widget.SeekBar sb = createSeekBar((int)(item.volume * 100), new android.widget.SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) { title.setText("Volume: " + progress + "%"); item.volume = progress / 100f; if (trackIndex < activePlayers.size()) activePlayers.get(trackIndex).setVolume(item.isMuted ? 0f : item.volume, item.isMuted ? 0f : item.volume); }
             @Override public void onStartTrackingTouch(android.widget.SeekBar seekBar) {} @Override public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
@@ -415,7 +451,8 @@ public class AudioEditorActivity extends AppCompatActivity {
         };
         for (int i = 0; i < projectTracks.size(); i++) {
             AudioTrackItem item = projectTracks.get(i); TextView tv = new TextView(this);
-            tv.setText(" " + (item.isBase ? "Base: " : "Layer: ") + item.name + (item.speed != 1.0f ? " (" + item.speed + "x)" : "") + (item.bassType == 1 ? " [High Bass]" : item.bassType == -1 ? " [Low Bass]" : "") + (item.trebleType == 1 ? " [High Treble]" : item.trebleType == -1 ? " [Low Treble]" : "")); tv.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK); tv.setTextSize(14f);
+            tv.setText(" " + (item.isBase ? "Base: " : "Layer: ") + item.name + (item.speed != 1.0f ? " (" + item.speed + "x)" : "") + (item.bassType == 1 ? " [High Bass]" : item.bassType == -1 ? " [Low Bass]" : "") + (item.trebleType == 1 ? " [High Treble]" : item.trebleType == -1 ? " [Low Treble]" : ""));
+            tv.setTextColor(colorText); tv.setTextSize(14f);
             LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-2, -2); tp.setMargins(item.offsetPx, (int)(12 * density), 0, (int)(4 * density)); tv.setLayoutParams(tp);
             int pixelWidth = Math.max(10, (int)(item.durMs / msPerPx)); int buckets = Math.max(10, pixelWidth / 6);
             WaveformView wv = new WaveformView(this, item, true, onLayerDragEnd, tv, item.isBase, isDarkTheme, buckets, timelineScroller); if (i == 0) activeWaveformView = wv;
@@ -548,18 +585,17 @@ public class AudioEditorActivity extends AppCompatActivity {
     private void styleToolLayout(LinearLayout layout, ImageView ic, TextView tv, int bgColor, int textColor) { layout.setBackground(createPill(bgColor)); tv.setTextColor(textColor); ic.setColorFilter(textColor, PorterDuff.Mode.SRC_IN); }
 
     private void applyTheme() {
-        int bgColor = isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#F2F2F7"), drawerBg = isDarkTheme ? Color.parseColor("#CC1C1C1E") : Color.parseColor("#CCF2F2F7");
-        int textColor = isDarkTheme ? Color.WHITE : Color.BLACK, pillBg = isDarkTheme ? Color.parseColor("#332D2B") : Color.WHITE, toolBg = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#E5E5EA"), blueAccent = Color.parseColor("#5A9AF4");
-        getWindow().setStatusBarColor(bgColor); mainContent.setBackgroundColor(bgColor); leftDrawer.setBackgroundColor(drawerBg); rightDrawer.setBackgroundColor(drawerBg);
-        tvTitle.setTextColor(textColor); tvTotalDuration.setTextColor(isDarkTheme ? Color.LTGRAY : Color.DKGRAY); ((TextView) findViewById(R.id.tvLeftTitle)).setTextColor(textColor); ((TextView) findViewById(R.id.tvTracksEmpty)).setTextColor(textColor); ((TextView) findViewById(R.id.tvRightTitle)).setTextColor(textColor);
-        btnGallery.setBackground(createPill(pillBg)); btnGallery.setTextColor(textColor); btnExport.setBackground(createPill(pillBg)); btnExport.setTextColor(textColor);
-        btnTracks.setBackground(createPill(pillBg)); btnTracks.setTextColor(textColor); btnTools.setBackground(createPill(pillBg)); btnTools.setTextColor(textColor);
-        btnCancelTrim.setBackground(createPill(pillBg)); btnCancelTrim.setTextColor(textColor); btnLoadAudio.setBackground(createPill(blueAccent)); btnApplyTrim.setBackground(createPill(Color.parseColor("#34C759")));
-        styleToolButton(btnAddTrack, android.R.drawable.ic_input_add, toolBg, textColor); styleToolButton(toolTrim, android.R.drawable.ic_menu_edit, toolBg, textColor); styleToolButton(toolMerge, android.R.drawable.ic_menu_add, toolBg, textColor); styleToolButton(toolVolume, android.R.drawable.ic_lock_silent_mode_off, toolBg, textColor); styleToolButton(toolSpeed, android.R.drawable.ic_media_ff, toolBg, textColor); styleToolButton(toolBass, android.R.drawable.ic_menu_sort_by_size, toolBg, textColor); styleToolButton(toolTreble, android.R.drawable.ic_menu_sort_alphabetically, toolBg, textColor); styleToolButton(toolSplit, android.R.drawable.ic_menu_crop, toolBg, textColor);
-        styleToolLayout(toolUndo, icUndo, tvUndo, toolBg, textColor); styleToolLayout(toolRedo, icRedo, tvRedo, toolBg, textColor);
+        int blueAccent = Color.parseColor("#5A9AF4");
+        getWindow().setStatusBarColor(colorBg); mainContent.setBackgroundColor(colorBg); leftDrawer.setBackgroundColor(colorDrawerBg); rightDrawer.setBackgroundColor(colorDrawerBg);
+        tvTitle.setTextColor(colorText); tvTotalDuration.setTextColor(isDarkTheme ? Color.LTGRAY : Color.DKGRAY); ((TextView) findViewById(R.id.tvLeftTitle)).setTextColor(colorText); ((TextView) findViewById(R.id.tvTracksEmpty)).setTextColor(colorText); ((TextView) findViewById(R.id.tvRightTitle)).setTextColor(colorText);
+        btnGallery.setBackground(createPill(colorPillBg)); btnGallery.setTextColor(colorText); btnExport.setBackground(createPill(colorPillBg)); btnExport.setTextColor(colorText);
+        btnTracks.setBackground(createPill(colorPillBg)); btnTracks.setTextColor(colorText); btnTools.setBackground(createPill(colorPillBg)); btnTools.setTextColor(colorText);
+        btnCancelTrim.setBackground(createPill(colorPillBg)); btnCancelTrim.setTextColor(colorText); btnLoadAudio.setBackground(createPill(blueAccent)); btnApplyTrim.setBackground(createPill(Color.parseColor("#34C759")));
+        styleToolButton(btnAddTrack, android.R.drawable.ic_input_add, colorToolBg, colorText); styleToolButton(toolTrim, android.R.drawable.ic_menu_edit, colorToolBg, colorText); styleToolButton(toolMerge, android.R.drawable.ic_menu_add, colorToolBg, colorText); styleToolButton(toolVolume, android.R.drawable.ic_lock_silent_mode_off, colorToolBg, colorText); styleToolButton(toolSpeed, android.R.drawable.ic_media_ff, colorToolBg, colorText); styleToolButton(toolBass, android.R.drawable.ic_menu_sort_by_size, colorToolBg, colorText); styleToolButton(toolTreble, android.R.drawable.ic_menu_sort_alphabetically, colorToolBg, colorText); styleToolButton(toolSplit, android.R.drawable.ic_menu_crop, colorToolBg, colorText);
+        styleToolLayout(toolUndo, icUndo, tvUndo, colorToolBg, colorText); styleToolLayout(toolRedo, icRedo, tvRedo, colorToolBg, colorText);
         timelineControls.setBackground(null);
-        GradientDrawable playBg = new GradientDrawable(); playBg.setColor(textColor); playBg.setShape(GradientDrawable.OVAL); btnPlayPause.setBackground(playBg); btnPlayPause.setColorFilter(bgColor, PorterDuff.Mode.SRC_IN);
-        btnSeekStart.setBackground(null); btnSeekStart.setColorFilter(textColor, PorterDuff.Mode.SRC_IN); btnSeekStart.setAlpha(0.7f); btnSeekEnd.setBackground(null); btnSeekEnd.setColorFilter(textColor, PorterDuff.Mode.SRC_IN); btnSeekEnd.setAlpha(0.7f);
+        GradientDrawable playBg = new GradientDrawable(); playBg.setColor(colorText); playBg.setShape(GradientDrawable.OVAL); btnPlayPause.setBackground(playBg); btnPlayPause.setColorFilter(colorBg, PorterDuff.Mode.SRC_IN);
+        btnSeekStart.setBackground(null); btnSeekStart.setColorFilter(colorText, PorterDuff.Mode.SRC_IN); btnSeekStart.setAlpha(0.7f); btnSeekEnd.setBackground(null); btnSeekEnd.setColorFilter(colorText, PorterDuff.Mode.SRC_IN); btnSeekEnd.setAlpha(0.7f);
         GradientDrawable splitDot = new GradientDrawable(); splitDot.setColor(Color.parseColor("#4CAF50")); splitDot.setShape(GradientDrawable.OVAL); splitPlayheadDot.setBackground(splitDot);
     }
 
