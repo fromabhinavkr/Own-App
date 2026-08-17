@@ -29,8 +29,8 @@ public class MainApplication extends Application {
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
-                // FIX: Do not apply global padding and status bar colors to our immersive game!
-                if (activity instanceof GlobeGameActivity) return;
+                // FIX: Skip exempted activities so transparent animations work smoothly
+                if (isExemptedActivity(activity)) return;
 
                 setupGlobalPadding(activity);
                 applyGlobalStatusBarTheme(activity);
@@ -38,13 +38,13 @@ public class MainApplication extends Application {
 
             @Override
             public void onActivityStarted(@NonNull Activity activity) {
-                if (activity instanceof GlobeGameActivity) return;
+                if (isExemptedActivity(activity)) return;
                 applyGlobalStatusBarTheme(activity);
             }
 
             @Override
             public void onActivityResumed(@NonNull Activity activity) {
-                if (activity instanceof GlobeGameActivity) return;
+                if (isExemptedActivity(activity)) return;
                 // Enforce the theme every time the screen comes to the foreground
                 applyGlobalStatusBarTheme(activity);
             }
@@ -147,5 +147,13 @@ public class MainApplication extends Application {
             }
             decorView.setSystemUiVisibility(flags);
         }
+    }
+    // Helper method to exempt games and galleries from global background painting
+    private boolean isExemptedActivity(Activity activity) {
+        return activity instanceof GlobeGameActivity ||
+                activity instanceof GamesGalleryActivity ||
+                activity instanceof ToolsGalleryActivity ||
+                activity instanceof UtilitiesGalleryActivity ||
+                activity instanceof WidgetGalleryActivity;
     }
 }
