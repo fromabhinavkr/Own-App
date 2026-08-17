@@ -102,25 +102,25 @@
         </LinearLayout>
     </RelativeLayout>
 
-    <!-- BOTTOM SECTION: STORAGE & BATTERY UNIFIED CARD -->
+    <!-- BOTTOM SECTION: STORAGE & BATTERY SEPARATED CARDS -->
     <LinearLayout
-        android:id="@+id/storageBatteryCardBg"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:baselineAligned="false"
-        android:padding="12dp"
-        android:background="@drawable/bg_storage_card"
-        android:clipToOutline="true"
         android:weightSum="2">
 
-        <!-- STORAGE STATS -->
+        <!-- STORAGE CARD (Standalone Shape) -->
         <LinearLayout
+            android:id="@+id/storageCardBg"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="horizontal"
             android:gravity="center_vertical"
+            android:padding="12dp"
+            android:background="@drawable/bg_storage_card"
+            android:clipToOutline="true"
             android:layout_marginEnd="6dp">
 
             <ImageView
@@ -133,7 +133,7 @@
                 android:layout_marginEnd="8dp" />
 
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="80dp"
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
@@ -141,16 +141,15 @@
                     android:id="@+id/tvStorageTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Storage"
-                    android:textStyle="bold"
-                    android:textSize="14sp"
-                    android:maxLines="1"
                     android:ellipsize="end"
-                    android:textColor="?android:attr/textColorPrimary" />
+                    android:maxLines="1"
+                    android:text="Storage"
+                    android:textColor="?android:attr/textColorPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
 
-                <!-- COMPACT CAPSULE DESIGN: Fixed width of 110dp -->
                 <FrameLayout
-                    android:layout_width="110dp"
+                    android:layout_width="75dp"
                     android:layout_height="26dp"
                     android:layout_marginTop="6dp">
 
@@ -165,24 +164,29 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
+                        android:includeFontPadding="false"
                         android:text="Calc..."
+                        android:textColor="#FFFFFF"
                         android:textSize="12sp"
                         android:textStyle="bold"
-                        android:textColor="#FFFFFF"
-                        app:autoSizeTextType="uniform"
+                        app:autoSizeMaxTextSize="12sp"
                         app:autoSizeMinTextSize="8sp"
-                        app:autoSizeMaxTextSize="12sp" />
+                        app:autoSizeTextType="uniform" />
                 </FrameLayout>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- BATTERY STATS -->
+        <!-- BATTERY CARD (Standalone Shape) -->
         <LinearLayout
+            android:id="@+id/batteryCardBg"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="horizontal"
             android:gravity="center_vertical"
+            android:padding="12dp"
+            android:background="@drawable/bg_storage_card"
+            android:clipToOutline="true"
             android:layout_marginStart="6dp">
 
             <ImageView
@@ -210,9 +214,8 @@
                     android:ellipsize="end"
                     android:textColor="?android:attr/textColorPrimary" />
 
-                <!-- COMPACT CAPSULE DESIGN: Fixed width of 110dp -->
                 <FrameLayout
-                    android:layout_width="110dp"
+                    android:layout_width="75dp"
                     android:layout_height="26dp"
                     android:layout_marginTop="6dp">
 
@@ -228,6 +231,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
+                        android:includeFontPadding="false"
                         android:text="Check..."
                         android:textSize="12sp"
                         android:textStyle="bold"

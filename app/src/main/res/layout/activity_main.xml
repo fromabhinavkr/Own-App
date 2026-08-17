@@ -113,6 +113,7 @@
         android:layout_below="@id/dashboard_container"
         android:clipToPadding="false"
         android:scrollbars="none"
+        android:paddingBottom="34dp"
         android:fillViewport="true">
 
         <LinearLayout

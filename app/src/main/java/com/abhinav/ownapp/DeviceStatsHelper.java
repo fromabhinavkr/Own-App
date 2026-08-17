@@ -26,7 +26,8 @@ public class DeviceStatsHelper {
     public static void setupDashboard(Activity activity, boolean isDarkTheme) {
         // --- 1. LINK VIEWS ---
         View ramCardBg = activity.findViewById(R.id.ramCardBg);
-        View storageBatteryCardBg = activity.findViewById(R.id.storageBatteryCardBg);
+        View storageCardBg = activity.findViewById(R.id.storageCardBg);
+        View batteryCardBg = activity.findViewById(R.id.batteryCardBg);
 
         RamGraphView ramGraphView = activity.findViewById(R.id.ramGraphView);
         TextView tvRamTotal = activity.findViewById(R.id.tvRamTotal);
@@ -57,8 +58,11 @@ public class DeviceStatsHelper {
         if (ramCardBg != null) {
             ramCardBg.setBackgroundTintList(ColorStateList.valueOf(cardBgColor));
         }
-        if (storageBatteryCardBg != null) {
-            storageBatteryCardBg.setBackgroundTintList(ColorStateList.valueOf(cardBgColor));
+        if (storageCardBg != null) {
+            storageCardBg.setBackgroundTintList(ColorStateList.valueOf(cardBgColor));
+        }
+        if (batteryCardBg != null) {
+            batteryCardBg.setBackgroundTintList(ColorStateList.valueOf(cardBgColor));
         }
 
         // Apply Text Colors
