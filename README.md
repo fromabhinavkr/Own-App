@@ -42,14 +42,15 @@
 ### Utility Collection
 * **Private Browser:** Secure browser that respects your privacy, deletes all the data when user closes the browser.
 * **DOC reader:** Utility for reading doc and word files.
-
+* **Slate:** Utility for vibe drawing/rough notes.
+* **Text Pad:** Utility for rough text notes.
 ---
 
 ## SCREENSHOTS
 
 | | | |
 |:---:|:---:|:---:|
-| <img src="https://github.com/user-attachments/assets/67d27d5a-658d-479f-8e4d-1ab83f0cfcd7" width="100%" /> | <img src="https://github.com/user-attachments/assets/58a25a68-e29a-4e23-a876-347ea8884da8" width="100%" /> | <img src="https://github.com/user-attachments/assets/7d381eb5-898a-4628-862c-88a67542db92" width="100%" /> |
+| <img src="https://github.com/user-attachments/assets/613afc41-3c99-4608-b707-ed118c2e8322" width="100%" /> | <img src="https://github.com/user-attachments/assets/58a25a68-e29a-4e23-a876-347ea8884da8" width="100%" /> | <img src="https://github.com/user-attachments/assets/7d381eb5-898a-4628-862c-88a67542db92" width="100%" /> |
 | <img src="https://github.com/user-attachments/assets/035edf66-2090-456e-8eff-31141a3666b8" width="100%" /> | <img src="https://github.com/user-attachments/assets/6176ff9c-f238-44c9-af6b-5529b357bfda" width="100%" /> | <img src="https://github.com/user-attachments/assets/c54467a8-2324-4a5e-a043-79b7e64468a3" width="100%" /> |
 | <img src="https://github.com/user-attachments/assets/53d690dc-237b-4180-8340-49f36556773c" width="100%" /> | <img src="https://github.com/user-attachments/assets/09be0722-7f88-48cb-b37a-0b55be05bdb7" width="100%" /> | <img src="https://github.com/user-attachments/assets/237604e0-7c60-467f-b136-71432eea094e" width="100%" /> |
 | <img src="https://github.com/user-attachments/assets/ea7fc65e-7a48-48e1-8eb8-4af152d514cf" width="100%" /> | <img src="https://github.com/user-attachments/assets/2de1cc9e-b3ca-44b9-a423-12dac5feb45a" width="100%" /> | <img src="https://github.com/user-attachments/assets/e3b77941-995c-42ca-b376-b601c5079dc8" width="100%" /> |
