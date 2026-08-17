@@ -85,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
 
         // 25 General Rotating Two-Word Greetings Logic
         String[] dynamicGreetings = {
-                "Welcome back", "Hello again!", "Hey there!", "Think Twice", "Wanna Play?",
+                "Welcome!", "Hello again!", "Hey there!", "Think Twice", "Wanna Play?",
                 "Chill Out!", "Let's go!", "Don't Panic!", "Stay Strong!", "Enjoy Life",
                 "Inhale, Exhale", "Well Done!", "Great day!", "Hello! Hello!", "Time's running",
                 "Get ready!", "Hey Master!", "Let's Play", "How's life?", "What's up?",
