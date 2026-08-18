@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+
+    <!-- Floating Sparkle Rays (Pill Shaped) -->
+<!--    <path-->
+<!--        android:strokeColor="#E2E8F0"-->
+<!--        android:strokeWidth="2.5"-->
+<!--        android:strokeLineCap="round"-->
+<!--        android:pathData="-->
+<!--            M 16.7,5.5 L 17.9,3.9-->
+<!--            M 19.6,14.5 L 21.5,15.1-->
+<!--            M 12,20 L 12,22-->
+<!--            M 4.4,14.5 L 2.5,15.1-->
+<!--            M 7.3,5.5 L 6.1,3.9" />-->
+
+    <!-- Plump 5-Point Star Base -->
+    <path
+        android:fillColor="#E2E8F0"
+        android:strokeColor="#E2E8F0"
+        android:strokeWidth="3.0"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M12,5.5 L14.05,9.16 L18.18,9.99 L15.33,13.08 L15.82,17.26 L12,15.5 L8.18,17.26 L8.67,13.08 L5.82,9.99 L9.94,9.16 Z" />
+
+    <!-- Cutout Pause Bars (Matches Star Theme Pure Black Background) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M9.5,10 h1.5 v4.5 h-1.5 z M13,10 h1.5 v4.5 h-1.5 z" />
+
+</vector>
