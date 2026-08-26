@@ -4,16 +4,19 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PointF;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -21,6 +24,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -34,293 +38,906 @@ import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.Arrays;
 
-@SuppressWarnings("all") @SuppressLint({"SetTextI18n", "SpellCheckingInspection", "ClickableViewAccessibility", "DrawAllocation"})
+@SuppressWarnings("all")
+@SuppressLint({"SetTextI18n", "SpellCheckingInspection", "ClickableViewAccessibility", "DrawAllocation"})
 public class StickerMakerActivity extends AppCompatActivity {
-    private Button btnAddWA, btnPick; private TextView tvSubtitle; private EditText etTitle; private GridLayout stickerGrid;
-    private LinearLayout packSelectorContainer; private HorizontalScrollView packScrollView;
-    private int stickerCount = 0; private boolean isDarkTheme; private int textColor, cardColor, panelColor, glassBorderColor; private SharedPreferences prefs;
-    private String currentPackId = "ownphoto_pack_1"; private int staticPackCount = 3;
+    private LinearLayout btnAddWA;
+    private TextView tvSubtitle, tvStatusText;
+    private View statusDot;
+    private EditText etTitle;
+    private GridLayout stickerGrid;
+    private LinearLayout packSelectorContainer, mainStickerCard;
+    private HorizontalScrollView packScrollView;
+    private FrameLayout btnPackOptions;
+
+    private int stickerCount = 0;
+    private boolean isDarkTheme;
+    private int bgColor, textColor, cardColor, panelColor, accentColor, subTextColor, glassBorderColor;
+    private SharedPreferences prefs;
+
+    private String deviceId;
+    private String currentPackId;
+    private int staticPackCount = 3;
+    private boolean isSwitchingPack = false;
 
     private final ActivityResultLauncher<Intent> pickMediaLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-        if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) { Uri uri = result.getData().getData(); if (uri != null) showVisualCropStudio(uri); }
+        if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+            Uri uri = result.getData().getData();
+            if (uri != null) showVisualCropStudio(uri);
+        }
     });
 
     private final ActivityResultLauncher<Intent> addStickerLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-        if (result.getResultCode() == Activity.RESULT_CANCELED && result.getData() != null) { String validationError = result.getData().getStringExtra("validation_error"); if (validationError != null) Toast.makeText(this, "WA Rejected: " + validationError, Toast.LENGTH_LONG).show(); }
-        else if (result.getResultCode() == Activity.RESULT_OK) { Toast.makeText(this, "Successfully added to WhatsApp!", Toast.LENGTH_SHORT).show(); }
+        if (result.getResultCode() == Activity.RESULT_CANCELED && result.getData() != null) {
+            String validationError = result.getData().getStringExtra("validation_error");
+            if (validationError != null)
+                Toast.makeText(this, "WA Rejected: " + validationError, Toast.LENGTH_LONG).show();
+        } else if (result.getResultCode() == Activity.RESULT_OK) {
+            Toast.makeText(this, "Successfully added to WhatsApp!", Toast.LENGTH_SHORT).show();
+        }
     });
 
-    @Override protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState); setContentView(R.layout.activity_sticker_maker);
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_sticker_maker);
         prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
 
-        // --- 3-STATE THEME LOGIC ---
         int themeState = prefs.getInt("app_theme_state", -1);
         if (themeState == -1) {
             boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
             themeState = oldDark ? 1 : 0;
         }
 
-        // Fallback boolean for Crop Studio backgrounds
         isDarkTheme = (themeState != 0);
 
-        View root = findViewById(R.id.stickerMakerRoot); etTitle = findViewById(R.id.etStickerTitle); tvSubtitle = findViewById(R.id.tvStickerSubtitle);
-        btnPick = findViewById(R.id.btnPickImage); btnAddWA = findViewById(R.id.btnAddWhatsApp); stickerGrid = findViewById(R.id.stickerGrid);
-        packSelectorContainer = findViewById(R.id.packSelectorContainer); packScrollView = findViewById(R.id.packScrollView);
-
-        int bgColor;
+        // --- MODERN COLOR PALETTES ---
         if (themeState == 0) { // Light Mode
-            bgColor = Color.parseColor("#F2F2F7");
-            cardColor = Color.parseColor("#F2FFFFFF");
-            panelColor = Color.parseColor("#E6E5E5EA");
+            bgColor = Color.parseColor("#FFFFFF");
+            cardColor = Color.parseColor("#F3F4F6");
+            panelColor = Color.parseColor("#E5E7EB");
             textColor = Color.parseColor("#1C1C1E");
+            subTextColor = Color.parseColor("#6B7280");
+            accentColor = Color.parseColor("#34C759"); // Apple Green
             glassBorderColor = Color.parseColor("#D1D1D6");
         } else if (themeState == 1) { // Standard Dark Mode
             bgColor = Color.parseColor("#1C1C1E");
-            cardColor = Color.parseColor("#E62C2C2E");
-            panelColor = Color.parseColor("#E63A3A3C");
+            cardColor = Color.parseColor("#2C2C2E");
+            panelColor = Color.parseColor("#3A3A3C");
             textColor = Color.WHITE;
+            subTextColor = Color.parseColor("#8E8E93");
+            accentColor = Color.parseColor("#32D74B"); // Lime Green
             glassBorderColor = Color.parseColor("#33FFFFFF");
         } else { // Star Mode (AMOLED Pure Black)
-            bgColor = Color.parseColor("#000000"); // Pure Black background
-            cardColor = Color.parseColor("#1C1C1E"); // Dark grey cards to float
-            panelColor = Color.parseColor("#2C2C2E");
+            bgColor = Color.parseColor("#000000");
+            cardColor = Color.parseColor("#111827");
+            panelColor = Color.parseColor("#1F2937");
             textColor = Color.WHITE;
+            subTextColor = Color.parseColor("#9CA3AF");
+            accentColor = Color.parseColor("#A3E635"); // Lime Green
             glassBorderColor = Color.parseColor("#33FFFFFF");
         }
 
+        View root = findViewById(R.id.stickerMakerRoot);
         root.setBackgroundColor(bgColor);
-        etTitle.setTextColor(textColor);
-        etTitle.setHintTextColor(isDarkTheme ? Color.parseColor("#8E8E93") : Color.parseColor("#888888"));
-        tvSubtitle.setTextColor(isDarkTheme ? Color.parseColor("#8E8E93") : Color.parseColor("#666666"));
 
-        staticPackCount = prefs.getInt("static_pack_count", 3); refreshPackTabBar(); switchPack("ownphoto_pack_1");
+        etTitle = findViewById(R.id.etStickerTitle);
+        tvSubtitle = findViewById(R.id.tvStickerSubtitle);
+        tvStatusText = findViewById(R.id.tvStatusText);
+        statusDot = findViewById(R.id.statusDot);
+        mainStickerCard = findViewById(R.id.mainStickerCard);
+        stickerGrid = findViewById(R.id.stickerGrid);
+        packSelectorContainer = findViewById(R.id.packSelectorContainer);
+        packScrollView = findViewById(R.id.packScrollView);
+        btnPackOptions = findViewById(R.id.btnPackOptions);
+
+        btnAddWA = findViewById(R.id.btnAddWhatsApp);
+
+        // Setup Main Card styling
+        GradientDrawable gdMainCard = new GradientDrawable();
+        gdMainCard.setColor(cardColor);
+        gdMainCard.setCornerRadius(60f);
+        mainStickerCard.setBackground(gdMainCard);
+
+        etTitle.setTextColor(textColor);
+        etTitle.setHintTextColor(subTextColor);
+
+        // --- SUBTITLE TEXT ---
+        tvSubtitle.setTextColor(subTextColor);
+        tvSubtitle.setText("Long press to reorder sticker");
+
+        // --- TRASH ICON FOR PACK OPTIONS ---
+        btnPackOptions.addView(new StickerIconView(this, StickerIconView.ICON_TRASH, subTextColor));
+        GradientDrawable gdDots = new GradientDrawable();
+        gdDots.setColor(panelColor);
+        gdDots.setShape(GradientDrawable.OVAL);
+        btnPackOptions.setBackground(gdDots);
+        btnPackOptions.setOnClickListener(v -> showDeletePackDialog());
+
+        // Setup Bottom Button Styling
+        setupBottomButton(btnAddWA, StickerIconView.ICON_SEND, "Publish to WhatsApp", accentColor, isDarkTheme ? Color.BLACK : Color.WHITE);
+
+        deviceId = prefs.getString("device_sticker_id", "");
+        if (deviceId.isEmpty()) {
+            deviceId = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+            prefs.edit().putString("device_sticker_id", deviceId).apply();
+
+            // Migration
+            int count = prefs.getInt("static_pack_count", 3);
+            for (int i = 1; i <= count; i++) {
+                String oldId = "ownphoto_pack_" + i;
+                String newId = "ownpack_" + deviceId + "_" + i;
+                File oldDir = new File(getFilesDir(), "stickers/" + oldId);
+                File newDir = new File(getFilesDir(), "stickers/" + newId);
+                if (oldDir.exists()) oldDir.renameTo(newDir);
+                String oldName = prefs.getString("pack_name_" + oldId, "");
+                int oldVer = prefs.getInt("sticker_version_" + oldId, 3);
+                prefs.edit().putString("pack_name_" + newId, oldName).putInt("sticker_version_" + newId, oldVer).remove("pack_name_" + oldId).remove("sticker_version_" + oldId).apply();
+            }
+        }
+
+        staticPackCount = prefs.getInt("static_pack_count", 3);
+        refreshPackTabBar();
+        switchPack(getPackId(1));
 
         etTitle.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {} @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
-            @Override public void afterTextChanged(Editable s) { prefs.edit().putString("pack_name_" + currentPackId, s.toString().trim()).apply(); }
-        });
-
-        btnPick.setOnClickListener(v -> {
-            if (stickerCount >= 30) { Toast.makeText(this, "Pack is full (30 max)!", Toast.LENGTH_SHORT).show(); return; }
-            Intent intent = new Intent(Intent.ACTION_PICK); intent.setType("image/*"); pickMediaLauncher.launch(intent);
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (isSwitchingPack) return;
+                String newName = s.toString().trim();
+                prefs.edit().putString("pack_name_" + currentPackId, newName).apply();
+                refreshPackTabBarWithoutRebuilding();
+            }
         });
 
         btnAddWA.setOnClickListener(v -> {
             if (stickerCount >= 3) {
-                String currentName = prefs.getString("pack_name_" + currentPackId, "My Custom Pack"); if (currentName.isEmpty()) currentName = "My Custom Pack";
-                int currentVersion = prefs.getInt("sticker_version_" + currentPackId, 3); prefs.edit().putInt("sticker_version_" + currentPackId, currentVersion + 1).apply();
-                Intent intent = new Intent("com.whatsapp.intent.action.ENABLE_STICKER_PACK"); intent.putExtra("sticker_pack_id", currentPackId); intent.putExtra("sticker_pack_authority", StickerContentProvider.AUTHORITY); intent.putExtra("sticker_pack_name", currentName);
-                try { intent.setPackage("com.whatsapp"); addStickerLauncher.launch(intent); } catch (ActivityNotFoundException e) { try { intent.setPackage("com.whatsapp.w4b"); addStickerLauncher.launch(intent); } catch (ActivityNotFoundException e2) { Toast.makeText(this, "WhatsApp is not installed.", Toast.LENGTH_LONG).show(); } }
+                String currentName = prefs.getString("pack_name_" + currentPackId, "");
+                if (currentName.trim().isEmpty()) currentName = "Pack " + currentPackId.substring(currentPackId.lastIndexOf("_") + 1);
+
+                int currentVersion = prefs.getInt("sticker_version_" + currentPackId, 3);
+                prefs.edit().putInt("sticker_version_" + currentPackId, currentVersion + 1).apply();
+
+                Intent intent = new Intent("com.whatsapp.intent.action.ENABLE_STICKER_PACK");
+                intent.putExtra("sticker_pack_id", currentPackId);
+                intent.putExtra("sticker_pack_authority", StickerContentProvider.AUTHORITY);
+                intent.putExtra("sticker_pack_name", currentName);
+
+                try { intent.setPackage("com.whatsapp"); addStickerLauncher.launch(intent);
+                } catch (ActivityNotFoundException e) {
+                    try { intent.setPackage("com.whatsapp.w4b"); addStickerLauncher.launch(intent);
+                    } catch (ActivityNotFoundException e2) { Toast.makeText(this, "WhatsApp is not installed.", Toast.LENGTH_LONG).show(); }
+                }
             }
         });
+    }
+
+    private void triggerAddStickerFlow() {
+        if (stickerCount >= 30) {
+            Toast.makeText(this, "Pack is full (30 max)!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        pickMediaLauncher.launch(intent);
+    }
+
+    private void setupBottomButton(LinearLayout layout, int iconType, String text, int bgColor, int txtColor) {
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(bgColor);
+        gd.setCornerRadius(100f);
+        layout.setBackground(gd);
+
+        FrameLayout iconFrame = (FrameLayout) layout.getChildAt(0);
+        iconFrame.removeAllViews();
+        iconFrame.addView(new StickerIconView(this, iconType, txtColor));
+
+        TextView tv = (TextView) layout.getChildAt(1);
+        tv.setText(text);
+        tv.setTextColor(txtColor);
+
+        FrameLayout chevronFrame = (FrameLayout) layout.getChildAt(2);
+        chevronFrame.removeAllViews();
+        chevronFrame.addView(new StickerIconView(this, StickerIconView.ICON_CHEVRON, txtColor));
+    }
+
+    private String getPackId(int index) {
+        return "ownpack_" + deviceId + "_" + index;
+    }
+
+    private void refreshPackTabBarWithoutRebuilding() {
+        try {
+            int currentIdx = Integer.parseInt(currentPackId.substring(currentPackId.lastIndexOf("_") + 1)) - 1;
+            if (currentIdx >= 0 && currentIdx < packSelectorContainer.getChildCount() - 1) {
+                View child = packSelectorContainer.getChildAt(currentIdx);
+                if (child instanceof LinearLayout) {
+                    TextView tv = (TextView) ((LinearLayout) child).getChildAt(1);
+                    String newName = prefs.getString("pack_name_" + currentPackId, "");
+                    if (newName.trim().isEmpty()) newName = "Pack " + (currentIdx + 1);
+                    if (newName.length() > 12) newName = newName.substring(0, 12) + "...";
+                    tv.setText(newName);
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     private void refreshPackTabBar() {
         packSelectorContainer.removeAllViews();
         for (int i = 1; i <= staticPackCount; i++) {
-            String pId = "ownphoto_pack_" + i; String label = "📦 Pack " + i; Button btn = createPackButton(label, pId.equals(currentPackId), false); final int idx = i;
-            btn.setOnClickListener(v -> switchPack(pId)); if (i > 1) { btn.setOnLongClickListener(v -> { showDeletePackDialog(pId, idx); return true; }); } packSelectorContainer.addView(btn);
+            String pId = getPackId(i);
+            String realName = prefs.getString("pack_name_" + pId, "");
+            if (realName.trim().isEmpty()) realName = "Pack " + i;
+            if (realName.length() > 12) realName = realName.substring(0, 12) + "...";
+
+            LinearLayout tab = createTabButton(realName, pId.equals(currentPackId), false);
+            tab.setOnClickListener(v -> switchPack(pId));
+            packSelectorContainer.addView(tab);
         }
-        Button btnAddStatic = createPackButton("+ Static", false, true);
-        btnAddStatic.setOnClickListener(v -> { staticPackCount++; prefs.edit().putInt("static_pack_count", staticPackCount).apply(); String newId = "ownphoto_pack_" + staticPackCount; prefs.edit().putString("pack_name_" + newId, "Static Pack " + staticPackCount).apply(); refreshPackTabBar(); switchPack(newId); packScrollView.post(() -> packScrollView.fullScroll(View.FOCUS_RIGHT)); });
+
+        LinearLayout btnAddStatic = createTabButton("New", false, true);
+        btnAddStatic.setOnClickListener(v -> {
+            staticPackCount++;
+            prefs.edit().putInt("static_pack_count", staticPackCount).apply();
+            String newId = getPackId(staticPackCount);
+            prefs.edit().putString("pack_name_" + newId, "Pack " + staticPackCount).apply();
+            switchPack(newId);
+            packScrollView.post(() -> packScrollView.fullScroll(View.FOCUS_RIGHT));
+        });
         packSelectorContainer.addView(btnAddStatic);
     }
 
-    private Button createPackButton(String text, boolean isActive, boolean isAddBtn) {
-        Button btn = new Button(this); btn.setText(text); btn.setTextSize(13f); btn.setTypeface(null, Typeface.BOLD); btn.setAllCaps(false); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, 100); lp.setMargins(0, 0, 8, 0); btn.setLayoutParams(lp); btn.setPadding(36, 0, 36, 0);
-        GradientDrawable gd = new GradientDrawable(); gd.setCornerRadius(100f); gd.setStroke(2, glassBorderColor);
-        if (isAddBtn) { gd.setColor(panelColor); btn.setTextColor(Color.parseColor("#4A90E2")); }
-        else if (isActive) { gd.setColor(Color.parseColor("#4A90E2")); btn.setTextColor(Color.WHITE); }
-        else { gd.setColor(cardColor); btn.setTextColor(textColor); }
-        btn.setBackgroundTintList(null); btn.setBackground(gd); return btn;
+    private LinearLayout createTabButton(String text, boolean isActive, boolean isAddBtn) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.HORIZONTAL);
+        layout.setGravity(Gravity.CENTER_VERTICAL);
+        layout.setPadding(35, 0, 45, 0);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        lp.setMargins(0, 0, 16, 0);
+        layout.setLayoutParams(lp);
+
+        int cBg, cTxt;
+        if (isActive) {
+            cBg = accentColor;
+            cTxt = isDarkTheme ? Color.BLACK : Color.WHITE;
+        } else {
+            cBg = panelColor;
+            cTxt = isAddBtn ? accentColor : subTextColor;
+        }
+
+        GradientDrawable gd = new GradientDrawable();
+        gd.setCornerRadius(100f);
+        gd.setColor(cBg);
+        if (!isActive) gd.setStroke(2, cardColor);
+        layout.setBackground(gd);
+
+        FrameLayout iconFrame = new FrameLayout(this);
+        iconFrame.setLayoutParams(new LinearLayout.LayoutParams(40, 40));
+        iconFrame.addView(new StickerIconView(this, isAddBtn ? StickerIconView.ICON_ADD : StickerIconView.ICON_PACK, cTxt));
+        layout.addView(iconFrame);
+
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextSize(13f);
+        tv.setTypeface(null, Typeface.BOLD);
+        tv.setTextColor(cTxt);
+        LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tLp.setMargins(16, 0, 0, 0);
+        tv.setLayoutParams(tLp);
+        layout.addView(tv);
+
+        return layout;
     }
 
     private void switchPack(String packId) {
-        currentPackId = packId; refreshPackTabBar();
-        String savedName = prefs.getString("pack_name_" + currentPackId, "My Custom Pack");
-        etTitle.setText(savedName); btnPick.setText("Add New Sticker"); loadExistingStickers();
+        isSwitchingPack = true;
+        currentPackId = packId;
+        refreshPackTabBar();
+
+        String savedName = prefs.getString("pack_name_" + currentPackId, "");
+        if (savedName.trim().isEmpty()) {
+            try {
+                int num = Integer.parseInt(packId.substring(packId.lastIndexOf("_") + 1));
+                savedName = "Pack " + num;
+            } catch (Exception e) {
+                savedName = "My Custom Pack";
+            }
+        }
+
+        etTitle.setText(savedName);
+        loadExistingStickers();
+        isSwitchingPack = false;
     }
 
-    private void showDeletePackDialog(String packIdToDelete, int deleteIdx) {
+    private void showDeletePackDialog() {
+        if (currentPackId.endsWith("_1")) {
+            Toast.makeText(this, "Cannot delete the default pack.", Toast.LENGTH_SHORT).show();
+            return;
+        }
         AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle);
-        builder.setTitle("Delete Pack").setMessage("Delete this entire pack and all stickers inside it?").setPositiveButton("DELETE", (dialog, which) -> {
-            File dir = new File(getFilesDir(), "stickers/" + packIdToDelete); deleteDirectory(dir);
-            for (int m = deleteIdx + 1; m <= staticPackCount; m++) { File oldDir = new File(getFilesDir(), "stickers/ownphoto_pack_" + m); File newDir = new File(getFilesDir(), "stickers/ownphoto_pack_" + (m - 1)); oldDir.renameTo(newDir); prefs.edit().putString("pack_name_ownphoto_pack_" + (m - 1), prefs.getString("pack_name_ownphoto_pack_" + m, "Static Pack " + (m - 1))).putInt("sticker_version_ownphoto_pack_" + (m - 1), prefs.getInt("sticker_version_ownphoto_pack_" + m, 3)).apply(); }
-            staticPackCount--; prefs.edit().putInt("static_pack_count", staticPackCount).apply(); switchPack("ownphoto_pack_1");
-            Toast.makeText(this, "Pack deleted", Toast.LENGTH_SHORT).show();
-        }).setNegativeButton("CANCEL", null);
-        AlertDialog dialog = builder.create(); applyGlassDialogStyle(dialog); dialog.show();
+        builder.setTitle("Delete Pack")
+                .setMessage("Delete this entire pack and all stickers inside it?")
+                .setPositiveButton("DELETE", (dialog, which) -> {
+                    int deleteIdx = Integer.parseInt(currentPackId.substring(currentPackId.lastIndexOf("_") + 1));
+                    File dir = new File(getFilesDir(), "stickers/" + currentPackId);
+                    deleteDirectory(dir);
+                    for (int m = deleteIdx + 1; m <= staticPackCount; m++) {
+                        File oldDir = new File(getFilesDir(), "stickers/" + getPackId(m));
+                        File newDir = new File(getFilesDir(), "stickers/" + getPackId(m - 1));
+                        oldDir.renameTo(newDir);
+                        prefs.edit()
+                                .putString("pack_name_" + getPackId(m - 1), prefs.getString("pack_name_" + getPackId(m), "Pack " + (m - 1)))
+                                .putInt("sticker_version_" + getPackId(m - 1), prefs.getInt("sticker_version_" + getPackId(m), 3))
+                                .apply();
+                    }
+                    staticPackCount--;
+                    prefs.edit().putInt("static_pack_count", staticPackCount).apply();
+                    switchPack(getPackId(1));
+                    Toast.makeText(this, "Pack deleted", Toast.LENGTH_SHORT).show();
+                }).setNegativeButton("CANCEL", null);
+        AlertDialog dialog = builder.create();
+        applyGlassDialogStyle(dialog);
+        dialog.show();
     }
 
     private void deleteDirectory(File fileOrDirectory) {
-        if (fileOrDirectory.isDirectory()) { File[] children = fileOrDirectory.listFiles(); if (children != null) { for (File child : children) deleteDirectory(child); } } fileOrDirectory.delete();
+        if (fileOrDirectory.isDirectory()) {
+            File[] children = fileOrDirectory.listFiles();
+            if (children != null) {
+                for (File child : children) deleteDirectory(child);
+            }
+        }
+        fileOrDirectory.delete();
     }
 
     private void loadExistingStickers() {
-        File dir = new File(getFilesDir(), "stickers/" + currentPackId); if (!dir.exists() && !dir.mkdirs()) { Toast.makeText(this, "Storage access error", Toast.LENGTH_SHORT).show(); return; }
+        File dir = new File(getFilesDir(), "stickers/" + currentPackId);
+        if (!dir.exists() && !dir.mkdirs()) return;
         File[] files = dir.listFiles((d, name) -> name.endsWith(".webp") && !name.contains("_tmp") && !name.contains("_thumb") && new File(d, name).length() > 100);
-        stickerCount = (files != null) ? files.length : 0; updateUI(files);
+        stickerCount = (files != null) ? files.length : 0;
+        updateUI(files);
     }
 
     private void updateUI(File[] files) {
         stickerGrid.removeAllViews();
+
+        float density = getResources().getDisplayMetrics().density;
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int rootPadding = (int) (80 * density); // 40dp padding on each side of main card roughly
+        int itemMargin = (int) (6 * density);
+        int totalMargins = itemMargin * 6;
+        int itemSize = (screenWidth - rootPadding - totalMargins) / 3;
+
+        // --- ADD DASHED BOX FIRST ---
+        if (stickerCount < 30) {
+            addDashedAddButton(itemSize, itemMargin);
+        }
+
         if (files != null) {
-            Arrays.sort(files, (f1, f2) -> { try { int n1 = Integer.parseInt(f1.getName().replace(".webp", "")); int n2 = Integer.parseInt(f2.getName().replace(".webp", "")); return Integer.compare(n1, n2); } catch (NumberFormatException e) { return 0; } });
+            Arrays.sort(files, (f1, f2) -> {
+                try {
+                    return Integer.compare(Integer.parseInt(f1.getName().replace(".webp", "")), Integer.parseInt(f2.getName().replace(".webp", "")));
+                } catch (NumberFormatException e) { return 0; }
+            });
             for (File file : files) {
                 File thumbFile = new File(file.getParentFile(), file.getName().replace(".webp", "_thumb.png"));
                 Bitmap bmp = thumbFile.exists() ? BitmapFactory.decodeFile(thumbFile.getAbsolutePath()) : BitmapFactory.decodeFile(file.getAbsolutePath());
-                addStickerToGrid(file, bmp);
+                addStickerToGrid(file, bmp, itemSize, itemMargin);
             }
         }
+
+        // Update Status indicator styling
+        GradientDrawable dotGd = new GradientDrawable();
+        dotGd.setShape(GradientDrawable.OVAL);
         if (stickerCount < 3) {
-            tvSubtitle.setText("Add " + (3 - stickerCount) + " more stickers.\nLong-press a sticker to delete."); tvSubtitle.setTextColor(isDarkTheme ? Color.parseColor("#FF9F0A") : Color.parseColor("#FF3B30"));
-            btnAddWA.setBackgroundTintList(ColorStateList.valueOf(panelColor)); btnAddWA.setTextColor(isDarkTheme ? Color.parseColor("#8E8E93") : Color.parseColor("#888888")); btnAddWA.setEnabled(false);
+            dotGd.setColor(Color.parseColor("#FF3B30")); // Red
+            tvStatusText.setText(stickerCount + " / 3 Stickers (Min)");
+            tvStatusText.setTextColor(Color.parseColor("#FF3B30"));
+            btnAddWA.setAlpha(0.4f);
+            btnAddWA.setEnabled(false);
         } else {
-            tvSubtitle.setText(stickerCount + " Stickers Ready!\nLong-press a sticker to delete."); tvSubtitle.setTextColor(isDarkTheme ? Color.parseColor("#32D74B") : Color.parseColor("#34C759"));
-            btnAddWA.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#34C759"))); btnAddWA.setTextColor(Color.WHITE); btnAddWA.setEnabled(true);
+            dotGd.setColor(accentColor);
+            tvStatusText.setText(stickerCount + " Stickers Ready");
+            tvStatusText.setTextColor(accentColor);
+            btnAddWA.setAlpha(1.0f);
+            btnAddWA.setEnabled(true);
         }
+        statusDot.setBackground(dotGd);
     }
 
-    private void addStickerToGrid(File file, Bitmap bitmap) {
+    // --- DRAG AND DROP REORDER SYSTEM IMPLEMENTED HERE ---
+    private void addStickerToGrid(File file, Bitmap bitmap, int itemSize, int itemMargin) {
+        RelativeLayout frame = new RelativeLayout(this);
+        GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+        params.width = itemSize;
+        params.height = itemSize;
+        params.setMargins(itemMargin, itemMargin, itemMargin, itemMargin);
+        frame.setLayoutParams(params);
+
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(panelColor);
+        gd.setCornerRadius(40f);
+        frame.setBackground(gd);
+
+        ImageView iv = new ImageView(this);
+        iv.setImageBitmap(bitmap);
+        RelativeLayout.LayoutParams ivLp = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        int p = (int) (12 * getResources().getDisplayMetrics().density);
+        iv.setPadding(p, p, p, p);
+        iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        frame.addView(iv, ivLp);
+
+        // Circular Trash Icon on Bottom Right
+        FrameLayout trashBtn = new FrameLayout(this);
+        GradientDrawable trashGd = new GradientDrawable();
+        trashGd.setColor(Color.parseColor("#E6111827")); // Always dark so white icon pops
+        trashGd.setShape(GradientDrawable.OVAL);
+        trashGd.setStroke(2, glassBorderColor);
+        trashBtn.setBackground(trashGd);
+
+        int tSize = (int) (32 * getResources().getDisplayMetrics().density);
+        RelativeLayout.LayoutParams tLp = new RelativeLayout.LayoutParams(tSize, tSize);
+        tLp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        tLp.addRule(RelativeLayout.ALIGN_PARENT_END);
+        tLp.setMargins(0, 0, 8, 8);
+        trashBtn.setLayoutParams(tLp);
+
+        trashBtn.addView(new StickerIconView(this, StickerIconView.ICON_TRASH, Color.WHITE));
+
+        trashBtn.setOnClickListener(v -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle);
+            builder.setTitle("Delete Sticker").setMessage("Remove this sticker from the pack?").setPositiveButton("DELETE", (dialog, which) -> {
+                if (file.delete()) {
+                    File thumbFile = new File(file.getParentFile(), file.getName().replace(".webp", "_thumb.png"));
+                    if (thumbFile.exists()) thumbFile.delete();
+                    ensureValidTrayIcon(file.getParentFile());
+                    loadExistingStickers();
+                }
+            }).setNegativeButton("CANCEL", null);
+            AlertDialog dialog = builder.create(); applyGlassDialogStyle(dialog); dialog.show();
+        });
+
+        frame.addView(trashBtn);
+
+        // Setup Drag & Drop Handlers for Reordering
+        frame.setOnLongClickListener(v -> {
+            View.DragShadowBuilder shadow = new View.DragShadowBuilder(v);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                v.startDragAndDrop(null, shadow, file, 0);
+            } else {
+                v.startDrag(null, shadow, file, 0);
+            }
+            return true;
+        });
+
+        frame.setOnDragListener((v, event) -> {
+            switch (event.getAction()) {
+                case DragEvent.ACTION_DRAG_ENTERED:
+                    v.setAlpha(0.5f);
+                    break;
+                case DragEvent.ACTION_DRAG_EXITED:
+                case DragEvent.ACTION_DRAG_ENDED:
+                    v.setAlpha(1.0f);
+                    break;
+                case DragEvent.ACTION_DROP:
+                    v.setAlpha(1.0f);
+                    File draggedFile = (File) event.getLocalState();
+                    if (draggedFile != null && !draggedFile.equals(file)) {
+                        swapStickerFiles(draggedFile, file);
+                    }
+                    break;
+            }
+            return true;
+        });
+
+        stickerGrid.addView(frame);
+    }
+
+    private void swapStickerFiles(File f1, File f2) {
+        File dir = f1.getParentFile();
+        File temp = new File(dir, "swap_tmp.webp");
+        File thumb1 = new File(dir, f1.getName().replace(".webp", "_thumb.png"));
+        File thumb2 = new File(dir, f2.getName().replace(".webp", "_thumb.png"));
+        File thumbTemp = new File(dir, "swap_tmp_thumb.png");
+
+        f1.renameTo(temp);
+        f2.renameTo(f1);
+        temp.renameTo(f2);
+
+        if (thumb1.exists()) thumb1.renameTo(thumbTemp);
+        if (thumb2.exists()) thumb2.renameTo(thumb1);
+        if (thumbTemp.exists()) thumbTemp.renameTo(thumb2);
+
+        ensureValidTrayIcon(dir);
+        loadExistingStickers();
+    }
+
+    private void addDashedAddButton(int itemSize, int itemMargin) {
+        View dashedView = new View(this) {
+            final Paint pBorder = new Paint(Paint.ANTI_ALIAS_FLAG) {{
+                setColor(subTextColor);
+                setStyle(Paint.Style.STROKE);
+                setStrokeWidth(4f);
+                setPathEffect(new DashPathEffect(new float[]{20f, 15f}, 0f));
+            }};
+            final Paint pIcon = new Paint(Paint.ANTI_ALIAS_FLAG) {{
+                setColor(subTextColor);
+                setStyle(Paint.Style.STROKE);
+                setStrokeWidth(6f);
+                setStrokeCap(Paint.Cap.ROUND);
+            }};
+            @Override
+            protected void onDraw(Canvas canvas) {
+                int w = getWidth(), h = getHeight();
+                RectF rect = new RectF(4, 4, w - 4, h - 4);
+                canvas.drawRoundRect(rect, 40f, 40f, pBorder);
+                canvas.drawLine(w / 2f, h / 2f - 30, w / 2f, h / 2f + 30, pIcon);
+                canvas.drawLine(w / 2f - 30, h / 2f, w / 2f + 30, h / 2f, pIcon);
+            }
+        };
+
         LinearLayout frame = new LinearLayout(this);
-
-        // --- FIX: Dynamic Grid Sizing to remove the massive empty space ---
-        float density = getResources().getDisplayMetrics().density;
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        int rootPadding = (int) (40 * density); // 20dp left + 20dp right from root XML
-        int itemMargin = (int) (6 * density);   // 6dp margin on all sides of the box
-        int totalMargins = itemMargin * 6;      // 3 items * (left+right margins)
-
-        // Calculate the absolute perfect width for a 3-column layout based on screen size
-        int itemSize = (screenWidth - rootPadding - totalMargins) / 3;
+        frame.setOrientation(LinearLayout.VERTICAL);
+        frame.setGravity(Gravity.CENTER);
 
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         params.width = itemSize;
-        params.height = itemSize; // Keeps it a perfect square
+        params.height = itemSize;
         params.setMargins(itemMargin, itemMargin, itemMargin, itemMargin);
         frame.setLayoutParams(params);
-        // ------------------------------------------------------------------
 
-        GradientDrawable gd = new GradientDrawable(); gd.setColor(cardColor); gd.setCornerRadius(40f); gd.setStroke(2, glassBorderColor); frame.setBackground(gd); frame.setGravity(Gravity.CENTER); frame.setPadding(16, 16, 16, 16);
-        frame.setOnLongClickListener(v -> {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle); builder.setTitle("Delete Sticker").setMessage("Remove this sticker from the pack?").setPositiveButton("DELETE", (dialog, which) -> { if (file.delete()) { File thumbFile = new File(file.getParentFile(), file.getName().replace(".webp", "_thumb.png")); if (thumbFile.exists()) thumbFile.delete(); ensureValidTrayIcon(file.getParentFile()); Toast.makeText(this, "Sticker deleted", Toast.LENGTH_SHORT).show(); loadExistingStickers(); } }).setNegativeButton("CANCEL", null);
-            AlertDialog dialog = builder.create(); applyGlassDialogStyle(dialog); dialog.show(); return true;
-        });
-        ImageView iv = new ImageView(this); iv.setImageBitmap(bitmap); iv.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)); iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        frame.addView(iv); stickerGrid.addView(frame);
+        dashedView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        frame.addView(dashedView);
+
+        TextView tv = new TextView(this);
+        tv.setText("Add Sticker");
+        tv.setTextColor(subTextColor);
+        tv.setTextSize(12f);
+        tv.setTypeface(null, Typeface.BOLD);
+        tv.setPadding(0, 12, 0, 0);
+        frame.addView(tv);
+
+        frame.setOnClickListener(v -> triggerAddStickerFlow());
+        stickerGrid.addView(frame);
     }
 
     private void ensureValidTrayIcon(File dir) {
         try {
-            File trayFile = new File(dir, "tray.png"); File[] files = dir.listFiles((d, name) -> name.endsWith(".webp") && !name.contains("_tmp") && !name.contains("_thumb"));
+            File trayFile = new File(dir, "tray.png");
+            File[] files = dir.listFiles((d, name) -> name.endsWith(".webp") && !name.contains("_tmp") && !name.contains("_thumb"));
             if (files != null && files.length > 0) {
-                Arrays.sort(files, (f1, f2) -> { try { return Integer.compare(Integer.parseInt(f1.getName().replace(".webp","")), Integer.parseInt(f2.getName().replace(".webp",""))); } catch(Exception e){ return 0; } });
-                File firstThumb = new File(dir, files[0].getName().replace(".webp", "_thumb.png")); Bitmap tb = firstThumb.exists() ? BitmapFactory.decodeFile(firstThumb.getAbsolutePath()) : BitmapFactory.decodeFile(files[0].getAbsolutePath());
-                if (tb != null) { Bitmap tray = Bitmap.createScaledBitmap(tb, 96, 96, true); FileOutputStream out = new FileOutputStream(trayFile); tray.compress(Bitmap.CompressFormat.PNG, 75, out); out.close(); if (!tray.isRecycled()) tray.recycle(); if (!tb.isRecycled()) tb.recycle(); }
+                Arrays.sort(files, (f1, f2) -> {
+                    try { return Integer.compare(Integer.parseInt(f1.getName().replace(".webp", "")), Integer.parseInt(f2.getName().replace(".webp", "")));
+                    } catch (Exception e) { return 0; }
+                });
+                File firstThumb = new File(dir, files[0].getName().replace(".webp", "_thumb.png"));
+                Bitmap tb = firstThumb.exists() ? BitmapFactory.decodeFile(firstThumb.getAbsolutePath()) : BitmapFactory.decodeFile(files[0].getAbsolutePath());
+                if (tb != null) {
+                    Bitmap tray = Bitmap.createScaledBitmap(tb, 96, 96, true);
+                    FileOutputStream out = new FileOutputStream(trayFile);
+                    tray.compress(Bitmap.CompressFormat.PNG, 75, out);
+                    out.close();
+                    if (!tray.isRecycled()) tray.recycle();
+                    if (!tb.isRecycled()) tb.recycle();
+                }
             }
         } catch (Exception ignored) {}
     }
 
     private Bitmap decodeSampledBitmapFromUri(Uri uri, int reqWidth, int reqHeight) {
         try {
-            InputStream is = getContentResolver().openInputStream(uri); BitmapFactory.Options options = new BitmapFactory.Options(); options.inJustDecodeBounds = true; BitmapFactory.decodeStream(is, null, options); if (is != null) is.close();
-            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight); options.inJustDecodeBounds = false;
-            is = getContentResolver().openInputStream(uri); Bitmap bmp = BitmapFactory.decodeStream(is, null, options); if (is != null) is.close(); return bmp;
+            InputStream is = getContentResolver().openInputStream(uri);
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeStream(is, null, options);
+            if (is != null) is.close();
+            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+            options.inJustDecodeBounds = false;
+            is = getContentResolver().openInputStream(uri);
+            Bitmap bmp = BitmapFactory.decodeStream(is, null, options);
+            if (is != null) is.close();
+            return bmp;
         } catch (Exception e) { return null; }
     }
+
     private int calculateInSampleSize(BitmapFactory.Options options, int reqW, int reqH) {
         int h = options.outHeight, w = options.outWidth, inSampleSize = 1;
-        if (h > reqH || w > reqW) { int halfH = h / 2, halfW = w / 2; while ((halfH / inSampleSize) >= reqH && (halfW / inSampleSize) >= reqW) inSampleSize *= 2; } return inSampleSize;
+        if (h > reqH || w > reqW) {
+            int halfH = h / 2, halfW = w / 2;
+            while ((halfH / inSampleSize) >= reqH && (halfW / inSampleSize) >= reqW) inSampleSize *= 2;
+        }
+        return inSampleSize;
     }
 
     private void showVisualCropStudio(Uri mediaUri) {
+        float density = getResources().getDisplayMetrics().density;
+        int p = (int) (24 * density); // Dynamic padding
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle);
-        LinearLayout layout = new LinearLayout(this); layout.setOrientation(LinearLayout.VERTICAL); layout.setPadding(35, 35, 35, 35);
-        GradientDrawable gd = new GradientDrawable(); gd.setColor(cardColor); gd.setCornerRadius(60f); gd.setStroke(2, glassBorderColor); layout.setBackground(gd);
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(p, p, p, p);
 
-        TextView title = new TextView(this); title.setText("✂️ Grid Sticker Studio"); title.setTextSize(18f); title.setTypeface(null, Typeface.BOLD); title.setTextColor(textColor); title.setGravity(Gravity.CENTER); title.setPadding(0, 0, 0, 8); layout.addView(title);
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(cardColor);
+        gd.setCornerRadius(60f);
+        gd.setStroke(2, glassBorderColor);
+        layout.setBackground(gd);
 
-        FrameLayout previewBox = new FrameLayout(this); LinearLayout.LayoutParams boxLp = new LinearLayout.LayoutParams(650, 650); boxLp.gravity = Gravity.CENTER; boxLp.setMargins(0, 4, 0, 14); previewBox.setLayoutParams(boxLp);
-        GradientDrawable boxGd = new GradientDrawable(); boxGd.setColor(isDarkTheme ? Color.parseColor("#141414") : Color.parseColor("#F8F8F8")); boxGd.setStroke(4, Color.parseColor("#4A90E2")); boxGd.setCornerRadius(25f); previewBox.setBackground(boxGd);
+        // Header
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER);
+        header.setPadding(0, 0, 0, (int)(16 * density));
+        FrameLayout iconScissors = new FrameLayout(this);
+        iconScissors.setLayoutParams(new LinearLayout.LayoutParams((int)(24 * density), (int)(24 * density)));
+        iconScissors.addView(new StickerIconView(this, StickerIconView.ICON_SCISSORS, accentColor));
+        header.addView(iconScissors);
+        TextView title = new TextView(this);
+        title.setText(" Grid Sticker Studio");
+        title.setTextSize(18f);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(textColor);
+        header.addView(title);
+        layout.addView(header);
 
-        ImageView iv = new ImageView(this); iv.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)); iv.setScaleType(ImageView.ScaleType.MATRIX); previewBox.addView(iv);
+        FrameLayout previewBox = new FrameLayout(this);
+        int boxSize = (int) (300 * density);
+        LinearLayout.LayoutParams boxLp = new LinearLayout.LayoutParams(boxSize, boxSize);
+        boxLp.gravity = Gravity.CENTER;
+        boxLp.setMargins(0, (int)(4 * density), 0, (int)(24 * density));
+        previewBox.setLayoutParams(boxLp);
+        GradientDrawable boxGd = new GradientDrawable();
+        boxGd.setColor(isDarkTheme ? Color.parseColor("#141414") : Color.parseColor("#F8F8F8"));
+        boxGd.setStroke(4, accentColor);
+        boxGd.setCornerRadius(25f);
+        previewBox.setBackground(boxGd);
+
+        ImageView iv = new ImageView(this);
+        iv.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        iv.setScaleType(ImageView.ScaleType.MATRIX);
+        previewBox.addView(iv);
 
         View gridOverlay = new View(this) {
-            final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG) {{ setColor(Color.WHITE); setStrokeWidth(2f); setAlpha(160); }};
+            final Paint paintLines = new Paint(Paint.ANTI_ALIAS_FLAG) {{ setColor(Color.WHITE); setStrokeWidth(2f); setAlpha(160); }};
+            final Paint border = new Paint(Paint.ANTI_ALIAS_FLAG) {{ setColor(accentColor); setStyle(Paint.Style.STROKE); setStrokeWidth(6f); }};
             @Override protected void onDraw(Canvas c) {
-                super.onDraw(c); int w = getWidth(), h = getHeight();
-                c.drawLine(w/3f, 0, w/3f, h, p); c.drawLine(w*2/3f, 0, w*2/3f, h, p);
-                c.drawLine(0, h/3f, w, h/3f, p); c.drawLine(0, h*2/3f, w, h*2/3f, p);
-                c.drawRect(0, 0, w, h, new Paint(Paint.ANTI_ALIAS_FLAG) {{ setColor(Color.parseColor("#4A90E2")); setStyle(Paint.Style.STROKE); setStrokeWidth(6f); }});
+                super.onDraw(c);
+                int w = getWidth(), h = getHeight();
+                c.drawLine(w / 3f, 0, w / 3f, h, paintLines);
+                c.drawLine(w * 2 / 3f, 0, w * 2 / 3f, h, paintLines);
+                c.drawLine(0, h / 3f, w, h / 3f, paintLines);
+                c.drawLine(0, h * 2 / 3f, w, h * 2 / 3f, paintLines);
+                c.drawRect(0, 0, w, h, border);
             }
         };
-        gridOverlay.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)); previewBox.addView(gridOverlay); layout.addView(previewBox);
+        gridOverlay.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        previewBox.addView(gridOverlay);
+        layout.addView(previewBox);
 
         final Bitmap[] previewBmp = {null};
+        ProgressBar pb = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        pb.setIndeterminate(true);
+        pb.setVisibility(View.GONE);
+
         new Thread(() -> {
             try {
                 previewBmp[0] = decodeSampledBitmapFromUri(mediaUri, 1024, 1024);
-                if (previewBmp[0] != null) { runOnUiThread(() -> { iv.setImageBitmap(previewBmp[0]); setupTouchAndPresets(iv, previewBmp[0], previewBox, 650); }); }
+                if (previewBmp[0] != null) {
+                    runOnUiThread(() -> {
+                        iv.setImageBitmap(previewBmp[0]);
+                        setupTouchAndPresets(iv, previewBmp[0], previewBox, boxSize);
+                    });
+                }
             } catch (Exception ignored) {}
         }).start();
 
-        LinearLayout chipRow = new LinearLayout(this); chipRow.setOrientation(LinearLayout.HORIZONTAL); chipRow.setGravity(Gravity.CENTER); chipRow.setPadding(0, 4, 0, 16);
+        // Ratio Presets
+        LinearLayout chipRow = new LinearLayout(this);
+        chipRow.setOrientation(LinearLayout.HORIZONTAL);
+        chipRow.setGravity(Gravity.CENTER);
+        chipRow.setPadding(0, (int)(4 * density), 0, (int)(16 * density));
         String[] cNames = {"Original", "1:1"};
-        for (int i=0; i<2; i++) {
-            Button b = new Button(this); b.setText(cNames[i]); b.setTextSize(13f); b.setAllCaps(false); b.setTypeface(null, Typeface.BOLD); b.setTextColor(textColor);
-            GradientDrawable cGd = new GradientDrawable(); cGd.setColor(panelColor); cGd.setCornerRadius(50f); cGd.setStroke(2, glassBorderColor); b.setBackgroundTintList(null); b.setBackground(cGd);
-            LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, 95, 1f); clp.setMargins(10, 0, 10, 0); b.setLayoutParams(clp);
-            int finalI = i; b.setOnClickListener(v -> { if (previewBmp[0] != null) applyRatioChipMatrix(iv, previewBmp[0], previewBox, 650, finalI); });
+        for (int i = 0; i < 2; i++) {
+            Button b = new Button(this);
+            b.setText(cNames[i]);
+            b.setTextSize(13f);
+            b.setAllCaps(false);
+            b.setTypeface(null, Typeface.BOLD);
+            b.setTextColor(textColor);
+            // --- REMOVE BUTTON SHADOWS (ELEVATION) ---
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                b.setStateListAnimator(null);
+                b.setElevation(0);
+            }
+            GradientDrawable cGd = new GradientDrawable();
+            cGd.setColor(panelColor);
+            cGd.setCornerRadius(100f);
+            cGd.setStroke(2, glassBorderColor);
+            b.setBackgroundTintList(null);
+            b.setBackground(cGd);
+            LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, (int)(48 * density), 1f);
+            clp.setMargins((int)(10 * density), 0, (int)(10 * density), 0);
+            b.setLayoutParams(clp);
+            int finalI = i;
+            b.setOnClickListener(v -> {
+                if (previewBmp[0] != null) applyRatioChipMatrix(iv, previewBmp[0], previewBox, boxSize, finalI);
+            });
             chipRow.addView(b);
         }
         layout.addView(chipRow);
 
-        ProgressBar pb = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal); pb.setIndeterminate(true); pb.setVisibility(View.GONE); layout.addView(pb);
-        LinearLayout btnRow = new LinearLayout(this); btnRow.setOrientation(LinearLayout.HORIZONTAL); btnRow.setPadding(0, 10, 0, 0);
+        // --- ROTATE AND MIRROR TOOLS ROW ---
+        LinearLayout toolsRow = new LinearLayout(this);
+        toolsRow.setOrientation(LinearLayout.HORIZONTAL);
+        toolsRow.setGravity(Gravity.CENTER);
+        toolsRow.setPadding(0, 0, 0, (int)(24 * density));
+        String[] tNames = {"Rotate", "Flip ↔", "Flip ↕"};
+        for (int i = 0; i < 3; i++) {
+            Button b = new Button(this);
+            b.setText(tNames[i]);
+            b.setTextSize(12f);
+            b.setAllCaps(false);
+            b.setTypeface(null, Typeface.BOLD);
+            b.setTextColor(textColor);
+            // --- REMOVE BUTTON SHADOWS (ELEVATION) ---
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                b.setStateListAnimator(null);
+                b.setElevation(0);
+            }
+            GradientDrawable tGd = new GradientDrawable();
+            tGd.setColor(panelColor);
+            tGd.setCornerRadius(100f);
+            tGd.setStroke(2, glassBorderColor);
+            b.setBackgroundTintList(null);
+            b.setBackground(tGd);
+            LinearLayout.LayoutParams tLp = new LinearLayout.LayoutParams(0, (int)(48 * density), 1f);
+            tLp.setMargins((int)(5 * density), 0, (int)(5 * density), 0);
+            b.setLayoutParams(tLp);
+            int finalI = i;
+            b.setOnClickListener(v -> {
+                if (previewBmp[0] != null) {
+                    pb.setVisibility(View.VISIBLE);
+                    new Thread(() -> {
+                        Matrix m = new Matrix();
+                        if (finalI == 0) m.postRotate(90);
+                        else if (finalI == 1) m.preScale(-1.0f, 1.0f);
+                        else if (finalI == 2) m.preScale(1.0f, -1.0f);
 
-        Button btnCancel = new Button(this); btnCancel.setText("CANCEL"); btnCancel.setTextColor(Color.WHITE); btnCancel.setTypeface(null, Typeface.BOLD);
-        GradientDrawable gdCancel = new GradientDrawable(); gdCancel.setColor(Color.parseColor("#FF3B30")); gdCancel.setCornerRadius(100f); btnCancel.setBackgroundTintList(null); btnCancel.setBackground(gdCancel);
-        LinearLayout.LayoutParams lpC = new LinearLayout.LayoutParams(0, 115, 1f); lpC.setMargins(0, 0, 10, 0); btnCancel.setLayoutParams(lpC);
+                        Bitmap newBmp = Bitmap.createBitmap(previewBmp[0], 0, 0, previewBmp[0].getWidth(), previewBmp[0].getHeight(), m, true);
+                        if (previewBmp[0] != newBmp) {
+                            previewBmp[0].recycle();
+                            previewBmp[0] = newBmp;
+                        }
+                        runOnUiThread(() -> {
+                            iv.setImageBitmap(previewBmp[0]);
+                            setupTouchAndPresets(iv, previewBmp[0], previewBox, boxSize);
+                            pb.setVisibility(View.GONE);
+                        });
+                    }).start();
+                }
+            });
+            toolsRow.addView(b);
+        }
+        layout.addView(toolsRow);
 
-        Button btnBuild = new Button(this); btnBuild.setText("COMPILE STICKER"); btnBuild.setTextColor(Color.WHITE); btnBuild.setTypeface(null, Typeface.BOLD);
-        GradientDrawable gdBuild = new GradientDrawable(); gdBuild.setColor(Color.parseColor("#34C759")); gdBuild.setCornerRadius(100f); btnBuild.setBackgroundTintList(null); btnBuild.setBackground(gdBuild);
-        LinearLayout.LayoutParams lpB = new LinearLayout.LayoutParams(0, 115, 1f); lpB.setMargins(10, 0, 0, 0); btnBuild.setLayoutParams(lpB);
+        layout.addView(pb);
+        LinearLayout btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        btnRow.setPadding(0, (int)(10 * density), 0, 0);
 
-        btnRow.addView(btnCancel); btnRow.addView(btnBuild); layout.addView(btnRow);
+        Button btnCancel = new Button(this);
+        btnCancel.setText("CANCEL");
+        btnCancel.setTextColor(Color.WHITE);
+        btnCancel.setTypeface(null, Typeface.BOLD);
+        // --- REMOVE BUTTON SHADOWS (ELEVATION) ---
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            btnCancel.setStateListAnimator(null);
+            btnCancel.setElevation(0);
+        }
+        GradientDrawable gdCancel = new GradientDrawable();
+        gdCancel.setColor(Color.parseColor("#FF3B30"));
+        gdCancel.setCornerRadius(100f);
+        btnCancel.setBackgroundTintList(null);
+        btnCancel.setBackground(gdCancel);
+        LinearLayout.LayoutParams lpC = new LinearLayout.LayoutParams(0, (int)(56 * density), 1f);
+        lpC.setMargins(0, 0, (int)(10 * density), 0);
+        btnCancel.setLayoutParams(lpC);
 
-        builder.setView(layout); AlertDialog dialog = builder.create(); if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        Button btnBuild = new Button(this);
+        btnBuild.setText("COMPILE STICKER");
+        btnBuild.setTextColor(isDarkTheme ? Color.BLACK : Color.WHITE);
+        btnBuild.setTypeface(null, Typeface.BOLD);
+        // --- REMOVE BUTTON SHADOWS (ELEVATION) ---
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            btnBuild.setStateListAnimator(null);
+            btnBuild.setElevation(0);
+        }
+        GradientDrawable gdBuild = new GradientDrawable();
+        gdBuild.setColor(accentColor);
+        gdBuild.setCornerRadius(100f);
+        btnBuild.setBackgroundTintList(null);
+        btnBuild.setBackground(gdBuild);
+
+        LinearLayout.LayoutParams lpB = new LinearLayout.LayoutParams(0, (int)(56 * density), 1f);
+        lpB.setMargins((int)(10 * density), 0, 0, 0);
+        btnBuild.setLayoutParams(lpB);
+
+        btnRow.addView(btnCancel);
+        btnRow.addView(btnBuild);
+        layout.addView(btnRow);
+
+        builder.setView(layout);
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         btnBuild.setOnClickListener(v -> {
-            pb.setVisibility(View.VISIBLE); btnBuild.setEnabled(false); btnCancel.setEnabled(false);
-            Matrix userMatrix = new Matrix(iv.getImageMatrix()); int boxW = previewBox.getWidth() > 0 ? previewBox.getWidth() : 650; int boxH = previewBox.getHeight() > 0 ? previewBox.getHeight() : 650;
+            pb.setVisibility(View.VISIBLE);
+            btnBuild.setEnabled(false);
+            btnCancel.setEnabled(false);
+            Matrix userMatrix = new Matrix(iv.getImageMatrix());
+            int boxW = previewBox.getWidth() > 0 ? previewBox.getWidth() : boxSize;
+            int boxH = previewBox.getHeight() > 0 ? previewBox.getHeight() : boxSize;
             new Thread(() -> {
                 try {
-                    File dir = new File(getFilesDir(), "stickers/" + currentPackId); if (!dir.exists() && !dir.mkdirs()) return;
+                    File dir = new File(getFilesDir(), "stickers/" + currentPackId);
+                    if (!dir.exists() && !dir.mkdirs()) return;
                     File[] existingFiles = dir.listFiles((d, name) -> name.endsWith(".webp") && !name.contains("_tmp") && !name.contains("_thumb"));
-                    int nextId = 1; if (existingFiles != null) { for (File f : existingFiles) { try { int id = Integer.parseInt(f.getName().replace(".webp", "")); if (id >= nextId) nextId = id + 1; } catch (NumberFormatException ignored) {} } }
-                    File tmpFile = new File(dir, nextId + "_tmp.webp"); File stickerFile = new File(dir, nextId + ".webp"); File thumbFile = new File(dir, nextId + "_thumb.png");
+                    int nextId = 1;
+                    if (existingFiles != null) {
+                        for (File f : existingFiles) {
+                            try {
+                                int id = Integer.parseInt(f.getName().replace(".webp", ""));
+                                if (id >= nextId) nextId = id + 1;
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+                    File tmpFile = new File(dir, nextId + "_tmp.webp");
+                    File stickerFile = new File(dir, nextId + ".webp");
+                    File thumbFile = new File(dir, nextId + "_thumb.png");
                     Bitmap.CompressFormat webpFormat = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ? Bitmap.CompressFormat.WEBP_LOSSY : Bitmap.CompressFormat.WEBP;
 
-                    Bitmap orig = decodeSampledBitmapFromUri(mediaUri, 1024, 1024); if (orig == null) throw new Exception();
-                    Bitmap cropped = applyMatrixToSticker(orig, userMatrix, boxW, boxH); orig.recycle();
-                    FileOutputStream outSticker = new FileOutputStream(tmpFile); cropped.compress(webpFormat, 75, outSticker); outSticker.close();
+                    Bitmap orig = previewBmp[0];
+                    if (orig == null) throw new Exception();
+                    Bitmap cropped = applyMatrixToSticker(orig, userMatrix, boxW, boxH);
+                    FileOutputStream outSticker = new FileOutputStream(tmpFile);
+                    cropped.compress(webpFormat, 75, outSticker);
+                    outSticker.close();
                     if (tmpFile.exists() && tmpFile.length() > 100) { tmpFile.renameTo(stickerFile); } else { throw new Exception("Write failed"); }
-                    FileOutputStream outThumb = new FileOutputStream(thumbFile); Bitmap thumb = Bitmap.createScaledBitmap(cropped, 256, 256, true); thumb.compress(Bitmap.CompressFormat.PNG, 100, outThumb); outThumb.close(); thumb.recycle();
+                    FileOutputStream outThumb = new FileOutputStream(thumbFile);
+                    Bitmap thumb = Bitmap.createScaledBitmap(cropped, 256, 256, true);
+                    thumb.compress(Bitmap.CompressFormat.PNG, 100, outThumb);
+                    outThumb.close();
+                    thumb.recycle();
                     cropped.recycle();
                     ensureValidTrayIcon(dir);
-                    runOnUiThread(() -> { dialog.dismiss(); loadExistingStickers(); Toast.makeText(this, "Sticker Added!", Toast.LENGTH_SHORT).show(); });
-                } catch (Exception e) { runOnUiThread(() -> { dialog.dismiss(); Toast.makeText(this, "Failed to compile sticker", Toast.LENGTH_SHORT).show(); }); }
+                    runOnUiThread(() -> {
+                        dialog.dismiss();
+                        loadExistingStickers();
+                        Toast.makeText(this, "Sticker Added!", Toast.LENGTH_SHORT).show();
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        dialog.dismiss();
+                        Toast.makeText(this, "Failed to compile sticker", Toast.LENGTH_SHORT).show();
+                    });
+                }
             }).start();
         });
         dialog.show();
@@ -328,54 +945,222 @@ public class StickerMakerActivity extends AppCompatActivity {
 
     private void setupTouchAndPresets(ImageView iv, Bitmap bmp, FrameLayout previewBox, int boxSize) {
         applyRatioChipMatrix(iv, bmp, previewBox, boxSize, 0);
-        final Matrix matrix = new Matrix(iv.getImageMatrix()); final Matrix savedMatrix = new Matrix(); final PointF start = new PointF(); final PointF mid = new PointF(); final float[] oldDist = {1f}; final int[] mode = {0};
+        final Matrix matrix = new Matrix(iv.getImageMatrix());
+        final Matrix savedMatrix = new Matrix();
+        final PointF start = new PointF();
+        final PointF mid = new PointF();
+        final float[] oldDist = {1f};
+        final int[] mode = {0};
         iv.setOnTouchListener((v, event) -> {
             switch (event.getAction() & MotionEvent.ACTION_MASK) {
-                case MotionEvent.ACTION_DOWN: savedMatrix.set(matrix); start.set(event.getX(), event.getY()); mode[0] = 1; break;
-                case MotionEvent.ACTION_POINTER_DOWN: oldDist[0] = spacing(event); if (oldDist[0] > 10f) { savedMatrix.set(matrix); midPoint(mid, event); mode[0] = 2; } break;
-                case MotionEvent.ACTION_UP: case MotionEvent.ACTION_POINTER_UP: mode[0] = 0; break;
+                case MotionEvent.ACTION_DOWN:
+                    savedMatrix.set(matrix);
+                    start.set(event.getX(), event.getY());
+                    mode[0] = 1;
+                    break;
+                case MotionEvent.ACTION_POINTER_DOWN:
+                    oldDist[0] = spacing(event);
+                    if (oldDist[0] > 10f) {
+                        savedMatrix.set(matrix);
+                        midPoint(mid, event);
+                        mode[0] = 2;
+                    }
+                    break;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_POINTER_UP:
+                    mode[0] = 0;
+                    break;
                 case MotionEvent.ACTION_MOVE:
-                    if (mode[0] == 1) { matrix.set(savedMatrix); matrix.postTranslate(event.getX() - start.x, event.getY() - start.y); }
-                    else if (mode[0] == 2) { float newDist = spacing(event); if (newDist > 10f) { float scale = newDist / oldDist[0]; matrix.set(savedMatrix); matrix.postScale(scale, scale, mid.x, mid.y); } } break;
+                    if (mode[0] == 1) {
+                        matrix.set(savedMatrix);
+                        matrix.postTranslate(event.getX() - start.x, event.getY() - start.y);
+                    } else if (mode[0] == 2) {
+                        float newDist = spacing(event);
+                        if (newDist > 10f) {
+                            float scale = newDist / oldDist[0];
+                            matrix.set(savedMatrix);
+                            matrix.postScale(scale, scale, mid.x, mid.y);
+                        }
+                    }
+                    break;
             }
-            iv.setImageMatrix(matrix); return true;
+            iv.setImageMatrix(matrix);
+            return true;
         });
     }
 
     private void applyRatioChipMatrix(ImageView iv, Bitmap bmp, FrameLayout previewBox, int maxBoxSize, int chipIdx) {
-        Matrix m = new Matrix(); int bw = bmp.getWidth(), bh = bmp.getHeight(); float ratio = (float) bw / bh;
+        Matrix m = new Matrix();
+        int bw = bmp.getWidth(), bh = bmp.getHeight();
+        float ratio = (float) bw / bh;
         int targetW = maxBoxSize, targetH = maxBoxSize;
-        if (chipIdx == 0) { if (ratio >= 1f) targetH = Math.max(200, (int) (maxBoxSize / ratio)); else targetW = Math.max(200, (int) (maxBoxSize * ratio)); }
-        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) previewBox.getLayoutParams(); lp.width = targetW; lp.height = targetH; previewBox.setLayoutParams(lp); previewBox.requestLayout();
-        if (chipIdx == 0) { float scale = (float) targetW / bw; m.postScale(scale, scale); }
-        else { float scale = Math.max((float) maxBoxSize / bw, (float) maxBoxSize / bh); m.postScale(scale, scale); m.postTranslate((maxBoxSize - bw * scale) / 2f, (maxBoxSize - bh * scale) / 2f); }
+        if (chipIdx == 0) {
+            if (ratio >= 1f) targetH = Math.max(200, (int) (maxBoxSize / ratio));
+            else targetW = Math.max(200, (int) (maxBoxSize * ratio));
+        }
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) previewBox.getLayoutParams();
+        lp.width = targetW;
+        lp.height = targetH;
+        previewBox.setLayoutParams(lp);
+        previewBox.requestLayout();
+        if (chipIdx == 0) {
+            float scale = (float) targetW / bw;
+            m.postScale(scale, scale);
+        } else {
+            float scale = Math.max((float) maxBoxSize / bw, (float) maxBoxSize / bh);
+            m.postScale(scale, scale);
+            m.postTranslate((maxBoxSize - bw * scale) / 2f, (maxBoxSize - bh * scale) / 2f);
+        }
         iv.setImageMatrix(m);
     }
 
     private Bitmap applyMatrixToSticker(Bitmap orig, Matrix userMatrix, int boxW, int boxH) {
-        Bitmap finalBmp = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888); Canvas canvas = new Canvas(finalBmp);
-        int maxDim = Math.max(boxW, boxH); float scale = 512f / maxDim; float dx = (512f - (boxW * scale)) / 2f; float dy = (512f - (boxH * scale)) / 2f;
-        canvas.translate(dx, dy); canvas.scale(scale, scale); canvas.drawBitmap(orig, userMatrix, new Paint(Paint.FILTER_BITMAP_FLAG)); return finalBmp;
+        Bitmap finalBmp = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(finalBmp);
+        int maxDim = Math.max(boxW, boxH);
+        float scale = 512f / maxDim;
+        float dx = (512f - (boxW * scale)) / 2f;
+        float dy = (512f - (boxH * scale)) / 2f;
+        canvas.translate(dx, dy);
+        canvas.scale(scale, scale);
+        canvas.drawBitmap(orig, userMatrix, new Paint(Paint.FILTER_BITMAP_FLAG));
+        return finalBmp;
     }
 
-    private float spacing(MotionEvent e) { float x = e.getX(0) - e.getX(1); float y = e.getY(0) - e.getY(1); return (float) Math.sqrt(x * x + y * y); }
-    private void midPoint(PointF p, MotionEvent e) { p.set((e.getX(0) + e.getX(1)) / 2, (e.getY(0) + e.getY(1)) / 2); }
+    private float spacing(MotionEvent e) {
+        float x = e.getX(0) - e.getX(1);
+        float y = e.getY(0) - e.getY(1);
+        return (float) Math.sqrt(x * x + y * y);
+    }
+
+    private void midPoint(PointF p, MotionEvent e) {
+        p.set((e.getX(0) + e.getX(1)) / 2, (e.getY(0) + e.getY(1)) / 2);
+    }
 
     private void applyGlassDialogStyle(AlertDialog dialog) {
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-            GradientDrawable bgGd = new GradientDrawable(); bgGd.setColor(cardColor); bgGd.setCornerRadius(60f); bgGd.setStroke(2, glassBorderColor);
+            GradientDrawable bgGd = new GradientDrawable();
+            bgGd.setColor(cardColor);
+            bgGd.setCornerRadius(60f);
+            bgGd.setStroke(2, glassBorderColor);
             dialog.setOnShowListener(di -> {
                 Window window = dialog.getWindow();
-                if (window != null && window.getDecorView() != null) { window.getDecorView().setBackground(bgGd); setDialogTextColor(window.getDecorView(), textColor); }
-                Button btnPos = dialog.getButton(AlertDialog.BUTTON_POSITIVE); if (btnPos != null) btnPos.setTextColor(Color.parseColor("#FF3B30"));
-                Button btnNeg = dialog.getButton(AlertDialog.BUTTON_NEGATIVE); if (btnNeg != null) btnNeg.setTextColor(textColor);
+                if (window != null && window.getDecorView() != null) {
+                    window.getDecorView().setBackground(bgGd);
+                    setDialogTextColor(window.getDecorView(), textColor);
+                }
+                Button btnPos = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+                if (btnPos != null) btnPos.setTextColor(Color.parseColor("#FF3B30"));
+                Button btnNeg = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+                if (btnNeg != null) btnNeg.setTextColor(textColor);
             });
         }
     }
 
     private void setDialogTextColor(View view, int color) {
-        if (view instanceof TextView && !(view instanceof Button) && !(view instanceof EditText)) ((TextView) view).setTextColor(color);
-        else if (view instanceof ViewGroup) { ViewGroup vg = (ViewGroup) view; for (int i = 0; i < vg.getChildCount(); i++) setDialogTextColor(vg.getChildAt(i), color); }
+        if (view instanceof TextView && !(view instanceof Button) && !(view instanceof EditText))
+            ((TextView) view).setTextColor(color);
+        else if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            for (int i = 0; i < vg.getChildCount(); i++) setDialogTextColor(vg.getChildAt(i), color);
+        }
+    }
+
+    // --- PURE VECTOR SHAPE ENGINE (ZERO EMOJIS, ZERO IMAGES) ---
+    public static class StickerIconView extends View {
+        public static final int ICON_PACK = 0;
+        public static final int ICON_ADD = 1;
+        public static final int ICON_TRASH = 2;
+        public static final int ICON_SEND = 3;
+        public static final int ICON_IMAGE = 4;
+        public static final int ICON_CHEVRON = 5;
+        public static final int ICON_DOTS = 6;
+        public static final int ICON_SCISSORS = 7;
+
+        private int iconType;
+        private Paint paint;
+
+        public StickerIconView(Context context, int type, int color) {
+            super(context);
+            this.iconType = type;
+            paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(color);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(5f);
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setStrokeJoin(Paint.Join.ROUND);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float w = getWidth();
+            float h = getHeight();
+            float cx = w / 2f;
+            float cy = h / 2f;
+            Path p = new Path();
+
+            switch (iconType) {
+                case ICON_PACK:
+                    paint.setStyle(Paint.Style.STROKE);
+                    p.moveTo(cx - 10, cy + 5); p.lineTo(cx, cy + 12); p.lineTo(cx + 10, cy + 5);
+                    p.moveTo(cx - 10, cy - 3); p.lineTo(cx, cy + 4); p.lineTo(cx + 10, cy - 3);
+                    p.moveTo(cx, cy - 12); p.lineTo(cx - 10, cy - 5); p.lineTo(cx, cy + 2); p.lineTo(cx + 10, cy - 5); p.close();
+                    canvas.drawPath(p, paint);
+                    break;
+                case ICON_ADD:
+                    canvas.drawLine(cx, cy - 12, cx, cy + 12, paint);
+                    canvas.drawLine(cx - 12, cy, cx + 12, cy, paint);
+                    break;
+                case ICON_TRASH:
+                    canvas.drawLine(cx - 10, cy - 8, cx + 10, cy - 8, paint);
+                    canvas.drawLine(cx - 4, cy - 8, cx - 4, cy - 12, paint);
+                    canvas.drawLine(cx + 4, cy - 8, cx + 4, cy - 12, paint);
+                    canvas.drawRoundRect(cx - 8, cy - 8, cx + 8, cy + 12, 4f, 4f, paint);
+                    canvas.drawLine(cx - 3, cy - 2, cx - 3, cy + 6, paint);
+                    canvas.drawLine(cx + 3, cy - 2, cx + 3, cy + 6, paint);
+                    break;
+                case ICON_SEND:
+                    paint.setStyle(Paint.Style.FILL);
+                    p.moveTo(cx - 10, cy - 8);
+                    p.lineTo(cx + 12, cy);
+                    p.lineTo(cx - 10, cy + 8);
+                    p.lineTo(cx - 6, cy);
+                    p.close();
+                    canvas.drawPath(p, paint);
+                    break;
+                case ICON_IMAGE:
+                    canvas.drawRoundRect(cx - 12, cy - 12, cx + 12, cy + 12, 6f, 6f, paint);
+                    paint.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(cx + 5, cy - 5, 3f, paint);
+                    p.moveTo(cx - 12, cy + 10);
+                    p.lineTo(cx - 2, cy - 2);
+                    p.lineTo(cx + 6, cy + 8);
+                    p.lineTo(cx + 12, cy + 2);
+                    p.lineTo(cx + 12, cy + 12);
+                    p.lineTo(cx - 12, cy + 12);
+                    p.close();
+                    canvas.drawPath(p, paint);
+                    break;
+                case ICON_CHEVRON:
+                    p.moveTo(cx - 4, cy - 8);
+                    p.lineTo(cx + 4, cy);
+                    p.lineTo(cx - 4, cy + 8);
+                    canvas.drawPath(p, paint);
+                    break;
+                case ICON_DOTS:
+                    paint.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(cx, cy - 8, 3.5f, paint);
+                    canvas.drawCircle(cx, cy, 3.5f, paint);
+                    canvas.drawCircle(cx, cy + 8, 3.5f, paint);
+                    break;
+                case ICON_SCISSORS:
+                    canvas.drawCircle(cx - 6, cy + 6, 4f, paint);
+                    canvas.drawCircle(cx + 6, cy + 6, 4f, paint);
+                    canvas.drawLine(cx - 4, cy + 3, cx + 8, cy - 8, paint);
+                    canvas.drawLine(cx + 4, cy + 3, cx - 8, cy - 8, paint);
+                    break;
+            }
+        }
     }
 }

@@ -17,7 +17,6 @@ import java.util.Iterator;
 import java.util.Random;
 
 public class UfoGameOverlayView extends View {
-    private final Paint hudPaint;
     private final Paint ufoBasePaint;
     private final Paint ufoHighlightPaint;
     private final Paint ufoDomePaint;
@@ -127,12 +126,6 @@ public class UfoGameOverlayView extends View {
 
         vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
 
-        hudPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        hudPaint.setColor(Color.parseColor("#4A90E2"));
-        hudPaint.setTextSize(65f);
-        hudPaint.setTypeface(Typeface.DEFAULT_BOLD);
-        hudPaint.setTextAlign(Paint.Align.CENTER);
-
         ufoBasePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         ufoBasePaint.setStyle(Paint.Style.FILL);
         ufoHighlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -204,6 +197,11 @@ public class UfoGameOverlayView extends View {
         score = 0;
         lives = 3;
 
+        // Push initial reset to the Activity UI buttons
+        if (getContext() instanceof GlobeGameActivity) {
+            ((GlobeGameActivity) getContext()).updateScoreAndLives(score, lives);
+        }
+
         ufoPool.addAll(ufoList);
         ufoList.clear();
         explosionPool.addAll(explosions);
@@ -245,6 +243,11 @@ public class UfoGameOverlayView extends View {
                     shieldEndTime = System.currentTimeMillis() + 3000;
                     waveAnimRadius = planetRadius;
                     lives = 3;
+                }
+
+                // Push live updates to the Activity UI buttons
+                if (getContext() instanceof GlobeGameActivity) {
+                    ((GlobeGameActivity) getContext()).updateScoreAndLives(score, lives);
                 }
 
                 invalidate();
@@ -377,6 +380,11 @@ public class UfoGameOverlayView extends View {
                     ufoPool.add(ufo);
                     lives--;
 
+                    // Push live updates to the Activity UI buttons when a life is lost
+                    if (getContext() instanceof GlobeGameActivity) {
+                        ((GlobeGameActivity) getContext()).updateScoreAndLives(score, lives);
+                    }
+
                     if (lives <= 0 && gameState != STATE_GAME_OVER) {
                         gameState = STATE_GAME_OVER;
                         if (gameOverListener != null) {
@@ -413,8 +421,6 @@ public class UfoGameOverlayView extends View {
                 explosionPool.add(exp);
             }
         }
-
-        canvas.drawText("Score: " + score + "   |   Lives: " + Math.max(0, lives), cx, 150, hudPaint);
 
         if (gameState == STATE_PLAYING || !explosions.isEmpty() || waveAnimRadius > 0) {
             postInvalidateOnAnimation();

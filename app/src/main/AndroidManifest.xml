@@ -255,10 +255,18 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
+        <!-- NEW: Added Intent Filter to catch shared images directly into the Editor -->
         <activity
             android:name=".ImageEditorActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
-            android:exported="true" />
+            android:label="Own Image Studio"
+            android:exported="true">
+            <intent-filter android:label="Edit in Own App">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
 
         <!-- Image Studio Mega Gallery -->
         <activity

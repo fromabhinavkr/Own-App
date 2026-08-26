@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Top HUD: Scores and Pause Button (Redesigned & Stacked) -->
+    <!-- Top HUD: Unified Smart Pill -->
     <RelativeLayout
         android:id="@+id/topHud"
         android:layout_width="match_parent"
@@ -20,48 +20,54 @@
         android:layout_alignParentTop="true"
         android:paddingStart="24dp"
         android:paddingEnd="16dp"
-        android:paddingTop="16dp"
+        android:paddingTop="24dp"
         android:paddingBottom="12dp"
         android:elevation="4dp">
 
-        <!-- Score Block (Current on top, Best on bottom) -->
+        <!-- Unified Smart Pill: Pause Icon + Score Text -->
         <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true">
-
-            <TextView
-                android:id="@+id/tvCurrentScore"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0"
-                android:textSize="48sp"
-                android:textStyle="bold"
-                android:includeFontPadding="false" />
-
-            <TextView
-                android:id="@+id/tvHighScore"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Best: 0"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginTop="2dp" />
-        </LinearLayout>
-
-        <!-- BEAUTIFUL DYNAMIC THEMED PAUSE BUTTON -->
-        <ImageButton
             android:id="@+id/btnPause"
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:scaleType="fitCenter"
-            android:padding="8dp"
-            android:contentDescription="Pause Game" />
+            android:layout_width="wrap_content"
+            android:layout_height="52dp"
+            android:layout_alignParentStart="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingEnd="20dp"
+            android:paddingStart="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <!-- Inner Colored Square Box for Pause/Play Icon -->
+            <FrameLayout
+                android:id="@+id/pauseIconContainer"
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
+
+            <!-- Vertical Layout for Score & Best Score -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvCurrentScore"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Score: 0"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvHighScore"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Best: 0"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
     </RelativeLayout>
 
     <!-- Pause Overlay (Wrapped in ScrollView for Landscape Support) -->
@@ -135,7 +141,7 @@
                     android:backgroundTint="#FF3B30"
                     android:textColor="#FFFFFF"
                     android:layout_marginTop="12dp"
-                    android:text="Quit to Menu" />
+                    android:text="Exit Game" />
             </LinearLayout>
         </ScrollView>
     </RelativeLayout>
@@ -170,7 +176,7 @@
                 android:gravity="center"
                 android:clipToPadding="false">
 
-                <!-- NEW: Death Snapshot Container (Shows Proof of Hit) -->
+                <!-- Death Snapshot Container (Shows Proof of Hit) -->
                 <FrameLayout
                     android:id="@+id/snapshotContainer"
                     android:layout_width="130dp"

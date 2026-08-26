@@ -28,17 +28,21 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 
+@SuppressWarnings({"all", "deprecation", "SpellCheckingInspection", "FieldCanBeLocal"})
 @SuppressLint("SetTextI18n")
 public class MazeBallActivity extends Activity {
 
     private GameView gameView;
-    private TextView tvScore, tvHighScore, tvLives, tvFinalScore;
+    private TextView tvLivesText, tvRingsText, tvBestText, tvFinalScore;
     private RelativeLayout gameOverOverlay, modeSelectionOverlay;
 
     private boolean isLeftPressed = false, isRightPressed = false;
@@ -46,8 +50,9 @@ public class MazeBallActivity extends Activity {
     private static final String PREFS_NAME = "MAZE_BALL_PREFS";
     private static final String HIGH_SCORE_KEY = "HIGH_SCORE";
 
-    // Theme Colors
-    private int brickColor, brickBorderColor, obstacleColor, ballColor, textColor;
+    // Theme Variables
+    private int themeState; // 0 = Light, 1 = Dark, 2 = Star
+    private int brickColor, brickBorderColor, obstacleColor, ballColor;
 
     @SuppressLint("ClickableViewAccessibility")
     @Override
@@ -55,38 +60,38 @@ public class MazeBallActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maze_ball);
 
+        // --- Override MainApplication's global padding to remove the left white bar in Landscape ---
+        View decorView = getWindow().getDecorView();
+        ViewCompat.setOnApplyWindowInsetsListener(decorView, (v, windowInsets) -> {
+            Insets systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            View contentView = findViewById(android.R.id.content);
+            if (contentView != null) {
+                // Set left and right padding to 0 so the game canvas stretches edge-to-edge horizontally
+                contentView.setPadding(0, systemBars.top, 0, systemBars.bottom);
+            }
+            return WindowInsetsCompat.CONSUMED;
+        });
+        // ---------------------------------------------------------------------------------------------
+
         SharedPreferences appPrefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
-        boolean isDarkTheme = appPrefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+
+        // --- 3-STATE THEME SYNC LOGIC ---
+        themeState = appPrefs.getInt("app_theme_state", -1);
+        if (themeState == -1) {
+            boolean oldDark = appPrefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
+            themeState = oldDark ? 1 : 0;
+        }
 
         SharedPreferences gamePrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         highScore = gamePrefs.getInt(HIGH_SCORE_KEY, 0);
 
-        // Local UI styling variables for Modern Material Look
-        int bgColor, overlayBgColor, titleColor;
-        GradientDrawable menuCardBgDrawable, hudPillDrawable;
+        // Local UI styling variables
+        int bgColor, overlayBgColor, titleColor, textColor;
+        int pillBgColor, boxBgColor, iconColor, hudTextColor;
+        GradientDrawable menuCardBgDrawable;
 
-        if (isDarkTheme) {
-            bgColor = Color.parseColor("#000000");
-            brickColor = Color.parseColor("#444444");    // Dark Gray bricks
-            brickBorderColor = Color.parseColor("#1A1A1A"); // Deep shadow lines
-            ballColor = Color.parseColor("#FF0000");
-            obstacleColor = Color.parseColor("#FFD700");
-            textColor = Color.WHITE;
-
-            overlayBgColor = Color.parseColor("#E6000000"); // Deep blurred feel
-            titleColor = Color.WHITE;
-
-            // Extra-rounded Material 3 Cards
-            menuCardBgDrawable = new GradientDrawable();
-            menuCardBgDrawable.setColor(Color.parseColor("#1C1C1E")); // Apple/Google dark card
-            menuCardBgDrawable.setCornerRadius(64f);
-
-            // HUD Floating Pills
-            hudPillDrawable = new GradientDrawable();
-            hudPillDrawable.setColor(Color.parseColor("#801C1C1E")); // Translucent dark
-            hudPillDrawable.setCornerRadius(100f);
-        } else {
-            bgColor = Color.parseColor("#FFFFFF");
+        if (themeState == 0) { // Light Mode
+            bgColor = Color.parseColor("#87CEEB");
             brickColor = Color.parseColor("#222222");    // Black bricks
             brickBorderColor = Color.parseColor("#555555"); // Lighter shadow lines
             ballColor = Color.parseColor("#EE0000");
@@ -97,25 +102,86 @@ public class MazeBallActivity extends Activity {
             titleColor = Color.BLACK;
 
             menuCardBgDrawable = new GradientDrawable();
-            menuCardBgDrawable.setColor(Color.parseColor("#F2F2F7")); // Modern off-white
+            menuCardBgDrawable.setColor(Color.parseColor("#F2F2F7"));
             menuCardBgDrawable.setCornerRadius(64f);
 
-            hudPillDrawable = new GradientDrawable();
-            hudPillDrawable.setColor(Color.parseColor("#80F2F2F7")); // Translucent light
-            hudPillDrawable.setCornerRadius(100f);
+            pillBgColor = Color.parseColor("#E5E5EA");
+            boxBgColor = Color.parseColor("#FFFFFF");
+            iconColor = Color.parseColor("#333333");
+            hudTextColor = Color.parseColor("#333333");
+
+        } else if (themeState == 1) { // Standard Dark Mode
+            bgColor = Color.parseColor("#1A1A2E");
+            brickColor = Color.parseColor("#444444");    // Dark Gray bricks
+            brickBorderColor = Color.parseColor("#1A1A1A"); // Deep shadow lines
+            ballColor = Color.parseColor("#FF0000");
+            obstacleColor = Color.parseColor("#FFD700");
+            textColor = Color.WHITE;
+
+            overlayBgColor = Color.parseColor("#E6000000"); // Deep blurred feel
+            titleColor = Color.WHITE;
+
+            menuCardBgDrawable = new GradientDrawable();
+            menuCardBgDrawable.setColor(Color.parseColor("#1C1C1E"));
+            menuCardBgDrawable.setCornerRadius(64f);
+
+            pillBgColor = Color.parseColor("#2D313A");
+            boxBgColor = Color.parseColor("#D8E2FF");
+            iconColor = Color.parseColor("#001C3A");
+            hudTextColor = Color.parseColor("#E3E2E6");
+        } else { // Star Mode (AMOLED Pure Black)
+            bgColor = Color.parseColor("#000000");
+            brickColor = Color.parseColor("#2C2C2E");    // Slightly elevated black bricks
+            brickBorderColor = Color.parseColor("#000000");
+            ballColor = Color.parseColor("#FF0000");
+            obstacleColor = Color.parseColor("#FFD700");
+            textColor = Color.WHITE;
+
+            overlayBgColor = Color.parseColor("#F2000000"); // Extremely dark overlay
+            titleColor = Color.WHITE;
+
+            menuCardBgDrawable = new GradientDrawable();
+            menuCardBgDrawable.setColor(Color.parseColor("#121212"));
+            menuCardBgDrawable.setCornerRadius(64f);
+
+            pillBgColor = Color.parseColor("#2D313A");
+            boxBgColor = Color.parseColor("#D8E2FF");
+            iconColor = Color.parseColor("#001C3A");
+            hudTextColor = Color.parseColor("#E3E2E6");
         }
 
         findViewById(R.id.rootMazeBall).setBackgroundColor(bgColor);
 
-        // Map HUD Elements
-        LinearLayout hudLeft = findViewById(R.id.hudLeft);
-        LinearLayout hudRight = findViewById(R.id.hudRight);
-        hudLeft.setBackground(hudPillDrawable);
-        hudRight.setBackground(hudPillDrawable);
+        // Map HUD Elements (Modern Quick Settings Pills)
+        LinearLayout hudLivesPill = findViewById(R.id.hudLivesPill);
+        FrameLayout livesIconBox = findViewById(R.id.livesIconBox);
+        tvLivesText = findViewById(R.id.tvLivesText);
 
-        tvScore = findViewById(R.id.tvScore);
-        tvHighScore = findViewById(R.id.tvHighScore);
-        tvLives = findViewById(R.id.tvLives);
+        LinearLayout hudRingsPill = findViewById(R.id.hudRingsPill);
+        FrameLayout ringsIconBox = findViewById(R.id.ringsIconBox);
+        tvRingsText = findViewById(R.id.tvRingsText);
+        tvBestText = findViewById(R.id.tvBestText);
+
+        // Inject Mathematical Vector Icons
+        GameIconView livesIconView = new GameIconView(this);
+        livesIconBox.addView(livesIconView);
+        GameIconView ringsIconView = new GameIconView(this);
+        ringsIconBox.addView(ringsIconView);
+
+        // Apply Pill Styling
+        hudLivesPill.setBackground(createPillShape(pillBgColor));
+        livesIconBox.setBackground(createBoxShape(boxBgColor));
+        tvLivesText.setTextColor(hudTextColor);
+        livesIconView.setIcon(GameIconView.ICON_HEART, iconColor);
+
+        hudRingsPill.setBackground(createPillShape(pillBgColor));
+        ringsIconBox.setBackground(createBoxShape(boxBgColor));
+        tvRingsText.setTextColor(hudTextColor);
+        tvBestText.setTextColor(themeState == 0 ? Color.parseColor("#666666") : Color.parseColor("#A0A0A5"));
+        ringsIconView.setIcon(GameIconView.ICON_RING, iconColor);
+
+        tvBestText.setText(String.format(Locale.getDefault(), "Best: %04d", highScore));
+
         modeSelectionOverlay = findViewById(R.id.modeSelectionOverlay);
         gameOverOverlay = findViewById(R.id.gameOverOverlay);
         tvFinalScore = findViewById(R.id.tvFinalScore);
@@ -139,30 +205,27 @@ public class MazeBallActivity extends Activity {
         tvGameOverTitle.setTextColor(titleColor);
         tvFinalScore.setTextColor(titleColor);
 
-        // Modern Pill Buttons inside cards
-        int primaryBlue = Color.parseColor("#0B57D0"); // Material 3 Google Blue
-        btnModeLandscape.setBackground(createCapsuleDrawable(primaryBlue));
+        // Modern Buttons inside cards
+        int primaryBlue = Color.parseColor("#0B57D0");
+        btnModeLandscape.setBackground(createPillShape(primaryBlue));
         btnModeLandscape.setTextColor(Color.WHITE);
 
-        btnModePortrait.setBackground(createCapsuleDrawable(isDarkTheme ? Color.parseColor("#333333") : Color.parseColor("#E0E0E0")));
+        btnModePortrait.setBackground(createPillShape(themeState != 0 ? Color.parseColor("#333333") : Color.parseColor("#E0E0E0")));
         btnModePortrait.setTextColor(textColor);
 
-        btnPlayAgain.setBackground(createCapsuleDrawable(primaryBlue));
+        btnPlayAgain.setBackground(createPillShape(primaryBlue));
         btnPlayAgain.setTextColor(Color.WHITE);
 
-        btnQuit.setBackground(createCapsuleDrawable(isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#D1D1D6")));
+        btnQuit.setBackground(createPillShape(themeState != 0 ? Color.parseColor("#3A3A3C") : Color.parseColor("#D1D1D6")));
         btnQuit.setTextColor(textColor);
-
-        tvHighScore.setText(String.format(Locale.getDefault(), "BEST: %04d", highScore));
 
         Button btnLeft = findViewById(R.id.btnLeft);
         Button btnRight = findViewById(R.id.btnRight);
         Button btnJump = findViewById(R.id.btnJump);
 
-        // Modern Floating Action Controls (Soft Translucent Circles, No Borders)
-        setupModernFAB(btnLeft, isDarkTheme);
-        setupModernFAB(btnRight, isDarkTheme);
-        setupModernFAB(btnJump, isDarkTheme);
+        setupModernFAB(btnLeft, themeState != 0);
+        setupModernFAB(btnRight, themeState != 0);
+        setupModernFAB(btnJump, themeState != 0);
 
         FrameLayout container = findViewById(R.id.gameCanvasContainer);
         gameView = new GameView(this);
@@ -197,56 +260,157 @@ public class MazeBallActivity extends Activity {
         btnQuit.setOnClickListener(v -> finish());
     }
 
+    // --- CINEMATIC SMOOTH TRANSITION ENGINE ---
     @SuppressLint("SourceLockedOrientationActivity")
     private void setOrientationAndStart(int orientation, boolean isPortrait) {
         setRequestedOrientation(orientation);
-        modeSelectionOverlay.setVisibility(View.GONE);
-        gameView.setMode(isPortrait);
-        new Handler(Looper.getMainLooper()).postDelayed(() -> gameView.restartGame(), 300);
+
+        // Prevent double taps during transition
+        modeSelectionOverlay.setEnabled(false);
+
+        // Smoothly fade out the menu card instantly
+        View card = findViewById(R.id.modeSelectionCard);
+        if (card != null) {
+            card.animate().alpha(0f).scaleX(0.9f).scaleY(0.9f).setDuration(250).start();
+        }
+
+        // Wait 400ms for Android system to physically rotate the screen bounds
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            gameView.setMode(isPortrait);
+
+            // Post ensuring the new layout bounds are perfectly measured before calculating camera
+            gameView.post(() -> {
+                gameView.prepareGame(); // Generates level and locks camera instantly without running physics
+
+                // Crossfade the dark background overlay out to reveal the generated maze
+                modeSelectionOverlay.animate()
+                        .alpha(0f)
+                        .setDuration(400)
+                        .withEndAction(() -> {
+                            modeSelectionOverlay.setVisibility(View.GONE);
+                            modeSelectionOverlay.setAlpha(1f);
+                            modeSelectionOverlay.setEnabled(true);
+                            if (card != null) {
+                                card.setAlpha(1f);
+                                card.setScaleX(1f);
+                                card.setScaleY(1f);
+                            }
+                            gameView.startGame(); // Start ball movement
+                        }).start();
+            });
+        }, 400);
     }
 
-    private GradientDrawable createCapsuleDrawable(int color) {
+    private GradientDrawable createPillShape(int color) {
         GradientDrawable shape = new GradientDrawable();
         shape.setShape(GradientDrawable.RECTANGLE);
-        shape.setCornerRadius(100f);
+        shape.setCornerRadius(1000f);
         shape.setColor(color);
+        return shape;
+    }
+
+    private GradientDrawable createBoxShape(int color) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setColor(color);
+        shape.setCornerRadius(30f);
         return shape;
     }
 
     private void setupModernFAB(Button btn, boolean isDarkTheme) {
         GradientDrawable shape = new GradientDrawable();
-        shape.setShape(GradientDrawable.OVAL); // Perfect Circle
-        shape.setColor(isDarkTheme ? Color.parseColor("#4DFFFFFF") : Color.parseColor("#26000000"));
+        shape.setShape(GradientDrawable.OVAL);
+        shape.setColor(isDarkTheme ? Color.parseColor("#4DFFFFFF") : Color.parseColor("#80000000"));
         btn.setBackground(shape);
-        btn.setTextColor(isDarkTheme ? Color.WHITE : Color.BLACK);
+        btn.setTextColor(Color.parseColor("#D3D3D3"));
     }
 
     private void saveHighScore(int newScore) {
         if (newScore > highScore) {
             highScore = newScore;
             getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putInt(HIGH_SCORE_KEY, highScore).apply();
-            new Handler(Looper.getMainLooper()).post(() -> tvHighScore.setText(String.format(Locale.getDefault(), "BEST: %04d", highScore)));
+            new Handler(Looper.getMainLooper()).post(() -> tvBestText.setText(String.format(Locale.getDefault(), "Best: %04d", highScore)));
         }
     }
 
     private void triggerDeathVibration() {
-        Vibrator vibrator = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) ?
-                ((VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE)).getDefaultVibrator() :
-                (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-
-        if (vibrator != null && vibrator.hasVibrator()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            VibratorManager vibratorManager = (VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+            if (vibratorManager != null) {
+                Vibrator vibrator = vibratorManager.getDefaultVibrator();
                 vibrator.vibrate(VibrationEffect.createOneShot(150, VibrationEffect.DEFAULT_AMPLITUDE));
-            } else {
-                vibrator.vibrate(150);
+            }
+        } else {
+            Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(150, VibrationEffect.DEFAULT_AMPLITUDE));
+                } else {
+                    vibrator.vibrate(150);
+                }
             }
         }
     }
 
     @Override
     protected void onResume() { super.onResume(); if (modeSelectionOverlay.getVisibility() == View.GONE) gameView.resume(); }
+
     @Override
     protected void onPause() { super.onPause(); gameView.pause(); }
+
+    // --- FIX: Smooth Exit to prevent Gallery layout glitch ---
+    @Override
+    public void finish() {
+        // Reset orientation to portrait so the underlying Gallery doesn't get stretched/glitched
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        super.finish();
+        // Use a fade transition to seamlessly mask the system rotation step
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
+
+    // --- MATHEMATICAL VECTOR ICON ENGINE ---
+    public static class GameIconView extends View {
+        public static final int ICON_HEART = 0;
+        public static final int ICON_RING = 1;
+
+        private int iconType = ICON_HEART;
+        private Paint paint;
+
+        public GameIconView(Context context) { super(context); init(); }
+
+        private void init() {
+            paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(4.5f);
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setStrokeJoin(Paint.Join.ROUND);
+        }
+
+        public void setIcon(int type, int color) {
+            this.iconType = type;
+            paint.setColor(color);
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float cx = getWidth() / 2f;
+            float cy = getHeight() / 2f;
+
+            if (iconType == ICON_HEART) {
+                paint.setStyle(Paint.Style.FILL);
+                Path p = new Path();
+                p.moveTo(cx, cy + 8f);
+                p.cubicTo(cx - 16f, cy - 2f, cx - 8f, cy - 12f, cx, cy - 4f);
+                p.cubicTo(cx + 8f, cy - 12f, cx + 16f, cy - 2f, cx, cy + 8f);
+                canvas.drawPath(p, paint);
+            }
+            else if (iconType == ICON_RING) {
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(4.5f);
+                canvas.drawCircle(cx, cy, 7f, paint);
+            }
+        }
+    }
 
     // ==========================================
     // ZERO-ALLOCATION MULTI-MODE GAME ENGINE
@@ -257,7 +421,6 @@ public class MazeBallActivity extends Activity {
         private boolean isGameOver = false;
         private boolean isPortraitMode = false;
 
-        // CRITICAL FIX: The Thread lock prevents the UI and Background thread from crashing/glitching
         private final Object stateLock = new Object();
 
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -283,10 +446,7 @@ public class MazeBallActivity extends Activity {
         private int score = 0;
         private int lives = 3;
 
-        // "Stay where I was" Safe Position Tracking
         private float lastSafeX = 200, lastSafeY = 200;
-
-        // 3-SECOND IMMUNITY TIMER
         private long immunityEndTime = 0;
 
         private float furthestGeneratedX = 0;
@@ -302,20 +462,72 @@ public class MazeBallActivity extends Activity {
         private final List<Ring> rings = new ArrayList<>();
         private final List<Flyspike> flyspikes = new ArrayList<>();
 
+        // --- PARALLAX BACKGROUND LIST ---
+        private final List<Star> stars = new ArrayList<>();
+
         private class Ring {
             float x, y; boolean collected = false; float animTime = 0;
             Ring(float x, float y) { this.x = x; this.y = y; }
         }
 
-        // NEW: Flyspike Obstacle Class
         private class Flyspike {
             float x, y, radius; float rotation = 0;
             Flyspike(float x, float y, float radius) { this.x = x; this.y = y; this.radius = radius; }
         }
 
-        public GameView(Context context) { super(context); }
+        private class Star {
+            float x, y, radius, parallaxSpeed;
+            int baseAlpha;
+            float twinkleSpeed;
+            float twinkleRange;
+            float phase;
+            Star() {
+                x = random.nextFloat() * 2000;
+                y = random.nextFloat() * 2000;
+                radius = 1.5f + random.nextFloat() * 3.5f;
+                parallaxSpeed = 0.02f + random.nextFloat() * 0.1f;
+                baseAlpha = 100 + random.nextInt(80);
+                twinkleSpeed = 1.5f + random.nextFloat() * 4f;
+                twinkleRange = 50 + random.nextFloat() * 70f;
+                phase = random.nextFloat() * (float)(Math.PI * 2);
+            }
+        }
+
+        public GameView(Context context) {
+            super(context);
+            initBackgroundElements();
+        }
 
         public void setMode(boolean portrait) { this.isPortraitMode = portrait; }
+
+        private void initBackgroundElements() {
+            stars.clear();
+            if (themeState == 2) {
+                for (int i = 0; i < 75; i++) stars.add(new Star());
+            }
+        }
+
+        // Separate generation from starting the thread to allow seamless transitions
+        public void prepareGame() {
+            isPlaying = false;
+            try { if (gameThread != null && gameThread.isAlive()) gameThread.join(); } catch (InterruptedException ignored) {}
+
+            score = 0;
+            lives = 3;
+            isGameOver = false;
+            initLevel();
+            updateUI();
+            postInvalidate(); // Draw the very first frame behind the overlay
+        }
+
+        public void startGame() {
+            resume();
+        }
+
+        public void restartGame() {
+            prepareGame();
+            startGame();
+        }
 
         private void initLevel() {
             synchronized (stateLock) {
@@ -325,43 +537,39 @@ public class MazeBallActivity extends Activity {
                 justHadGap = false;
                 immunityEndTime = 0;
 
+                float screenW = getWidth() == 0 ? 1000 : getWidth();
+                float screenH = getHeight() == 0 ? 2000 : getHeight();
+
                 if (isPortraitMode) {
                     maxJumps = 3;
-                    float screenW = getWidth() == 0 ? 1000 : getWidth();
                     ballX = screenW / 2f;
                     ballY = -200;
                     lastSafeX = ballX;
                     lastSafeY = ballY;
-                    cameraY = -400;
+
+                    // Pre-calculate precise camera to prevent the opening "Snap" jump
+                    cameraY = ballY - (screenH / 1.6f);
                     cameraX = 0;
+
                     furthestGeneratedY = 0;
                     wallGeneratedY = 0;
                     nextPlatformType = random.nextBoolean() ? 0 : 1;
-                    generatePortraitChunks(-2500);
+                    generatePortraitChunks(cameraY - screenH - 1000);
                 } else {
                     maxJumps = 2;
                     ballX = 200;
                     ballY = 200;
                     lastSafeX = ballX;
                     lastSafeY = ballY;
-                    cameraX = 0;
+
+                    // Pre-calculate precise camera
+                    cameraX = ballX - screenW / 3f;
                     cameraY = 0;
-                    furthestGeneratedX = -200;
-                    generateLandscapeChunks(2500);
+
+                    furthestGeneratedX = cameraX - 500;
+                    generateLandscapeChunks(cameraX + screenW + 1000);
                 }
             }
-        }
-
-        public void restartGame() {
-            isPlaying = false;
-            try { if (gameThread != null && gameThread.isAlive()) gameThread.join(); } catch (InterruptedException ignored) {}
-
-            score = 0;
-            lives = 3;
-            isGameOver = false;
-            initLevel();
-            updateUI();
-            resume();
         }
 
         public void triggerJump() {
@@ -378,7 +586,7 @@ public class MazeBallActivity extends Activity {
             float startY = 750;
             while (furthestGeneratedX < targetX) {
                 if (furthestGeneratedX > 600 && !justHadGap && random.nextInt(10) < 2) {
-                    float gapSize = 80f + random.nextFloat() * 40f; // Max 120px gap
+                    float gapSize = 80f + random.nextFloat() * 40f;
                     furthestGeneratedX += gapSize;
                     justHadGap = true;
                     continue;
@@ -398,7 +606,6 @@ public class MazeBallActivity extends Activity {
                         if (random.nextBoolean()) rings.add(new Ring(furthestGeneratedX + 50, startY - BLOCK_SIZE * 3 - 40));
                     }
                     else if (rand == 4) {
-                        // NEW: Spawn a Flyspike hovering dangerously in the air
                         flyspikes.add(new Flyspike(furthestGeneratedX + 50, startY - 130, 38f));
                     }
                 }
@@ -434,7 +641,7 @@ public class MazeBallActivity extends Activity {
                     blocks.add(new RectF(wallW, furthestGeneratedY, wallW + platW, furthestGeneratedY + thickness));
                     if (random.nextInt(3) != 0) rings.add(new Ring(wallW + platW - 40, furthestGeneratedY - 60));
                     if (random.nextInt(6) == 0) spikes.add(new RectF(wallW + 40, furthestGeneratedY - 40, wallW + 100, furthestGeneratedY));
-                    else if (random.nextInt(6) == 1) flyspikes.add(new Flyspike(wallW + platW + 60, furthestGeneratedY - 60, 38f)); // Flyspike hovering near edge
+                    else if (random.nextInt(6) == 1) flyspikes.add(new Flyspike(wallW + platW + 60, furthestGeneratedY - 60, 38f));
                     nextPlatformType = random.nextBoolean() ? 1 : 2;
                 } else if (nextPlatformType == 1) {
                     blocks.add(new RectF(screenW - wallW - platW, furthestGeneratedY, screenW - wallW, furthestGeneratedY + thickness));
@@ -516,9 +723,7 @@ public class MazeBallActivity extends Activity {
 
                 // Flyspike Animation & Death Check
                 for (Flyspike v : flyspikes) {
-                    v.rotation += 2.5f; // Spin the flyspike constantly
-
-                    // Circular hit detection (slightly forgiving buffer of 5px)
+                    v.rotation += 2.5f;
                     if (Math.hypot(ballX - v.x, ballY - v.y) < BALL_RADIUS + v.radius - 5) {
                         touchingHazard = true;
                         if (System.currentTimeMillis() >= immunityEndTime) {
@@ -528,7 +733,6 @@ public class MazeBallActivity extends Activity {
                     }
                 }
 
-                // Track last safe location (if on ground and NOT touching any hazard)
                 if (onGround && !touchingHazard) {
                     lastSafeX = ballX;
                     lastSafeY = ballY;
@@ -550,7 +754,10 @@ public class MazeBallActivity extends Activity {
                     cameraY -= autoScrollSpeed;
 
                     float desiredCameraY = ballY - (getHeight() / 1.6f);
-                    if (desiredCameraY < cameraY) cameraY = desiredCameraY;
+                    if (desiredCameraY < cameraY) {
+                        // Smooth follow to keep ball centered without hard snapping during play
+                        cameraY += (desiredCameraY - cameraY) * 0.15f;
+                    }
 
                     if (ballY > cameraY + getHeight() + 100) {
                         if (System.currentTimeMillis() < immunityEndTime) {
@@ -623,9 +830,42 @@ public class MazeBallActivity extends Activity {
 
         private void updateUI() {
             new Handler(Looper.getMainLooper()).post(() -> {
-                tvScore.setText(String.format(Locale.getDefault(), "RINGS: %04d", score));
-                tvLives.setText(String.format(Locale.getDefault(), "LIVES: %d", lives));
+                tvRingsText.setText(String.format(Locale.getDefault(), "Rings: %04d", score));
+                tvLivesText.setText(String.format(Locale.getDefault(), "Lives: %d", lives));
             });
+        }
+
+        // --- DYNAMIC BACKGROUND DRAWING ENGINE ---
+        private void drawParallaxBackground(Canvas canvas) {
+            paint.setStyle(Paint.Style.FILL);
+
+            if (themeState == 2) { // Star Mode (Black space with stars)
+                canvas.drawColor(Color.BLACK);
+                paint.setColor(Color.WHITE);
+
+                // Extremely precise Double time calculation for perfect smooth sine waves
+                double t = System.currentTimeMillis() / 1000.0;
+
+                for (Star s : stars) {
+                    float drawX = (s.x - cameraX * s.parallaxSpeed) % 2000;
+                    float drawY = (s.y - cameraY * s.parallaxSpeed) % 2000;
+                    if (drawX < 0) drawX += 2000;
+                    if (drawY < 0) drawY += 2000;
+
+                    // Advanced twinkle logic: smooth sine wave modulation
+                    int currentAlpha = (int) (s.baseAlpha + Math.sin(t * s.twinkleSpeed + s.phase) * s.twinkleRange);
+                    currentAlpha = Math.max(0, Math.min(255, currentAlpha)); // Clamp between 0 and 255
+
+                    paint.setAlpha(currentAlpha);
+                    canvas.drawCircle(drawX, drawY, s.radius, paint);
+                }
+            } else if (themeState == 1) { // Dark Mode
+                canvas.drawColor(Color.parseColor("#1A1A2E")); // Twilight Sky
+            } else { // Light Mode
+                canvas.drawColor(Color.parseColor("#87CEEB")); // Blue Sky
+            }
+
+            paint.setAlpha(255); // Reset alpha
         }
 
         @Override
@@ -633,12 +873,15 @@ public class MazeBallActivity extends Activity {
             super.draw(canvas);
 
             synchronized (stateLock) {
+                // 1. Draw Infinite Parallax Background FIRST
+                drawParallaxBackground(canvas);
+
                 canvas.save();
 
                 if (isPortraitMode) canvas.translate(0, -cameraY);
                 else canvas.translate(-cameraX, 0);
 
-                // 1. Draw Bricks
+                // 2. Draw Bricks
                 for (int i = 0; i < blocks.size(); i++) {
                     RectF b = blocks.get(i);
 
@@ -662,7 +905,7 @@ public class MazeBallActivity extends Activity {
                     }
                 }
 
-                // 2. Draw Spikes
+                // 3. Draw Spikes
                 paint.setStyle(Paint.Style.FILL);
                 for (int i = 0; i < spikes.size(); i++) {
                     RectF s = spikes.get(i);
@@ -683,43 +926,41 @@ public class MazeBallActivity extends Activity {
                     canvas.drawPath(spikeTipPath, paint);
                 }
 
-                // 3. Draw Flyspikes (8-way Blue Spike Star)
+                // 4. Draw Flyspikes (8-way Blue Spike Star)
                 for (Flyspike v : flyspikes) {
                     canvas.save();
                     canvas.translate(v.x, v.y);
                     canvas.rotate(v.rotation);
 
-                    // Draw 4 Diagonal Dark Arrows
                     paint.setStyle(Paint.Style.FILL);
-                    paint.setColor(Color.parseColor("#001f3f")); // Dark navy blue
+                    paint.setColor(Color.parseColor("#001f3f"));
                     for(int i = 0; i < 4; i++) {
                         canvas.rotate(90);
-                        canvas.drawRect(-3, -v.radius + 8, 3, 0, paint); // stem
+                        canvas.drawRect(-3, -v.radius + 8, 3, 0, paint);
 
                         flyspikePath.reset();
                         flyspikePath.moveTo(0, -v.radius);
                         flyspikePath.lineTo(-8, -v.radius + 10);
                         flyspikePath.lineTo(8, -v.radius + 10);
                         flyspikePath.close();
-                        canvas.drawPath(flyspikePath, paint); // arrowhead
+                        canvas.drawPath(flyspikePath, paint);
                     }
 
-                    // Draw 4 Cardinal Light Blue Arrows with Black Tips
-                    canvas.rotate(45); // offset to draw cardinals
+                    canvas.rotate(45);
                     for(int i = 0; i < 4; i++) {
                         canvas.rotate(90);
 
                         paint.setStyle(Paint.Style.FILL);
-                        paint.setColor(Color.parseColor("#3399FF")); // Light blue stem
+                        paint.setColor(Color.parseColor("#3399FF"));
                         canvas.drawRect(-6, -v.radius + 10, 6, 0, paint);
 
                         paint.setStyle(Paint.Style.STROKE);
-                        paint.setColor(Color.parseColor("#001f3f")); // Stroke outline for stem
+                        paint.setColor(Color.parseColor("#001f3f"));
                         paint.setStrokeWidth(2);
                         canvas.drawRect(-6, -v.radius + 10, 6, 0, paint);
 
                         paint.setStyle(Paint.Style.FILL);
-                        paint.setColor(Color.parseColor("#000000")); // Black arrowhead
+                        paint.setColor(Color.parseColor("#000000"));
                         flyspikePath.reset();
                         flyspikePath.moveTo(0, -v.radius);
                         flyspikePath.lineTo(-12, -v.radius + 14);
@@ -728,13 +969,12 @@ public class MazeBallActivity extends Activity {
                         canvas.drawPath(flyspikePath, paint);
                     }
 
-                    // Draw Center Core
-                    paint.setColor(Color.parseColor("#00509e")); // Mid blue core
+                    paint.setColor(Color.parseColor("#00509e"));
                     canvas.drawCircle(0, 0, 10, paint);
                     canvas.restore();
                 }
 
-                // 4. Draw Rings
+                // 5. Draw Rings
                 paint.setStyle(Paint.Style.STROKE);
                 paint.setColor(obstacleColor);
                 paint.setStrokeWidth(10);
@@ -745,7 +985,7 @@ public class MazeBallActivity extends Activity {
                     canvas.drawOval(r.x - animWidth, r.y - 35, r.x + animWidth, r.y + 35, paint);
                 }
 
-                // 5. Draw Ball (Visual Immunity Blinking Effect)
+                // 6. Draw Ball (Visual Immunity Blinking Effect)
                 int currentBallAlpha = 255;
                 if (System.currentTimeMillis() < immunityEndTime) {
                     currentBallAlpha = ((System.currentTimeMillis() / 150) % 2 == 0) ? 100 : 255;
@@ -766,7 +1006,7 @@ public class MazeBallActivity extends Activity {
                 paint.setAlpha(currentBallAlpha);
                 canvas.drawCircle(ballX, ballY, BALL_RADIUS, paint);
 
-                paint.setAlpha(255); // Reset alpha for next draw loop
+                paint.setAlpha(255);
 
                 canvas.restore();
             }

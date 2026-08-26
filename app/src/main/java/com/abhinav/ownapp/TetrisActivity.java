@@ -3,16 +3,22 @@ package com.abhinav.ownapp;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -20,96 +26,142 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import java.util.Random;
 
+@SuppressWarnings("all")
 @SuppressLint("SetTextI18n")
 public class TetrisActivity extends AppCompatActivity {
 
-    private int themeState; // --- 3-STATE THEME VARIABLE ---
     private int highScore = 0;
     private SharedPreferences prefs;
-
-    private TextView tvCurrentScore, tvHighScore, tvFinalScore, tvTapToStart, tvGameOverTitle, tvNewHighScoreBanner, tvNextLabel;
-    private RelativeLayout pauseOverlay, gameOverOverlay;
     private TetrisEngine gameEngine;
-    private NextShapeView nextShapeView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Smooth opening animation for the Activity
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_tetris);
 
         prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
 
         // --- 3-STATE THEME SYNC LOGIC ---
-        themeState = prefs.getInt("app_theme_state", -1);
+        int themeState = prefs.getInt("app_theme_state", -1);
         if (themeState == -1) {
             boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
             themeState = oldDark ? 1 : 0;
         }
 
         highScore = prefs.getInt("tetris_high_score", 0);
+        boolean isVibrationEnabled = prefs.getBoolean("tetris_vibration_enabled", true);
 
-        View root = findViewById(R.id.tetrisRoot);
+        View rootLayout = findViewById(R.id.tetrisRoot);
+        RelativeLayout topHUD = findViewById(R.id.topHUD);
+
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            if (topHUD != null) {
+                topHUD.setPadding(
+                        topHUD.getPaddingLeft(),
+                        insets.top + (int) (8 * getResources().getDisplayMetrics().density),
+                        topHUD.getPaddingRight(),
+                        topHUD.getPaddingBottom()
+                );
+            }
+            return WindowInsetsCompat.CONSUMED;
+        });
+
         FrameLayout gameContainer = findViewById(R.id.gameContainer);
         FrameLayout nextShapeContainer = findViewById(R.id.nextShapeContainer);
 
-        tvCurrentScore = findViewById(R.id.tvCurrentScore);
-        tvHighScore = findViewById(R.id.tvHighScore);
-        tvFinalScore = findViewById(R.id.tvFinalScore);
-        tvTapToStart = findViewById(R.id.tvTapToStart);
-        tvGameOverTitle = findViewById(R.id.tvGameOverTitle);
-        tvNewHighScoreBanner = findViewById(R.id.tvNewHighScoreBanner);
-        tvNextLabel = findViewById(R.id.tvNextLabel);
+        TextView tvCurrentScore = findViewById(R.id.tvCurrentScore);
+        TextView tvHighScore = findViewById(R.id.tvHighScore);
+        TextView tvFinalScore = findViewById(R.id.tvFinalScore);
+        TextView tvTapToStart = findViewById(R.id.tvTapToStart);
+        TextView tvGameOverTitle = findViewById(R.id.tvGameOverTitle);
+        TextView tvNewHighScoreBanner = findViewById(R.id.tvNewHighScoreBanner);
+        TextView tvNextLabel = findViewById(R.id.tvNextLabel);
 
-        pauseOverlay = findViewById(R.id.pauseOverlay);
-        gameOverOverlay = findViewById(R.id.gameOverOverlay);
+        RelativeLayout pauseOverlay = findViewById(R.id.pauseOverlay);
+        RelativeLayout gameOverOverlay = findViewById(R.id.gameOverOverlay);
         LinearLayout pauseCard = findViewById(R.id.pauseCard);
         LinearLayout gameOverCard = findViewById(R.id.gameOverCard);
 
-        Button btnPause = findViewById(R.id.btnPause);
+        // Modern Pill Bindings
+        LinearLayout btnPause = findViewById(R.id.btnPause);
+        LinearLayout nextBlockPill = findViewById(R.id.nextBlockPill);
+        FrameLayout pauseIconContainer = findViewById(R.id.pauseIconContainer);
+
+        GameIconView pauseIconView = new GameIconView(this);
+        pauseIconContainer.addView(pauseIconView);
+
         Button btnResume = findViewById(R.id.btnResume);
         Button btnRestart = findViewById(R.id.btnRestart);
         Button btnQuit = findViewById(R.id.btnQuit);
         Button btnQuitFromPause = findViewById(R.id.btnQuitFromPause);
+        Button btnToggleVibration = findViewById(R.id.btnToggleVibration);
 
         // Apply Theming strictly based on 3-State
         int bgColor, cardColor, textColor, quitBtnColor;
+        int pillBgColor, boxBgColor, pauseTextColor, iconColor;
 
         if (themeState == 0) { // Light Mode
-            bgColor = Color.parseColor("#F2F2F7");
-            cardColor = Color.WHITE;
+            bgColor = Color.WHITE;
+            cardColor = Color.parseColor("#F2F2F7");
             textColor = Color.parseColor("#333333");
             quitBtnColor = Color.parseColor("#E5E5EA");
+
+            pillBgColor = Color.parseColor("#F0F0F0");
+            boxBgColor = Color.WHITE;
+            iconColor = Color.parseColor("#333333");
+            pauseTextColor = Color.parseColor("#333333");
         } else if (themeState == 1) { // Standard Dark Mode
             bgColor = Color.parseColor("#1C1C1E");
             cardColor = Color.parseColor("#2C2C2E");
             textColor = Color.WHITE;
             quitBtnColor = Color.parseColor("#3A3A3C");
+
+            pillBgColor = Color.parseColor("#2D313A");
+            boxBgColor = Color.parseColor("#D8E2FF");
+            iconColor = Color.parseColor("#001C3A");
+            pauseTextColor = Color.parseColor("#E3E2E6");
         } else { // Star Mode (AMOLED Pure Black)
-            bgColor = Color.parseColor("#000000"); // Pure AMOLED Black
-            cardColor = Color.parseColor("#1C1C1E"); // Elevated dark gray
+            bgColor = Color.parseColor("#000000");
+            cardColor = Color.parseColor("#1C1C1E");
             textColor = Color.WHITE;
             quitBtnColor = Color.parseColor("#2C2C2E");
+
+            pillBgColor = Color.parseColor("#2D313A");
+            boxBgColor = Color.parseColor("#D8E2FF");
+            iconColor = Color.parseColor("#001C3A");
+            pauseTextColor = Color.parseColor("#E3E2E6");
         }
 
-        root.setBackgroundColor(bgColor);
+        rootLayout.setBackgroundColor(bgColor);
         tvCurrentScore.setTextColor(textColor);
-        tvHighScore.setTextColor(textColor);
+        tvNextLabel.setTextColor(pauseTextColor);
         tvTapToStart.setTextColor(textColor);
-        tvNextLabel.setTextColor(textColor);
+
+        tvHighScore.setTextColor(themeState == 0 ? Color.parseColor("#888888") : Color.parseColor("#A0A0A5"));
         tvHighScore.setText("Best: " + highScore);
 
         ((TextView) findViewById(R.id.tvPauseTitle)).setTextColor(textColor);
         tvGameOverTitle.setTextColor(textColor);
         tvFinalScore.setTextColor(textColor);
 
-        btnQuit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(quitBtnColor));
+        btnQuit.setBackgroundTintList(ColorStateList.valueOf(quitBtnColor));
         btnQuit.setTextColor(textColor);
-        btnQuitFromPause.setBackgroundTintList(android.content.res.ColorStateList.valueOf(quitBtnColor));
-        btnQuitFromPause.setTextColor(textColor);
+        if (btnQuitFromPause != null) {
+            btnQuitFromPause.setBackgroundTintList(ColorStateList.valueOf(quitBtnColor));
+            btnQuitFromPause.setTextColor(textColor);
+        }
 
         GradientDrawable gdCard = new GradientDrawable();
         gdCard.setColor(cardColor);
@@ -117,19 +169,50 @@ public class TetrisActivity extends AppCompatActivity {
         pauseCard.setBackground(gdCard);
         gameOverCard.setBackground(gdCard);
 
+        if (btnPause != null) {
+            btnPause.setBackground(createPillShape(pillBgColor));
+            pauseIconContainer.setBackground(createBoxShape(boxBgColor));
+            pauseIconView.setIcon(GameIconView.ICON_PAUSE, iconColor);
+        }
+        if (nextBlockPill != null) {
+            nextBlockPill.setBackground(createPillShape(pillBgColor));
+        }
+
+        // Extremely safe logic for the Vibration Button
+        if (btnToggleVibration != null) {
+            btnToggleVibration.setText("Vibration: " + (isVibrationEnabled ? "ON" : "OFF"));
+            btnToggleVibration.setOnClickListener(v -> {
+                boolean current = prefs.getBoolean("tetris_vibration_enabled", true);
+                prefs.edit().putBoolean("tetris_vibration_enabled", !current).apply();
+                btnToggleVibration.setText("Vibration: " + (!current ? "ON" : "OFF"));
+                if (gameEngine != null) {
+                    gameEngine.setVibrationEnabled(!current);
+                }
+            });
+        }
+
         // Initialize Engines
-        nextShapeView = new NextShapeView(this);
+        NextShapeView nextShapeView = new NextShapeView(this);
         nextShapeContainer.addView(nextShapeView);
 
-        // Pass themeState to the engine instead of a boolean
         gameEngine = new TetrisEngine(this, themeState, nextShapeView);
+        gameEngine.setVibrationEnabled(isVibrationEnabled);
         gameContainer.addView(gameEngine);
+
+        topHUD.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                if (gameEngine != null) {
+                    gameEngine.setTopHUDHeight(topHUD.getHeight());
+                }
+            }
+        });
 
         // Callbacks
         gameEngine.setGameListener(new TetrisEngine.GameListener() {
             @Override
             public void onScoreUpdated(int score) {
-                tvCurrentScore.setText(String.valueOf(score));
+                tvCurrentScore.setText("Score: " + score);
             }
 
             @Override
@@ -147,48 +230,193 @@ public class TetrisActivity extends AppCompatActivity {
                 }
 
                 tvFinalScore.setText("Score: " + finalScore);
-                gameOverOverlay.setVisibility(View.VISIBLE);
-                btnPause.setVisibility(View.GONE);
+                showOverlaySmoothly(gameOverOverlay);
+                fadeOutHudSmoothly(btnPause, nextBlockPill);
             }
 
             @Override
             public void onGameStarted() {
                 tvTapToStart.setVisibility(View.GONE);
-                btnPause.setVisibility(View.VISIBLE);
             }
         });
 
         // Buttons
-        btnPause.setOnClickListener(v -> {
-            gameEngine.pauseGame();
-            pauseOverlay.setVisibility(View.VISIBLE);
-            btnPause.setVisibility(View.GONE);
-        });
+        if (btnPause != null) {
+            btnPause.setOnClickListener(v -> {
+                gameEngine.pauseGame();
+                showOverlaySmoothly(pauseOverlay);
+                fadeOutHudSmoothly(btnPause, nextBlockPill);
+                pauseIconView.setIcon(GameIconView.ICON_PLAY, iconColor);
+            });
+        }
 
-        btnResume.setOnClickListener(v -> {
-            pauseOverlay.setVisibility(View.GONE);
-            btnPause.setVisibility(View.VISIBLE);
-            gameEngine.resumeGame();
-        });
+        if (btnResume != null) {
+            btnResume.setOnClickListener(v -> {
+                hideOverlaySmoothly(pauseOverlay);
+                fadeInHudSmoothly(btnPause, nextBlockPill);
+                gameEngine.resumeGame();
+                pauseIconView.setIcon(GameIconView.ICON_PAUSE, iconColor);
+            });
+        }
 
-        btnRestart.setOnClickListener(v -> {
-            gameOverOverlay.setVisibility(View.GONE);
-            tvNewHighScoreBanner.setVisibility(View.GONE);
-            tvCurrentScore.setText("0");
-            tvTapToStart.setVisibility(View.VISIBLE);
-            btnPause.setVisibility(View.VISIBLE);
-            gameEngine.resetGame();
-        });
+        if (btnRestart != null) {
+            btnRestart.setOnClickListener(v -> {
+                hideOverlaySmoothly(gameOverOverlay);
+                tvNewHighScoreBanner.setVisibility(View.GONE);
+                tvCurrentScore.setText("Score: 0");
+                tvTapToStart.setVisibility(View.VISIBLE);
+                fadeInHudSmoothly(btnPause, nextBlockPill);
+                pauseIconView.setIcon(GameIconView.ICON_PAUSE, iconColor);
+                gameEngine.resetGame();
+            });
+        }
 
-        btnQuit.setOnClickListener(v -> finish());
-        btnQuitFromPause.setOnClickListener(v -> finish());
+        if (btnQuit != null) btnQuit.setOnClickListener(v -> finish());
+        if (btnQuitFromPause != null) btnQuitFromPause.setOnClickListener(v -> finish());
+    }
+
+    // --- INTERCEPT BACK BUTTON FOR PAUSE AND EXACT EXIT LOGIC ---
+    @Override
+    public void onBackPressed() {
+        RelativeLayout pauseOverlay = findViewById(R.id.pauseOverlay);
+        RelativeLayout gameOverOverlay = findViewById(R.id.gameOverOverlay);
+
+        // If on Game Over screen, back button exits
+        if (gameOverOverlay != null && gameOverOverlay.getVisibility() == View.VISIBLE) {
+            finish();
+            return;
+        }
+
+        // If on Pause Menu, back button EXITS the game completely (2nd press logic)
+        if (pauseOverlay != null && pauseOverlay.getVisibility() == View.VISIBLE) {
+            finish();
+            return;
+        }
+
+        // If currently playing, back button PAUSES the game (1st press logic)
+        if (gameEngine != null && gameEngine.isPlaying() && !gameEngine.isGameOver()) {
+            LinearLayout btnPause = findViewById(R.id.btnPause);
+            if (btnPause != null) {
+                btnPause.performClick();
+                return;
+            }
+        }
+
+        super.onBackPressed();
+    }
+
+    // --- SMOOTH FADE ANIMATION HELPERS ---
+    private void showOverlaySmoothly(View overlay) {
+        if (overlay == null) return;
+        overlay.setAlpha(0f);
+        overlay.setVisibility(View.VISIBLE);
+        overlay.animate().alpha(1f).setDuration(250).start();
+    }
+
+    private void hideOverlaySmoothly(View overlay) {
+        if (overlay == null) return;
+        overlay.animate().alpha(0f).setDuration(250).withEndAction(() -> overlay.setVisibility(View.GONE)).start();
+    }
+
+    private void fadeOutHudSmoothly(View leftPill, View rightPill) {
+        if (leftPill != null) leftPill.animate().alpha(0f).setDuration(250).withEndAction(() -> leftPill.setVisibility(View.INVISIBLE)).start();
+        if (rightPill != null) rightPill.animate().alpha(0f).setDuration(250).withEndAction(() -> rightPill.setVisibility(View.INVISIBLE)).start();
+    }
+
+    private void fadeInHudSmoothly(View leftPill, View rightPill) {
+        if (leftPill != null) {
+            leftPill.setAlpha(0f);
+            leftPill.setVisibility(View.VISIBLE);
+            leftPill.animate().alpha(1f).setDuration(250).start();
+        }
+        if (rightPill != null) {
+            rightPill.setAlpha(0f);
+            rightPill.setVisibility(View.VISIBLE);
+            rightPill.animate().alpha(1f).setDuration(250).start();
+        }
     }
 
     @Override
+    public void finish() {
+        super.finish();
+        // Uses standard fade_in and fade_out for a perfectly smooth closing animation
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
+
+    // --- DRAWABLE FACTORIES ---
+    private GradientDrawable createPillShape(int color) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setColor(color);
+        shape.setCornerRadius(1000f);
+        return shape;
+    }
+
+    private GradientDrawable createBoxShape(int color) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setColor(color);
+        shape.setCornerRadius(30f);
+        return shape;
+    }
+
+    // --- BUG FIX: DO NOT AUTO-CLICK PAUSE IF ALREADY PAUSED ---
+    @Override
     protected void onPause() {
         super.onPause();
-        if (gameEngine != null && gameEngine.isPlaying() && !gameEngine.isGameOver()) {
-            findViewById(R.id.btnPause).performClick();
+        RelativeLayout pauseOverlay = findViewById(R.id.pauseOverlay);
+        boolean isPauseMenuVisible = (pauseOverlay != null && pauseOverlay.getVisibility() == View.VISIBLE);
+
+        // Only trigger the pause click if the game is actively playing AND the menu is not already visible
+        if (gameEngine != null && gameEngine.isPlaying() && !gameEngine.isGameOver() && !isPauseMenuVisible) {
+            View btnPause = findViewById(R.id.btnPause);
+            if (btnPause != null) {
+                btnPause.performClick();
+            }
+        }
+    }
+
+    // --- MATHEMATICAL VECTOR ICON ENGINE ---
+    public static class GameIconView extends View {
+        public static final int ICON_PAUSE = 0;
+        public static final int ICON_PLAY = 1;
+
+        private int iconType = ICON_PAUSE;
+        private Paint paint;
+
+        public GameIconView(Context context) { super(context); init(); }
+
+        private void init() {
+            paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(4.5f);
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setStrokeJoin(Paint.Join.ROUND);
+        }
+
+        public void setIcon(int type, int color) {
+            this.iconType = type;
+            paint.setColor(color);
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float cx = getWidth() / 2f;
+            float cy = getHeight() / 2f;
+
+            if (iconType == ICON_PAUSE) {
+                paint.setStyle(Paint.Style.FILL);
+                canvas.drawRoundRect(cx - 7f, cy - 8f, cx - 2f, cy + 8f, 3f, 3f, paint);
+                canvas.drawRoundRect(cx + 2f, cy - 8f, cx + 7f, cy + 8f, 3f, 3f, paint);
+            }
+            else if (iconType == ICON_PLAY) {
+                paint.setStyle(Paint.Style.FILL);
+                Path p = new Path();
+                p.moveTo(cx - 4f, cy - 9f);
+                p.lineTo(cx + 7f, cy);
+                p.lineTo(cx - 4f, cy + 9f);
+                p.close();
+                canvas.drawPath(p, paint);
+            }
         }
     }
 
@@ -225,11 +453,13 @@ public class TetrisActivity extends AppCompatActivity {
         private final Paint blockPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint strokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
+        private final RectF tempRect = new RectF();
+
         public NextShapeView(Context context) {
             super(context);
             strokePaint.setStyle(Paint.Style.STROKE);
             strokePaint.setColor(Color.argb(100, 0, 0, 0));
-            strokePaint.setStrokeWidth(3f);
+            strokePaint.setStrokeWidth(2f); // Thinner stroke for smaller preview block
         }
 
         public void updateShape(int typeId) {
@@ -254,10 +484,10 @@ public class TetrisActivity extends AppCompatActivity {
             for (int r = 0; r < rows; r++) {
                 for (int c = 0; c < cols; c++) {
                     if (shape[r][c] == 1) {
-                        RectF rect = new RectF(startX + c * cellSize, startY + r * cellSize,
+                        tempRect.set(startX + c * cellSize, startY + r * cellSize,
                                 startX + (c + 1) * cellSize, startY + (r + 1) * cellSize);
-                        canvas.drawRect(rect, blockPaint);
-                        canvas.drawRect(rect, strokePaint);
+                        canvas.drawRect(tempRect, blockPaint);
+                        canvas.drawRect(tempRect, strokePaint);
                     }
                 }
             }
@@ -271,30 +501,30 @@ public class TetrisActivity extends AppCompatActivity {
 
         private final int ROWS = 20;
         private final int COLS = 10;
-        private int[][] board = new int[ROWS][COLS];
+        private final int[][] board = new int[ROWS][COLS];
 
         private int[][] currentPiece;
         private int currentType, currentX, currentY;
         private int nextType;
 
-        private float screenW, screenH, cellSize;
+        private float screenW, cellSize;
         private float boardTop, boardLeft, boardBottom;
-        private float topHUDHeight;
+        private float dynamicTopPadding = 250f; // Default fallback
 
         private final Paint blockPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint gridPaint = new Paint();
-        private final Paint brickFill = new Paint();
-        private final Paint brickStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint borderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
+        private final RectF tempRect = new RectF();
         private final Handler handler = new Handler(Looper.getMainLooper());
         private final Random random = new Random();
         private GameListener listener;
-        private NextShapeView nextShapeView;
+        private final NextShapeView nextShapeView;
 
         private boolean playing = false, paused = false, gameOver = false;
+        private boolean vibrationEnabled = true;
         private int score = 0;
 
-        // Touch handling
         private float startX, startY;
         private boolean movedDuringTouch = false;
         private long touchStartTime;
@@ -310,37 +540,58 @@ public class TetrisActivity extends AppCompatActivity {
             this.nextShapeView = nextShapeView;
 
             gridPaint.setStyle(Paint.Style.STROKE);
-            // If theme is 0 (Light), use dark grid lines. Otherwise (Dark or Star), use light grid lines.
             gridPaint.setColor(themeState == 0 ? Color.argb(30, 0, 0, 0) : Color.argb(30, 255, 255, 255));
             gridPaint.setStrokeWidth(2f);
 
-            // Black & White Bricks
-            brickFill.setColor(Color.BLACK);
-            brickStroke.setStyle(Paint.Style.STROKE);
-            brickStroke.setColor(Color.WHITE);
-            brickStroke.setStrokeWidth(5f);
+            borderPaint.setStyle(Paint.Style.STROKE);
+            borderPaint.setStrokeWidth(8f);
+            borderPaint.setColor(themeState == 0 ? Color.parseColor("#333333") : Color.WHITE);
         }
 
         public void setGameListener(GameListener listener) { this.listener = listener; }
 
+        public void setVibrationEnabled(boolean enabled) { this.vibrationEnabled = enabled; }
+
+        private void triggerVibration(int duration) {
+            if (vibrationEnabled) {
+                Vibrator v = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+                if (v != null && v.hasVibrator()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        v.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE));
+                    } else {
+                        v.vibrate(duration);
+                    }
+                }
+            }
+        }
+
+        public void setTopHUDHeight(int heightInPixels) {
+            if (this.dynamicTopPadding == heightInPixels) return;
+
+            this.dynamicTopPadding = heightInPixels;
+
+            if (getWidth() > 0 && getHeight() > 0) {
+                onSizeChanged(getWidth(), getHeight(), getWidth(), getHeight());
+                invalidate();
+            }
+        }
+
         @Override
-        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-            super.onSizeChanged(w, h, oldw, oldh);
+        protected void onSizeChanged(int w, int h, int oldW, int oldH) {
+            super.onSizeChanged(w, h, oldW, oldH);
             screenW = w;
-            screenH = h;
+            float screenH = h;
 
-            // HUD is 100dp tall, add some padding
-            topHUDHeight = getResources().getDisplayMetrics().density * 110;
-
-            // Calculate cell size to perfectly fit 20 rows and 10 cols between bounds
-            float availableHeight = screenH - topHUDHeight - 80f; // 80f reserved for floor/ceiling bricks
+            float availableHeight = screenH - dynamicTopPadding - 30f; // reduced bottom buffer
             cellSize = Math.min(screenW / COLS, availableHeight / ROWS);
 
             boardLeft = (screenW - (COLS * cellSize)) / 2f;
-            boardTop = topHUDHeight + 40f; // Below the top brick line
+            boardTop = dynamicTopPadding + 8f;
             boardBottom = boardTop + (ROWS * cellSize);
 
-            resetGame();
+            if (oldW == 0 && oldH == 0) {
+                resetGame();
+            }
         }
 
         public void resetGame() {
@@ -372,6 +623,7 @@ public class TetrisActivity extends AppCompatActivity {
                 gameOver = true;
                 playing = false;
                 handler.removeCallbacks(gameLoop);
+                triggerVibration(500); // Game Over vibration
                 if (listener != null) listener.onGameOver(score);
             }
         }
@@ -382,7 +634,7 @@ public class TetrisActivity extends AppCompatActivity {
         public boolean isGameOver() { return gameOver; }
 
         private long getDelay() {
-            return 500L; // Constant speed locked to 500ms
+            return 500L;
         }
 
         private final Runnable gameLoop = new Runnable() {
@@ -423,6 +675,7 @@ public class TetrisActivity extends AppCompatActivity {
                     }
                 }
             }
+            triggerVibration(15); // Soft click when piece locks
             clearLines();
             spawnPiece();
         }
@@ -444,7 +697,8 @@ public class TetrisActivity extends AppCompatActivity {
                 }
             }
             if (linesCleared > 0) {
-                score += (linesCleared * linesCleared) * 10;
+                triggerVibration(100); // Stronger satisfying buzz for lines cleared
+                score += linesCleared;
                 if (listener != null) listener.onScoreUpdated(score);
             }
         }
@@ -517,23 +771,12 @@ public class TetrisActivity extends AppCompatActivity {
             return super.onTouchEvent(event);
         }
 
-        private void drawBricks(Canvas canvas, float yPos) {
-            float brickW = screenW / 10f; // 10 bricks across
-            float brickH = 40f;
-            for (int i = 0; i < 10; i++) {
-                RectF brick = new RectF(i * brickW, yPos, (i + 1) * brickW, yPos + brickH);
-                canvas.drawRect(brick, brickFill);
-                canvas.drawRect(brick, brickStroke);
-            }
-        }
-
         @Override
         protected void onDraw(@NonNull Canvas canvas) {
             super.onDraw(canvas);
 
-            // 1. Draw Black & White Brick Separators
-            drawBricks(canvas, boardTop - 40f); // Top Line
-            drawBricks(canvas, boardBottom);    // Bottom Floor Line
+            // 1. Draw Clean Outer Border
+            canvas.drawRect(boardLeft, boardTop, boardLeft + (COLS * cellSize), boardBottom, borderPaint);
 
             // 2. Draw Board Background and Grid
             canvas.drawRect(boardLeft, boardTop, boardLeft + (COLS * cellSize), boardBottom, gridPaint);
@@ -562,16 +805,16 @@ public class TetrisActivity extends AppCompatActivity {
         }
 
         private void drawBlock(Canvas canvas, int c, int r, int color) {
-            RectF rect = new RectF(boardLeft + c * cellSize, boardTop + r * cellSize,
+            tempRect.set(boardLeft + c * cellSize, boardTop + r * cellSize,
                     boardLeft + (c + 1) * cellSize, boardTop + (r + 1) * cellSize);
             blockPaint.setColor(color);
             blockPaint.setStyle(Paint.Style.FILL);
-            canvas.drawRect(rect, blockPaint);
+            canvas.drawRect(tempRect, blockPaint);
 
             blockPaint.setColor(Color.argb(100, 0,0,0));
             blockPaint.setStyle(Paint.Style.STROKE);
             blockPaint.setStrokeWidth(4f);
-            canvas.drawRect(rect, blockPaint);
+            canvas.drawRect(tempRect, blockPaint);
         }
     }
 }

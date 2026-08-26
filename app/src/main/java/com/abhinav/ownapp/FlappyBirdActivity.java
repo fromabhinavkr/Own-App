@@ -25,7 +25,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
@@ -52,9 +51,16 @@ public class FlappyBirdActivity extends AppCompatActivity {
     private boolean isVibrationEnabled = true;
     private SharedPreferences prefs;
 
+    // UI Elements
     private TextView tvCurrentScore, tvHighScore, tvFinalScore, tvTapToStart, tvGameOverTitle, tvNewHighScoreBanner;
     private RelativeLayout pauseOverlay, gameOverOverlay;
     private FlappyGameEngine gameEngine;
+
+    // Smart Pill Button Components
+    private LinearLayout btnPause;
+    private FrameLayout pauseIconContainer;
+    private GameIconView pauseIconView;
+    private int iconColor;
 
     private FrameLayout snapshotContainer;
     private ImageView ivDeathSnapshot;
@@ -62,6 +68,8 @@ public class FlappyBirdActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Smooth opening animation for the Activity
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_flappy_bird);
 
@@ -86,6 +94,9 @@ public class FlappyBirdActivity extends AppCompatActivity {
 
         FrameLayout gameContainer = findViewById(R.id.gameContainer);
 
+        // Map UI
+        btnPause = findViewById(R.id.btnPause);
+        pauseIconContainer = findViewById(R.id.pauseIconContainer);
         tvCurrentScore = findViewById(R.id.tvCurrentScore);
         tvHighScore = findViewById(R.id.tvHighScore);
         tvFinalScore = findViewById(R.id.tvFinalScore);
@@ -99,8 +110,6 @@ public class FlappyBirdActivity extends AppCompatActivity {
         LinearLayout pauseCard = findViewById(R.id.pauseCard);
         LinearLayout gameOverCard = findViewById(R.id.gameOverCard);
 
-        ImageButton btnPause = findViewById(R.id.btnPause);
-
         Button btnResume = findViewById(R.id.btnResume);
         Button btnRestart = findViewById(R.id.btnRestart);
         Button btnQuit = findViewById(R.id.btnQuit);
@@ -113,6 +122,7 @@ public class FlappyBirdActivity extends AppCompatActivity {
 
         // Define colors based on the 3-state theme
         int bgColor, cardColor, textColor, subTextColor, quitBtnColor;
+        int pillBgColor, boxBgColor;
 
         if (themeState == 0) { // Light Mode
             bgColor = Color.parseColor("#F2F2F7");
@@ -120,23 +130,30 @@ public class FlappyBirdActivity extends AppCompatActivity {
             textColor = Color.parseColor("#333333");
             subTextColor = Color.parseColor("#888888");
             quitBtnColor = Color.parseColor("#E5E5EA");
-            btnPause.setImageResource(R.drawable.ic_pause_sun); // SUN SHAPE
+            pillBgColor = Color.parseColor("#E5E5EA");
+            boxBgColor = Color.parseColor("#FFFFFF");
+            iconColor = Color.parseColor("#333333");
         } else if (themeState == 1) { // Standard Dark Mode
             bgColor = Color.parseColor("#1C1C1E");
             cardColor = Color.parseColor("#2C2C2E");
             textColor = Color.WHITE;
             subTextColor = Color.parseColor("#8E8E93");
             quitBtnColor = Color.parseColor("#3A3A3C");
-            btnPause.setImageResource(R.drawable.ic_pause_moon); // MOON SHAPE
+            pillBgColor = Color.parseColor("#2D313A");
+            boxBgColor = Color.parseColor("#D8E2FF");
+            iconColor = Color.parseColor("#001C3A");
         } else { // Star Mode (AMOLED Pure Black)
             bgColor = Color.parseColor("#000000"); // Pure Black background
             cardColor = Color.parseColor("#1C1C1E"); // Elevated dark gray
             textColor = Color.WHITE;
             subTextColor = Color.parseColor("#8E8E93");
             quitBtnColor = Color.parseColor("#2C2C2E");
-            btnPause.setImageResource(R.drawable.ic_pause_star); // STAR SHAPE
+            pillBgColor = Color.parseColor("#2D313A");
+            boxBgColor = Color.parseColor("#D8E2FF");
+            iconColor = Color.parseColor("#001C3A");
         }
 
+        // Apply background and text colors
         root.setBackgroundColor(bgColor);
         tvCurrentScore.setTextColor(textColor);
         tvHighScore.setTextColor(subTextColor);
@@ -150,6 +167,17 @@ public class FlappyBirdActivity extends AppCompatActivity {
         btnQuit.setTextColor(textColor);
         btnQuitFromPause.setBackgroundTintList(android.content.res.ColorStateList.valueOf(quitBtnColor));
         btnQuitFromPause.setTextColor(textColor);
+
+        // Apply Custom "Smart Pill" styling for Pause/Score
+        if (btnPause != null) {
+            btnPause.setBackground(createPillShape(pillBgColor));
+            pauseIconContainer.setBackground(createBoxShape(boxBgColor));
+
+            // Inject mathematical Vector Icon
+            pauseIconView = new GameIconView(this);
+            pauseIconContainer.addView(pauseIconView);
+            pauseIconView.setIcon(GameIconView.ICON_PAUSE, iconColor);
+        }
 
         GradientDrawable gdCard = new GradientDrawable();
         gdCard.setColor(cardColor);
@@ -186,7 +214,7 @@ public class FlappyBirdActivity extends AppCompatActivity {
         gameEngine.setGameListener(new FlappyGameEngine.GameListener() {
             @Override
             public void onScoreUpdated(int score) {
-                tvCurrentScore.setText(String.valueOf(score));
+                tvCurrentScore.setText("Score: " + score);
             }
 
             @Override
@@ -212,35 +240,37 @@ public class FlappyBirdActivity extends AppCompatActivity {
                 }
 
                 tvFinalScore.setText("Score: " + finalScore);
-                gameOverOverlay.setVisibility(View.VISIBLE);
-                btnPause.setVisibility(View.GONE);
+                showOverlaySmoothly(gameOverOverlay);
+                fadeOutHudSmoothly(btnPause);
             }
 
             @Override
             public void onGameStarted() {
                 tvTapToStart.setVisibility(View.GONE);
-                btnPause.setVisibility(View.VISIBLE);
             }
         });
 
         btnPause.setOnClickListener(v -> {
             gameEngine.pauseGame();
-            pauseOverlay.setVisibility(View.VISIBLE);
-            btnPause.setVisibility(View.GONE);
+            pauseIconView.setIcon(GameIconView.ICON_PLAY, iconColor);
+            showOverlaySmoothly(pauseOverlay);
+            fadeOutHudSmoothly(btnPause);
         });
 
         btnResume.setOnClickListener(v -> {
-            pauseOverlay.setVisibility(View.GONE);
-            btnPause.setVisibility(View.VISIBLE);
+            hideOverlaySmoothly(pauseOverlay);
+            fadeInHudSmoothly(btnPause);
+            pauseIconView.setIcon(GameIconView.ICON_PAUSE, iconColor);
             gameEngine.resumeGame();
         });
 
         btnRestart.setOnClickListener(v -> {
-            gameOverOverlay.setVisibility(View.GONE);
+            hideOverlaySmoothly(gameOverOverlay);
             tvNewHighScoreBanner.setVisibility(View.GONE);
-            tvCurrentScore.setText("0");
+            tvCurrentScore.setText("Score: 0");
             tvTapToStart.setVisibility(View.VISIBLE);
-            btnPause.setVisibility(View.VISIBLE);
+            fadeInHudSmoothly(btnPause);
+            pauseIconView.setIcon(GameIconView.ICON_PAUSE, iconColor);
             gameEngine.resetGame();
         });
 
@@ -248,16 +278,147 @@ public class FlappyBirdActivity extends AppCompatActivity {
         btnQuitFromPause.setOnClickListener(v -> finish());
     }
 
+    // --- INTERCEPT BACK BUTTON FOR PAUSE AND EXACT EXIT LOGIC ---
+    @Override
+    public void onBackPressed() {
+        RelativeLayout pauseOverlay = findViewById(R.id.pauseOverlay);
+        RelativeLayout gameOverOverlay = findViewById(R.id.gameOverOverlay);
+
+        // If on Game Over screen, back button exits
+        if (gameOverOverlay != null && gameOverOverlay.getVisibility() == View.VISIBLE) {
+            finish();
+            return;
+        }
+
+        // If on Pause Menu, back button EXITS the game completely (2nd press logic)
+        if (pauseOverlay != null && pauseOverlay.getVisibility() == View.VISIBLE) {
+            finish();
+            return;
+        }
+
+        // If currently playing, back button PAUSES the game (1st press logic)
+        if (gameEngine != null && gameEngine.isPlaying() && !gameEngine.isGameOver()) {
+            LinearLayout btnPause = findViewById(R.id.btnPause);
+            if (btnPause != null) {
+                btnPause.performClick();
+                return;
+            }
+        }
+
+        super.onBackPressed();
+    }
+
+    // --- SMOOTH FADE ANIMATION HELPERS ---
+    private void showOverlaySmoothly(View overlay) {
+        if (overlay == null) return;
+        overlay.setAlpha(0f);
+        overlay.setVisibility(View.VISIBLE);
+        overlay.animate().alpha(1f).setDuration(250).start();
+    }
+
+    private void hideOverlaySmoothly(View overlay) {
+        if (overlay == null) return;
+        overlay.animate().alpha(0f).setDuration(250).withEndAction(() -> overlay.setVisibility(View.GONE)).start();
+    }
+
+    private void fadeOutHudSmoothly(View hudView) {
+        if (hudView != null) {
+            hudView.animate().alpha(0f).setDuration(250).withEndAction(() -> hudView.setVisibility(View.INVISIBLE)).start();
+        }
+    }
+
+    private void fadeInHudSmoothly(View hudView) {
+        if (hudView != null) {
+            hudView.setAlpha(0f);
+            hudView.setVisibility(View.VISIBLE);
+            hudView.animate().alpha(1f).setDuration(250).start();
+        }
+    }
+
+    @Override
+    public void finish() {
+        super.finish();
+        // Removes the android.R.anim.fade_in to completely eliminate the "white flash" bug when exiting back to the menu!
+        overridePendingTransition(0, android.R.anim.fade_out);
+    }
+
+    private GradientDrawable createPillShape(int color) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setColor(color);
+        shape.setCornerRadius(1000f);
+        return shape;
+    }
+
+    private GradientDrawable createBoxShape(int color) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setColor(color);
+        shape.setCornerRadius(30f);
+        return shape;
+    }
+
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
     }
 
+    // --- BUG FIX: DO NOT AUTO-CLICK PAUSE IF ALREADY PAUSED ---
     @Override
     protected void onPause() {
         super.onPause();
-        if (gameEngine != null && gameEngine.isPlaying() && !gameEngine.isGameOver()) {
-            findViewById(R.id.btnPause).performClick();
+        RelativeLayout pauseOverlay = findViewById(R.id.pauseOverlay);
+        boolean isPauseMenuVisible = (pauseOverlay != null && pauseOverlay.getVisibility() == View.VISIBLE);
+
+        // Only trigger the pause click if the game is actively playing AND the menu is not already visible
+        if (gameEngine != null && gameEngine.isPlaying() && !gameEngine.isGameOver() && !isPauseMenuVisible) {
+            View btnPause = findViewById(R.id.btnPause);
+            if (btnPause != null) {
+                btnPause.performClick();
+            }
+        }
+    }
+
+    // --- MATHEMATICAL VECTOR ICON ENGINE ---
+    public static class GameIconView extends View {
+        public static final int ICON_PAUSE = 0;
+        public static final int ICON_PLAY = 1;
+
+        private int iconType = ICON_PAUSE;
+        private Paint paint;
+
+        public GameIconView(Context context) { super(context); init(); }
+
+        private void init() {
+            paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(4.5f);
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setStrokeJoin(Paint.Join.ROUND);
+        }
+
+        public void setIcon(int type, int color) {
+            this.iconType = type;
+            paint.setColor(color);
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float cx = getWidth() / 2f;
+            float cy = getHeight() / 2f;
+
+            if (iconType == ICON_PAUSE) {
+                paint.setStyle(Paint.Style.FILL);
+                canvas.drawRoundRect(cx - 7f, cy - 8f, cx - 2f, cy + 8f, 3f, 3f, paint);
+                canvas.drawRoundRect(cx + 2f, cy - 8f, cx + 7f, cy + 8f, 3f, 3f, paint);
+            } else if (iconType == ICON_PLAY) {
+                paint.setStyle(Paint.Style.FILL);
+                Path p = new Path();
+                p.moveTo(cx - 4f, cy - 9f);
+                p.lineTo(cx + 7f, cy);
+                p.lineTo(cx - 4f, cy + 9f);
+                p.close();
+                canvas.drawPath(p, paint);
+            }
         }
     }
 

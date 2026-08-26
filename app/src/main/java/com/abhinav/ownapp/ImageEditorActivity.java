@@ -17,8 +17,8 @@ public class ImageEditorActivity extends AppCompatActivity {
     private LayerSettingsUI layerSettingsUI; private FrameLayout loadingOverlay;
     public interface EyedropperCallback { void onColorPicked(int color); }
 
-    private final ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> { if (result.getResultCode() == RESULT_OK && result.getData() != null) loadImage(result.getData().getData(), false); });
-    private final ActivityResultLauncher<Intent> pickOverlayLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> { if (result.getResultCode() == RESULT_OK && result.getData() != null) loadImage(result.getData().getData(), true); });
+    private final ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> { if (result.getResultCode() == RESULT_OK && result.getData() != null) loadImage(result.getData().getData(), false, false); });
+    private final ActivityResultLauncher<Intent> pickOverlayLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> { if (result.getResultCode() == RESULT_OK && result.getData() != null) loadImage(result.getData().getData(), true, false); });
     private final ActivityResultLauncher<Intent> megaGalLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> { if (result.getResultCode() == RESULT_OK && result.getData() != null) { String draftPath = result.getData().getStringExtra("draft_path"); if (draftPath != null) loadDraft(draftPath); } });
     private final ActivityResultLauncher<Intent> pickFontLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> { if (result.getResultCode() == RESULT_OK && result.getData() != null) { if (layerSettingsUI != null) { layerSettingsUI.loadCustomFont(result.getData().getData()); if (layerSettingsUI.dialogUpdateRunnable != null) layerSettingsUI.dialogUpdateRunnable.run(); } } });
     private final ActivityResultLauncher<Intent> advancedCanvasLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> { if (result.getResultCode() == RESULT_OK && result.getData() != null) { String outPath = result.getData().getStringExtra("out_path"); boolean saveAsBase = result.getData().getBooleanExtra("save_as_base", false); if (outPath != null && editorView != null) { Bitmap finishedCanvas = BitmapFactory.decodeFile(outPath); if (finishedCanvas != null) { if (saveAsBase) { editorView.setImage(finishedCanvas); if (tapToStartView != null) tapToStartView.setVisibility(View.GONE); Toast.makeText(this, "Canvas saved as Base Image!", Toast.LENGTH_SHORT).show(); } else { editorView.addImageLayer(finishedCanvas); Toast.makeText(this, "Canvas added as a new layer!", Toast.LENGTH_SHORT).show(); } } } } });
@@ -178,6 +178,23 @@ public class ImageEditorActivity extends AppCompatActivity {
                 ScrollView scrollWrapper = new ScrollView(this); scrollWrapper.addView(mainLayout); dialog.setView(scrollWrapper); dialog.show();
             });
         }
+
+        // --- CATCH SHARED IMAGES FROM OTHER APPS ---
+        Intent intent = getIntent();
+        String action = intent.getAction();
+        String type = intent.getType();
+
+        if (Intent.ACTION_SEND.equals(action) && type != null && type.startsWith("image/")) {
+            Uri imageUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (imageUri != null) {
+                // Short delay ensures the canvas view is fully measured and ready before rendering
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    // "true" forces the Image Loader to use MAXIMUM hardware quality limits
+                    loadImage(imageUri, false, true);
+                }, 300);
+            }
+        }
+        // ------------------------------------------
     }
 
     private void bgColorSettings(View root, TextView tvTitle) {
@@ -207,7 +224,87 @@ public class ImageEditorActivity extends AppCompatActivity {
     public void forceDialogBackground(View view) { if (view == null) return; GradientDrawable gd = new GradientDrawable(); gd.setColor(panelColor); gd.setCornerRadius(60f); view.setBackground(gd); }
     public void launchPicker(boolean isOverlay) { Intent intent = new Intent(Intent.ACTION_PICK); intent.setType("image/*"); if (isOverlay) pickOverlayLauncher.launch(intent); else pickImageLauncher.launch(intent); }
     public int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) { final int height = options.outHeight; final int width = options.outWidth; int inSampleSize = 1; if (height > reqHeight || width > reqWidth) { final int halfHeight = height / 2; final int halfWidth = width / 2; while ((halfHeight / inSampleSize) >= reqHeight || (halfWidth / inSampleSize) >= reqWidth) inSampleSize *= 2; long totalPixels = (long) (width / inSampleSize) * (height / inSampleSize); long reqPixels = (long) reqWidth * reqHeight; while (totalPixels > (reqPixels * 1.5)) { inSampleSize *= 2; totalPixels = (long) (width / inSampleSize) * (height / inSampleSize); } } return inSampleSize; }
-    public void loadImage(Uri uri, boolean isOverlay) { if (loadingOverlay != null) loadingOverlay.setVisibility(View.VISIBLE); new Thread(() -> { try { int maxDimension = isOverlay ? 1500 : 2560; Bitmap bitmap = null; while (maxDimension > 800) { try { BitmapFactory.Options options = new BitmapFactory.Options(); options.inJustDecodeBounds = true; InputStream is = getContentResolver().openInputStream(uri); BitmapFactory.decodeStream(is, null, options); if (is != null) is.close(); options.inSampleSize = calculateInSampleSize(options, maxDimension, maxDimension); options.inJustDecodeBounds = false; options.inMutable = true; if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) options.inPreferredConfig = Bitmap.Config.ARGB_8888; is = getContentResolver().openInputStream(uri); bitmap = BitmapFactory.decodeStream(is, null, options); if (is != null) is.close(); if (bitmap != null) { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bitmap.getConfig() == Bitmap.Config.HARDWARE) { Bitmap swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true); bitmap.recycle(); bitmap = swBitmap; } int bW = bitmap.getWidth(); int bH = bitmap.getHeight(); if (bW > maxDimension || bH > maxDimension) { float ratio = Math.min((float) maxDimension / bW, (float) maxDimension / bH); int finalW = Math.max(1, (int) (bW * ratio)); int finalH = Math.max(1, (int) (bH * ratio)); Bitmap scaled = Bitmap.createScaledBitmap(bitmap, finalW, finalH, true); if (scaled != bitmap) { bitmap.recycle(); bitmap = scaled; } } } break; } catch (OutOfMemoryError e) { System.gc(); maxDimension = (int) (maxDimension * 0.7f); if (bitmap != null && !bitmap.isRecycled()) { bitmap.recycle(); bitmap = null; } } } final Bitmap finalBitmap = bitmap; runOnUiThread(() -> { if (loadingOverlay != null) loadingOverlay.setVisibility(View.GONE); if (finalBitmap != null) { try { if (isOverlay) { editorView.addImageLayer(finalBitmap); if (leftLayersPanel != null) showLeftPanel(); } else { if (tapToStartView != null) tapToStartView.setVisibility(View.GONE); editorView.setImage(finalBitmap); } } catch (OutOfMemoryError e) { System.gc(); Toast.makeText(ImageEditorActivity.this, "Memory full. Please select a smaller file.", Toast.LENGTH_LONG).show(); } } else { Toast.makeText(ImageEditorActivity.this, "Failed to load image. File may be corrupted.", Toast.LENGTH_LONG).show(); } }); } catch (Exception e) { runOnUiThread(() -> { if (loadingOverlay != null) loadingOverlay.setVisibility(View.GONE); Toast.makeText(ImageEditorActivity.this, "Error loading image", Toast.LENGTH_SHORT).show(); }); } }).start(); }
+
+    // UPDATED: Added forceMaxQuality to push the limits for shared images
+    public void loadImage(Uri uri, boolean isOverlay, boolean forceMaxQuality) {
+        if (loadingOverlay != null) loadingOverlay.setVisibility(View.VISIBLE);
+        new Thread(() -> {
+            try {
+                // Uses 8K resolution limit (8192px) for maximum raw quality when shared from gallery!
+                int maxDimension = forceMaxQuality ? 8192 : (isOverlay ? 1500 : 2560);
+                Bitmap bitmap = null;
+                while (maxDimension > 800) {
+                    try {
+                        BitmapFactory.Options options = new BitmapFactory.Options();
+                        options.inJustDecodeBounds = true;
+                        InputStream is = getContentResolver().openInputStream(uri);
+                        BitmapFactory.decodeStream(is, null, options);
+                        if (is != null) is.close();
+                        options.inSampleSize = calculateInSampleSize(options, maxDimension, maxDimension);
+                        options.inJustDecodeBounds = false;
+                        options.inMutable = true;
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+                        is = getContentResolver().openInputStream(uri);
+                        bitmap = BitmapFactory.decodeStream(is, null, options);
+                        if (is != null) is.close();
+                        if (bitmap != null) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bitmap.getConfig() == Bitmap.Config.HARDWARE) {
+                                Bitmap swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                                bitmap.recycle();
+                                bitmap = swBitmap;
+                            }
+                            int bW = bitmap.getWidth();
+                            int bH = bitmap.getHeight();
+                            if (bW > maxDimension || bH > maxDimension) {
+                                float ratio = Math.min((float) maxDimension / bW, (float) maxDimension / bH);
+                                int finalW = Math.max(1, (int) (bW * ratio));
+                                int finalH = Math.max(1, (int) (bH * ratio));
+                                Bitmap scaled = Bitmap.createScaledBitmap(bitmap, finalW, finalH, true);
+                                if (scaled != bitmap) {
+                                    bitmap.recycle();
+                                    bitmap = scaled;
+                                }
+                            }
+                        }
+                        break;
+                    } catch (OutOfMemoryError e) {
+                        System.gc();
+                        maxDimension = (int) (maxDimension * 0.7f); // Scale down gracefully only if RAM gets maxed out
+                        if (bitmap != null && !bitmap.isRecycled()) {
+                            bitmap.recycle();
+                            bitmap = null;
+                        }
+                    }
+                }
+                final Bitmap finalBitmap = bitmap;
+                runOnUiThread(() -> {
+                    if (loadingOverlay != null) loadingOverlay.setVisibility(View.GONE);
+                    if (finalBitmap != null) {
+                        try {
+                            if (isOverlay) {
+                                editorView.addImageLayer(finalBitmap);
+                                if (leftLayersPanel != null) showLeftPanel();
+                            } else {
+                                if (tapToStartView != null) tapToStartView.setVisibility(View.GONE);
+                                editorView.setImage(finalBitmap);
+                            }
+                        } catch (OutOfMemoryError e) {
+                            System.gc();
+                            Toast.makeText(ImageEditorActivity.this, "Memory full. Please select a smaller file.", Toast.LENGTH_LONG).show();
+                        }
+                    } else {
+                        Toast.makeText(ImageEditorActivity.this, "Failed to load image. File may be corrupted.", Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (loadingOverlay != null) loadingOverlay.setVisibility(View.GONE);
+                    Toast.makeText(ImageEditorActivity.this, "Error loading image", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
     public void showEmptyCanvasColorPicker() { AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle); LinearLayout mainLayout = new LinearLayout(this); mainLayout.setOrientation(LinearLayout.VERTICAL); mainLayout.setPadding(40, 40, 40, 40); TextView title = new TextView(this); title.setText("Choose Canvas Color"); title.setTextSize(20f); title.setTypeface(null, android.graphics.Typeface.BOLD); title.setTextColor(textColor); title.setGravity(Gravity.CENTER); title.setPadding(0, 0, 0, 32); mainLayout.addView(title); LayerSettingsUI.ColorPickerView colorPicker = new LayerSettingsUI.ColorPickerView(this); LinearLayout.LayoutParams wheelLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 500); colorPicker.setLayoutParams(wheelLp); mainLayout.addView(colorPicker); LinearLayout hexRow = new LinearLayout(this); hexRow.setOrientation(LinearLayout.HORIZONTAL); hexRow.setGravity(android.view.Gravity.CENTER); hexRow.setPadding(0, 32, 0, 16); TextView hexLabel = new TextView(this); hexLabel.setText("HEX: "); hexLabel.setTextColor(textColor); hexLabel.setTypeface(null, android.graphics.Typeface.BOLD); EditText etHex = new EditText(this); etHex.setText("#FFFFFF"); etHex.setTextColor(textColor); etHex.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)); hexRow.addView(hexLabel); hexRow.addView(etHex); mainLayout.addView(hexRow); Button btnCreate = new Button(this); btnCreate.setText("Create Canvas"); btnCreate.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E91E63"))); btnCreate.setTextColor(Color.WHITE); final int[] selectedColor = {Color.WHITE}; final boolean[] isUpdating = {false}; colorPicker.setOnColorChangeListener(color -> { selectedColor[0] = color; if (!isUpdating[0]) { isUpdating[0] = true; etHex.setText(String.format("#%06X", (0xFFFFFF & color))); isUpdating[0] = false; } }); etHex.addTextChangedListener(new android.text.TextWatcher() { @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {} @Override public void onTextChanged(CharSequence s, int start, int before, int count) { if (isUpdating[0]) return; if (s.length() == 7 && s.toString().startsWith("#")) { try { int newC = Color.parseColor(s.toString()); selectedColor[0] = newC; isUpdating[0] = true; colorPicker.setColor(newC); isUpdating[0] = false; } catch (Exception ignored) {} } } @Override public void afterTextChanged(android.text.Editable s) {} }); LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT); btnLp.setMargins(0, 32, 0, 0); mainLayout.addView(btnCreate, btnLp); builder.setView(mainLayout); final AlertDialog dialog = builder.create(); if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent); btnCreate.setOnClickListener(v -> { dialog.dismiss(); Intent intent = new Intent(ImageEditorActivity.this, AdvancedCanvasActivity.class); intent.putExtra("bg_color", selectedColor[0]); advancedCanvasLauncher.launch(intent); }); dialog.setOnShowListener(di -> { if (dialog.getWindow() != null) { View decorView = dialog.getWindow().getDecorView(); forceDialogBackground(decorView); } }); dialog.show(); }
     public void showSaveDraftDialog() { AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.ModernDialogStyle); LinearLayout mainLayout = new LinearLayout(this); mainLayout.setOrientation(LinearLayout.VERTICAL); mainLayout.setPadding(60, 60, 60, 60); GradientDrawable bg = new GradientDrawable(); bg.setColor(isDarkTheme ? Color.parseColor("#1C1C1E") : Color.parseColor("#FFFFFF")); bg.setCornerRadius(60f); mainLayout.setBackground(bg); TextView title = new TextView(this); title.setText("Save Draft Project"); title.setTextSize(20f); title.setTypeface(null, android.graphics.Typeface.BOLD); title.setTextColor(textColor); title.setGravity(Gravity.CENTER); title.setPadding(0, 0, 0, 32); mainLayout.addView(title); EditText etName = new EditText(this); etName.setHint("Project Name..."); etName.setTextColor(textColor); etName.setHintTextColor(Color.GRAY); etName.setPadding(20, 30, 20, 30); GradientDrawable etBg = new GradientDrawable(); etBg.setColor(isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#F2F2F7")); etBg.setCornerRadius(20f); etName.setBackground(etBg); mainLayout.addView(etName); LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setPadding(0, 40, 0, 0); Button btnCancel = new Button(this); btnCancel.setText("Cancel"); btnCancel.setTextColor(Color.WHITE); btnCancel.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF3B30"))); LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f); btnLp.setMargins(0, 0, 10, 0); btnCancel.setLayoutParams(btnLp); Button btnSave = new Button(this); btnSave.setText("Save"); btnSave.setTextColor(Color.WHITE); btnSave.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#34C759"))); LinearLayout.LayoutParams btnLp2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f); btnLp2.setMargins(10, 0, 0, 0); btnSave.setLayoutParams(btnLp2); row.addView(btnCancel); row.addView(btnSave); mainLayout.addView(row); builder.setView(mainLayout); final AlertDialog dialog = builder.create(); if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent); btnCancel.setOnClickListener(v -> dialog.dismiss()); btnSave.setOnClickListener(v -> { String name = etName.getText().toString().trim(); if (name.isEmpty()) { Toast.makeText(this, "Please enter a name", Toast.LENGTH_SHORT).show(); return; } saveDraft(name); dialog.dismiss(); hideRightPanel(); }); dialog.show(); }
     public void saveBitmapToFile(Bitmap bmp, File file) { try { FileOutputStream fos = new FileOutputStream(file); bmp.compress(Bitmap.CompressFormat.PNG, 100, fos); fos.close(); } catch(Exception e){ e.printStackTrace(); } }

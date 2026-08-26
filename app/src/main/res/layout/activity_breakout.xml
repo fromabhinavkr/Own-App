@@ -12,58 +12,67 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Top HUD: Scores and Pause Button (Redesigned & Stacked) -->
+    <!-- Top HUD: Unified Smart Pill -->
     <RelativeLayout
         android:id="@+id/topHud"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
-        android:paddingStart="24dp"
+        android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:paddingTop="16dp"
+        android:paddingTop="20dp"
         android:paddingBottom="12dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:elevation="4dp">
 
-        <!-- Score Block (Current on top, Best on bottom) -->
+        <!-- Unified Smart Pill: Pause Icon + Score Text (Aligned Left) -->
         <LinearLayout
+            android:id="@+id/btnPause"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:layout_alignParentStart="true"
-            android:layout_centerVertical="true">
-
-            <TextView
-                android:id="@+id/tvCurrentScore"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0"
-                android:textSize="48sp"
-                android:textStyle="bold"
-                android:includeFontPadding="false" />
-
-            <TextView
-                android:id="@+id/tvHighScore"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Best: 0"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginTop="2dp" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/btnPause"
-            style="@style/ModernButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="56dp"
-            android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:paddingHorizontal="24dp"
-            android:backgroundTint="#4A90E2"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:text="Pause" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:paddingEnd="22dp"
+            android:paddingStart="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <!-- Inner Colored Square Box for Pause/Play Icon -->
+            <FrameLayout
+                android:id="@+id/pauseIconContainer"
+                android:layout_width="38dp"
+                android:layout_height="38dp" />
+
+            <!-- Vertical Layout for Score & Best Score -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:orientation="vertical"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvScore"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Score: 0"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvBestScore"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Best: 0"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
     </RelativeLayout>
 
     <!-- Pause Overlay (Wrapped in ScrollView for Landscape Support) -->
@@ -116,9 +125,41 @@
                     android:textColor="#FFFFFF"
                     android:text="Resume Game" />
 
-                <!-- NEW: Toggle Vibration Button -->
+                <!-- Settings Row: Vibration & Music -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp">
+
+                    <Button
+                        android:id="@+id/btnToggleVibration"
+                        style="@style/ModernButtonStyle"
+                        android:layout_width="0dp"
+                        android:layout_height="56dp"
+                        android:layout_weight="1"
+                        android:textSize="15sp"
+                        android:backgroundTint="#8E8E93"
+                        android:textColor="#FFFFFF"
+                        android:text="Vib: ON"
+                        android:layout_marginEnd="6dp" />
+
+                    <Button
+                        android:id="@+id/btnToggleMusic"
+                        style="@style/ModernButtonStyle"
+                        android:layout_width="0dp"
+                        android:layout_height="56dp"
+                        android:layout_weight="1"
+                        android:textSize="15sp"
+                        android:backgroundTint="#8E8E93"
+                        android:textColor="#FFFFFF"
+                        android:text="Music: ON"
+                        android:layout_marginStart="6dp" />
+                </LinearLayout>
+
+                <!-- Toggle Speed Button -->
                 <Button
-                    android:id="@+id/btnToggleVibration"
+                    android:id="@+id/btnToggleSpeed"
                     style="@style/ModernButtonStyle"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
@@ -126,7 +167,7 @@
                     android:backgroundTint="#8E8E93"
                     android:textColor="#FFFFFF"
                     android:layout_marginTop="12dp"
-                    android:text="Vibration: ON" />
+                    android:text="Speed: Easy" />
 
                 <Button
                     android:id="@+id/btnQuitFromPause"
@@ -137,7 +178,7 @@
                     android:backgroundTint="#FF3B30"
                     android:textColor="#FFFFFF"
                     android:layout_marginTop="12dp"
-                    android:text="Quit to Menu" />
+                    android:text="Exit Game" />
             </LinearLayout>
         </ScrollView>
     </RelativeLayout>

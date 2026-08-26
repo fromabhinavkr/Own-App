@@ -1,5 +1,6 @@
 package com.abhinav.ownapp;
 
+import android.app.Dialog; // NEW IMPORT
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -11,6 +12,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.widget.CalendarView; // NEW IMPORT
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -204,6 +206,62 @@ public class MainActivity extends AppCompatActivity {
             tvGamesSub.setTextColor(secondaryText);
             tvToolsSub.setTextColor(secondaryText);
             tvUtilitiesSub.setTextColor(secondaryText);
+
+            // --- NEW: CALENDAR POPUP LOGIC ---
+            final int finalThemeState = themeState; // FIX: Make a final copy for the lambda
+
+            datePill.setOnClickListener(v -> {
+                Dialog dialog = new Dialog(MainActivity.this);
+                dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+                LinearLayout layout = new LinearLayout(MainActivity.this);
+                layout.setOrientation(LinearLayout.VERTICAL);
+                int pad = (int) (16 * getResources().getDisplayMetrics().density);
+                layout.setPadding(pad, pad, pad, pad);
+
+                android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+                gd.setCornerRadius(60f); // Gives it that modern, rounded UI look
+
+                // Applies the semi-transparent theme background matching your 3 states
+                int popupBg;
+                if (finalThemeState == 0) {
+                    popupBg = Color.parseColor("#E6FFFFFF"); // Light
+                } else if (finalThemeState == 1) {
+                    popupBg = Color.parseColor("#E62C2C2E"); // Dark
+                } else {
+                    popupBg = Color.parseColor("#E61C1C1E"); // Star
+                }
+                gd.setColor(popupBg);
+                layout.setBackground(gd);
+
+                TextView titleView = new TextView(MainActivity.this);
+                titleView.setText("Calendar");
+                titleView.setTextSize(18f);
+                titleView.setTypeface(null, android.graphics.Typeface.BOLD);
+                titleView.setGravity(android.view.Gravity.CENTER);
+                titleView.setTextColor(themeText);
+                titleView.setPadding(0, 0, 0, pad);
+                layout.addView(titleView);
+
+                CalendarView calendarView = new CalendarView(MainActivity.this);
+                // The native CalendarView automatically adapts its text colors based on the AppCompat NightMode!
+                layout.addView(calendarView);
+
+                dialog.setContentView(layout);
+                if (dialog.getWindow() != null) {
+                    // Essential to make the window background transparent so the rounded corners are visible
+                    dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+
+                    // Force the dialog to take up a nice central block of the screen
+                    dialog.getWindow().setLayout(
+                            (int) (getResources().getDisplayMetrics().widthPixels * 0.9),
+                            ViewGroup.LayoutParams.WRAP_CONTENT
+                    );
+                }
+                dialog.show();
+            });
+
+            // ---------------------------------
 
             // Listeners
 

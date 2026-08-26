@@ -11,77 +11,91 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Top HUD: Pause, Score, and Next Shape Preview -->
+    <!-- Top HUD: Unified Smart Pill & Next Block -->
     <RelativeLayout
         android:id="@+id/topHUD"
         android:layout_width="match_parent"
-        android:layout_height="110dp"
-        android:paddingHorizontal="24dp"
-        android:paddingVertical="16dp"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="24dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:elevation="4dp">
 
-        <Button
+        <!-- Unified Smart Pill: Pause Icon + Score Text (Aligned Left) -->
+        <LinearLayout
             android:id="@+id/btnPause"
-            style="@style/ModernButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="48dp"
+            android:layout_height="52dp"
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
-            android:paddingHorizontal="24dp"
-            android:backgroundTint="#4A90E2"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:text="Pause" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingEnd="22dp"
+            android:paddingStart="6dp"
+            android:clickable="true"
+            android:focusable="true">
 
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:gravity="center"
-            android:orientation="vertical">
+            <!-- Inner Colored Square Box for Pause/Play Icon -->
+            <FrameLayout
+                android:id="@+id/pauseIconContainer"
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
 
-            <TextView
-                android:id="@+id/tvHighScore"
+            <!-- Vertical Layout for Score & Best Score -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Best: 0"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:layout_marginStart="10dp"
+                android:orientation="vertical"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tvCurrentScore"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0"
-                android:textSize="40sp"
-                android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/tvCurrentScore"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Score: 0"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvHighScore"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Best: 0"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- FIX: Changed to wrap_content and added centerVertical to prevent clipping -->
+        <!-- NEXT Block Pill (Aligned Right) -->
         <LinearLayout
+            android:id="@+id/nextBlockPill"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="52dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:orientation="vertical"
-            android:gravity="center">
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="8dp">
 
-            <!-- FIX: Increased size to 16sp -->
             <TextView
                 android:id="@+id/tvNextLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="NEXT"
-                android:textSize="16sp"
+                android:textSize="13sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="6dp"/>
+                android:layout_marginEnd="12dp"/>
 
             <!-- Next Shape Canvas Injected Here -->
             <FrameLayout
                 android:id="@+id/nextShapeContainer"
-                android:layout_width="50dp"
-                android:layout_height="50dp" />
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
         </LinearLayout>
 
     </RelativeLayout>
@@ -124,6 +138,18 @@
                 android:text="Resume Game" />
 
             <Button
+                android:id="@+id/btnToggleVibration"
+                style="@style/ModernButtonStyle"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:textSize="16sp"
+                android:backgroundTint="#8E8E93"
+                android:textColor="#FFFFFF"
+                android:layout_marginTop="12dp"
+                android:text="Vibration: ON" />
+
+            <!-- Renamed to Exit Game -->
+            <Button
                 android:id="@+id/btnQuitFromPause"
                 style="@style/ModernButtonStyle"
                 android:layout_width="match_parent"
@@ -132,7 +158,7 @@
                 android:backgroundTint="#FF3B30"
                 android:textColor="#FFFFFF"
                 android:layout_marginTop="12dp"
-                android:text="Quit to Menu" />
+                android:text="Exit Game" />
         </LinearLayout>
     </RelativeLayout>
 

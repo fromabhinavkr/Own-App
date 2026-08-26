@@ -17,7 +17,6 @@ import java.io.FileNotFoundException;
 import java.util.Arrays;
 
 public class StickerContentProvider extends ContentProvider {
-    // UPDATED: Now matches your new package name exactly
     public static final String AUTHORITY = "com.abhinav.ownapp.stickercontentprovider";
     private static final UriMatcher MATCHER = new UriMatcher(UriMatcher.NO_MATCH);
 
@@ -31,6 +30,17 @@ public class StickerContentProvider extends ContentProvider {
     @Override
     public boolean onCreate() { return true; }
 
+    // Generates/Fetches a globally unique ID for this specific user's device
+    private String getDeviceId(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences(SnakeWidget.PREFS_NAME, Context.MODE_PRIVATE);
+        String deviceId = prefs.getString("device_sticker_id", "");
+        if (deviceId.isEmpty()) {
+            deviceId = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+            prefs.edit().putString("device_sticker_id", deviceId).apply();
+        }
+        return deviceId;
+    }
+
     @Nullable
     @Override
     public Cursor query(@NonNull Uri uri, @Nullable String[] projection, @Nullable String selection, @Nullable String[] selectionArgs, @Nullable String sortOrder) {
@@ -43,27 +53,46 @@ public class StickerContentProvider extends ContentProvider {
 
     private Cursor getAllPacksMetadata() {
         MatrixCursor cursor = new MatrixCursor(new String[]{"sticker_pack_identifier", "sticker_pack_name", "sticker_pack_publisher", "sticker_pack_icon", "android_play_store_link", "ios_app_store_link", "publisher_email", "publisher_website", "privacy_policy_website", "license_agreement_website", "image_data_version", "avoid_cache", "animated_sticker_pack"});
-        Context ctx = getContext(); int staticCount = 3;
+        Context ctx = getContext(); int staticCount = 3; String deviceId = "";
         if (ctx != null) {
             SharedPreferences prefs = ctx.getSharedPreferences(SnakeWidget.PREFS_NAME, Context.MODE_PRIVATE);
             staticCount = prefs.getInt("static_pack_count", 3);
+            deviceId = getDeviceId(ctx);
         }
-        for (int i = 1; i <= staticCount; i++) { addPackRowToCursor(cursor, "ownphoto_pack_" + i); }
+        for (int i = 1; i <= staticCount; i++) { addPackRowToCursor(cursor, "ownpack_" + deviceId + "_" + i); }
         return cursor;
     }
 
     private Cursor getSinglePackMetadata(String packId) {
         MatrixCursor cursor = new MatrixCursor(new String[]{"sticker_pack_identifier", "sticker_pack_name", "sticker_pack_publisher", "sticker_pack_icon", "android_play_store_link", "ios_app_store_link", "publisher_email", "publisher_website", "privacy_policy_website", "license_agreement_website", "image_data_version", "avoid_cache", "animated_sticker_pack"});
+        Context ctx = getContext();
+        if (ctx != null) {
+            File dir = new File(ctx.getFilesDir(), "stickers/" + packId);
+            // CRITICAL BUG FIX: If WhatsApp asks for a pack ID that doesn't exist on THIS phone,
+            // we return an EMPTY cursor. This prevents your phone from overwriting your friend's pack name!
+            if (!dir.exists() || !dir.isDirectory()) {
+                return cursor;
+            }
+        }
         addPackRowToCursor(cursor, packId); return cursor;
     }
 
     private void addPackRowToCursor(MatrixCursor cursor, String packId) {
-        Context ctx = getContext(); int version = 3; String packName = "My Custom Pack";
+        Context ctx = getContext(); int version = 3; String packName = "Pack";
         if (ctx != null) {
             SharedPreferences prefs = ctx.getSharedPreferences(SnakeWidget.PREFS_NAME, Context.MODE_PRIVATE);
             version = prefs.getInt("sticker_version_" + packId, 3);
-            packName = prefs.getString("pack_name_" + packId, "My Custom Pack");
-            if (packName == null || packName.isEmpty()) packName = "My Custom Pack";
+            packName = prefs.getString("pack_name_" + packId, "");
+
+            // Provides a clean fallback name if empty
+            if (packName == null || packName.trim().isEmpty()) {
+                try {
+                    String numStr = packId.substring(packId.lastIndexOf("_") + 1);
+                    packName = "Pack " + numStr;
+                } catch (Exception e) {
+                    packName = "Pack";
+                }
+            }
         }
         cursor.addRow(new Object[]{packId, packName, "OWN app", "tray.png", "", "", "", "", "", "", String.valueOf(version), 0, 0});
     }
