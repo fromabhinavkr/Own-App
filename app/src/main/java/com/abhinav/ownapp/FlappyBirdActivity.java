@@ -23,6 +23,7 @@ import android.os.Vibrator;
 import android.view.Choreographer;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -179,11 +180,29 @@ public class FlappyBirdActivity extends AppCompatActivity {
             pauseIconView.setIcon(GameIconView.ICON_PAUSE, iconColor);
         }
 
-        GradientDrawable gdCard = new GradientDrawable();
-        gdCard.setColor(cardColor);
-        gdCard.setCornerRadius(60f);
-        pauseCard.setBackground(gdCard);
-        gameOverCard.setBackground(gdCard);
+        if (pauseCard != null) {
+            GradientDrawable gdPause = new GradientDrawable();
+            gdPause.setColor(cardColor);
+            gdPause.setCornerRadius(60f);
+            pauseCard.setBackground(gdPause);
+            ViewGroup.LayoutParams lp = pauseCard.getLayoutParams();
+            if (lp != null) {
+                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                pauseCard.setLayoutParams(lp);
+            }
+        }
+
+        if (gameOverCard != null) {
+            GradientDrawable gdGameOver = new GradientDrawable();
+            gdGameOver.setColor(cardColor);
+            gdGameOver.setCornerRadius(60f);
+            gameOverCard.setBackground(gdGameOver);
+            ViewGroup.LayoutParams lp = gameOverCard.getLayoutParams();
+            if (lp != null) {
+                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                gameOverCard.setLayoutParams(lp);
+            }
+        }
 
         // Apply Themed Styling to the new Death Snapshot Container
         GradientDrawable snapBg = new GradientDrawable();
@@ -284,19 +303,16 @@ public class FlappyBirdActivity extends AppCompatActivity {
         RelativeLayout pauseOverlay = findViewById(R.id.pauseOverlay);
         RelativeLayout gameOverOverlay = findViewById(R.id.gameOverOverlay);
 
-        // If on Game Over screen, back button exits
         if (gameOverOverlay != null && gameOverOverlay.getVisibility() == View.VISIBLE) {
             finish();
             return;
         }
 
-        // If on Pause Menu, back button EXITS the game completely (2nd press logic)
         if (pauseOverlay != null && pauseOverlay.getVisibility() == View.VISIBLE) {
             finish();
             return;
         }
 
-        // If currently playing, back button PAUSES the game (1st press logic)
         if (gameEngine != null && gameEngine.isPlaying() && !gameEngine.isGameOver()) {
             LinearLayout btnPause = findViewById(R.id.btnPause);
             if (btnPause != null) {
@@ -304,11 +320,9 @@ public class FlappyBirdActivity extends AppCompatActivity {
                 return;
             }
         }
-
         super.onBackPressed();
     }
 
-    // --- SMOOTH FADE ANIMATION HELPERS ---
     private void showOverlaySmoothly(View overlay) {
         if (overlay == null) return;
         overlay.setAlpha(0f);
@@ -338,7 +352,6 @@ public class FlappyBirdActivity extends AppCompatActivity {
     @Override
     public void finish() {
         super.finish();
-        // Removes the android.R.anim.fade_in to completely eliminate the "white flash" bug when exiting back to the menu!
         overridePendingTransition(0, android.R.anim.fade_out);
     }
 
@@ -361,14 +374,11 @@ public class FlappyBirdActivity extends AppCompatActivity {
         super.onConfigurationChanged(newConfig);
     }
 
-    // --- BUG FIX: DO NOT AUTO-CLICK PAUSE IF ALREADY PAUSED ---
     @Override
     protected void onPause() {
         super.onPause();
         RelativeLayout pauseOverlay = findViewById(R.id.pauseOverlay);
         boolean isPauseMenuVisible = (pauseOverlay != null && pauseOverlay.getVisibility() == View.VISIBLE);
-
-        // Only trigger the pause click if the game is actively playing AND the menu is not already visible
         if (gameEngine != null && gameEngine.isPlaying() && !gameEngine.isGameOver() && !isPauseMenuVisible) {
             View btnPause = findViewById(R.id.btnPause);
             if (btnPause != null) {
@@ -377,7 +387,6 @@ public class FlappyBirdActivity extends AppCompatActivity {
         }
     }
 
-    // --- MATHEMATICAL VECTOR ICON ENGINE ---
     public static class GameIconView extends View {
         public static final int ICON_PAUSE = 0;
         public static final int ICON_PLAY = 1;
@@ -422,12 +431,8 @@ public class FlappyBirdActivity extends AppCompatActivity {
         }
     }
 
-    // =========================================================================================
-    // PURE CANVAS ENGINE (Dynamic Parallax BG, Programmatic Pipes, Sprite Bird, Immunity)
-    // =========================================================================================
     private static class FlappyGameEngine extends View implements Choreographer.FrameCallback {
 
-        // --- Core Physics ---
         private float screenW, screenH, refW, refH;
         private float birdX, birdY, birdVelocity;
         private float birdRadius, wormRadius;
@@ -435,38 +440,45 @@ public class FlappyBirdActivity extends AppCompatActivity {
         private float pipeSpeed, basePipeSpeed, maxPipeSpeed;
         private float parallaxScroll = 0f;
 
+        private long lastFrameTime = 0;
+
         private final List<Pipe> pipes = new ArrayList<>();
         private boolean playing = false, paused = false, gameOver = false;
         private int score = 0;
 
-        // --- Settings & Immunity Variables ---
         private boolean vibrationEnabled = true;
         private int pointsSinceLastWorm = 0;
         private boolean isImmune = false;
         private long immunityEndTime = 0;
         private float sparkleAngle = 0f;
 
-        // --- BIRD SPRITE ANIMATION LOGIC ---
         private final Bitmap[] birdBitmaps = new Bitmap[3];
         private final Matrix birdMatrix = new Matrix();
-        private int currentFrameIndex = 1; // Start with middle wing
-        private int animationTick = 0;
-        private final int[] flapSequence = {0, 1, 2, 1}; // Pendulum flap cycle (Up, Mid, Down, Mid)
+        private int currentFrameIndex = 1;
+        private float animationTick = 0;
+        private final int[] flapSequence = {0, 1, 2, 1};
         private int sequenceIndex = 0;
 
-        // --- Trail Effect ---
-        private final LinkedList<TrailPoint> trail = new LinkedList<>();
+        private static final int MAX_TRAIL = 15;
+        private final TrailPoint[] trail = new TrailPoint[MAX_TRAIL];
+        private int trailHead = 0;
+        private int trailCount = 0;
         private final Paint trailPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        // --- Programmatic Environment Paints ---
+        private final RectF hitRect = new RectF();
+        private final RectF tBodyRect = new RectF();
+        private final RectF tCapRect = new RectF();
+        private final RectF bCapRect = new RectF();
+        private final RectF bBodyRect = new RectF();
+        private final RectF topCollision = new RectF();
+        private final RectF bottomCollision = new RectF();
+        private final RectF saucerRect = new RectF();
+
         private final Paint skyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint cloudPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint mountainPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint hillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-        // --- Starry Night Elements ---
         private final Paint starPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final List<Star> stars = new ArrayList<>();
 
         private final Paint pipeFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint pipeHighlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -474,12 +486,35 @@ public class FlappyBirdActivity extends AppCompatActivity {
         private final Paint pipeOutlinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint fallbackBirdPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        // --- Seamless Looping Paths ---
+        private final Paint wormGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint wormSparklePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint wormBodyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint wormDetailPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint wormEyeWhite = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint wormEyeBlack = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        private final Paint domeFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint domeStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint saucerFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint saucerStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint lightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint auraFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint auraStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint starP = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        private final Paint hudBg = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint barBg = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint barFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint timeText = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        private final List<Star> stars = new ArrayList<>();
         private final Path mountainPath = new Path();
         private final Path hillPath = new Path();
         private final Path cloudPath = new Path();
 
         private final int themeState;
+
+        // --- RESTORED GAME LISTENER INTERFACE ---
         private GameListener listener;
 
         public interface GameListener {
@@ -492,14 +527,14 @@ public class FlappyBirdActivity extends AppCompatActivity {
             super(context);
             this.themeState = themeState;
 
-            // Trail Effect
+            for(int i=0; i<MAX_TRAIL; i++) {
+                trail[i] = new TrailPoint(0,0);
+            }
+
             trailPaint.setColor(Color.WHITE);
             trailPaint.setStyle(Paint.Style.FILL);
-
-            // Fallback bird color
             fallbackBirdPaint.setColor(Color.parseColor("#3498DB"));
 
-            // Setup gorgeous programmatic 3D pipe colors
             pipeFillPaint.setColor(Color.parseColor("#73BF2E"));
             pipeHighlightPaint.setColor(Color.parseColor("#9AE05B"));
             pipeShadowPaint.setColor(Color.parseColor("#528A22"));
@@ -507,25 +542,44 @@ public class FlappyBirdActivity extends AppCompatActivity {
             pipeOutlinePaint.setStyle(Paint.Style.STROKE);
             pipeOutlinePaint.setStrokeWidth(6f);
 
-            // Setup Parallax Environment Colors based on Theme State
-            if (themeState == 0) { // Light
+            if (themeState == 0) {
                 mountainPaint.setColor(Color.parseColor("#A1D4E6"));
                 hillPaint.setColor(Color.parseColor("#7CB342"));
                 cloudPaint.setColor(Color.parseColor("#FFFFFF"));
-            } else if (themeState == 1) { // Dark
+            } else if (themeState == 1) {
                 mountainPaint.setColor(Color.parseColor("#2C5364"));
                 hillPaint.setColor(Color.parseColor("#182825"));
                 cloudPaint.setColor(Color.parseColor("#2A3B4C"));
-            } else { // AMOLED Star Mode
+            } else {
                 starPaint.setColor(Color.WHITE);
-                mountainPaint.setColor(Color.parseColor("#0A0A0A")); // Silhouette
-                hillPaint.setColor(Color.parseColor("#111111")); // Silhouette
-                cloudPaint.setColor(Color.parseColor("#1A1A1A")); // Very dark, barely visible clouds
+                mountainPaint.setColor(Color.parseColor("#0A0A0A"));
+                hillPaint.setColor(Color.parseColor("#111111"));
+                cloudPaint.setColor(Color.parseColor("#1A1A1A"));
             }
+
+            wormGlowPaint.setColor(Color.parseColor("#FFD700")); wormGlowPaint.setAlpha(80);
+            wormSparklePaint.setColor(Color.WHITE); wormSparklePaint.setStrokeWidth(3f);
+            wormBodyPaint.setColor(Color.parseColor("#FFD700"));
+            wormDetailPaint.setColor(Color.parseColor("#F39C12"));
+            wormEyeWhite.setColor(Color.WHITE);
+            wormEyeBlack.setColor(Color.BLACK);
+
+            domeFillPaint.setColor(Color.parseColor("#4400FFFF")); domeFillPaint.setStyle(Paint.Style.FILL);
+            domeStrokePaint.setColor(Color.parseColor("#8800FFFF")); domeStrokePaint.setStyle(Paint.Style.STROKE); domeStrokePaint.setStrokeWidth(4f);
+            saucerFillPaint.setColor(Color.parseColor("#B0C4DE")); saucerFillPaint.setStyle(Paint.Style.FILL);
+            saucerStrokePaint.setColor(Color.parseColor("#39FF14")); saucerStrokePaint.setStyle(Paint.Style.STROKE); saucerStrokePaint.setStrokeWidth(6f);
+            lightPaint.setColor(Color.WHITE); lightPaint.setStyle(Paint.Style.FILL);
+            auraFillPaint.setColor(Color.parseColor("#FFD700")); auraFillPaint.setAlpha(80); auraFillPaint.setStyle(Paint.Style.FILL);
+            auraStrokePaint.setColor(Color.parseColor("#FFD700")); auraStrokePaint.setAlpha(220); auraStrokePaint.setStyle(Paint.Style.STROKE); auraStrokePaint.setStrokeWidth(5f);
+            starP.setColor(Color.WHITE); starP.setStyle(Paint.Style.FILL);
+
+            hudBg.setColor(Color.parseColor("#99000000"));
+            barBg.setColor(Color.parseColor("#40FFFFFF"));
+            barFill.setColor(themeState == 2 ? Color.parseColor("#00FFFF") : Color.parseColor("#FFD700"));
+            timeText.setColor(Color.WHITE); timeText.setTextSize(34f); timeText.setTypeface(Typeface.DEFAULT_BOLD); timeText.setTextAlign(Paint.Align.CENTER);
         }
 
         public void setGameListener(GameListener listener) { this.listener = listener; }
-
         public void setVibrationEnabled(boolean enabled) { this.vibrationEnabled = enabled; }
 
         private void loadBirdSprite() {
@@ -535,7 +589,6 @@ public class FlappyBirdActivity extends AppCompatActivity {
                         getResources().getIdentifier("flappy_bird_blue", "drawable", getContext().getPackageName()),
                         getResources().getIdentifier("flappy_bird_blue_down", "drawable", getContext().getPackageName())
                 };
-
                 int birdSize = (int) (birdRadius * 2.8f);
                 for (int i = 0; i < 3; i++) {
                     if (resIds[i] != 0) {
@@ -551,70 +604,37 @@ public class FlappyBirdActivity extends AppCompatActivity {
             super.onSizeChanged(w, h, oldWidth, oldHeight);
             float oldBirdYRatio = (oldHeight > 0) ? (birdY / (float) oldHeight) : 0.5f;
             screenW = w; screenH = h;
-
             refH = Math.max(screenW, screenH);
             refW = Math.min(screenW, screenH);
 
             birdRadius = refH * 0.035f;
-            wormRadius = refH * 0.025f; // Perfect size for the worm to fit between pipes
+            wormRadius = refH * 0.025f;
             birdX = screenW * 0.3f;
 
             gravity = refH * 0.0008f;
             jumpStrength = refH * -0.015f;
             terminalVelocity = refH * 0.018f;
+
             basePipeSpeed = refW * 0.006f;
             maxPipeSpeed = refW * 0.015f;
             pipeWidth = refW * 0.18f;
             pipeGap = (screenH > screenW) ? (screenH * 0.30f) : (screenH * 0.48f);
 
-            // 1. Generate Beautiful Sky Gradient & Stars
             if (themeState == 0) {
                 skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, Color.parseColor("#6DD5FA"), Color.parseColor("#E0F6FF"), Shader.TileMode.CLAMP));
             } else if (themeState == 1) {
                 skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, Color.parseColor("#0F2027"), Color.parseColor("#203A43"), Shader.TileMode.CLAMP));
-            } else { // Star Mode
+            } else {
                 skyPaint.setShader(new LinearGradient(0, 0, 0, screenH, Color.parseColor("#000000"), Color.parseColor("#05050A"), Shader.TileMode.CLAMP));
                 stars.clear();
                 for (int i = 0; i < 80; i++) {
-                    stars.add(new Star(
-                            (float) Math.random() * screenW,
-                            (float) Math.random() * (screenH * 0.7f),
-                            (float) Math.random() * 3f + 1f,
-                            (float) Math.random(),
-                            (float) Math.random() * 0.03f + 0.01f
-                    ));
+                    stars.add(new Star((float) Math.random() * screenW, (float) Math.random() * (screenH * 0.7f), (float) Math.random() * 3f + 1f, (float) Math.random(), (float) Math.random() * 0.03f + 0.01f));
                 }
             }
 
-            // 2. Generate Seamless Looping Mountains
-            mountainPath.reset();
-            mountainPath.moveTo(0, screenH * 0.6f);
-            mountainPath.lineTo(screenW * 0.25f, screenH * 0.35f);
-            mountainPath.lineTo(screenW * 0.5f, screenH * 0.6f);
-            mountainPath.lineTo(screenW * 0.75f, screenH * 0.45f);
-            mountainPath.lineTo(screenW, screenH * 0.6f);
-            mountainPath.lineTo(screenW, screenH);
-            mountainPath.lineTo(0, screenH);
-            mountainPath.close();
-
-            // 3. Generate Seamless Looping Foreground Hills
-            hillPath.reset();
-            hillPath.moveTo(0, screenH * 0.8f);
-            hillPath.quadTo(screenW * 0.25f, screenH * 0.7f, screenW * 0.5f, screenH * 0.8f);
-            hillPath.quadTo(screenW * 0.75f, screenH * 0.9f, screenW, screenH * 0.8f);
-            hillPath.lineTo(screenW, screenH);
-            hillPath.lineTo(0, screenH);
-            hillPath.close();
-
-            // 4. Generate Fluffy Clouds
-            cloudPath.reset();
-            cloudPath.addCircle(screenW * 0.2f, screenH * 0.2f, screenH * 0.05f, Path.Direction.CW);
-            cloudPath.addCircle(screenW * 0.28f, screenH * 0.22f, screenH * 0.04f, Path.Direction.CW);
-            cloudPath.addCircle(screenW * 0.15f, screenH * 0.22f, screenH * 0.03f, Path.Direction.CW);
-
-            cloudPath.addCircle(screenW * 0.7f, screenH * 0.3f, screenH * 0.06f, Path.Direction.CW);
-            cloudPath.addCircle(screenW * 0.8f, screenH * 0.32f, screenH * 0.04f, Path.Direction.CW);
-            cloudPath.addCircle(screenW * 0.62f, screenH * 0.32f, screenH * 0.04f, Path.Direction.CW);
+            mountainPath.reset(); mountainPath.moveTo(0, screenH * 0.6f); mountainPath.lineTo(screenW * 0.25f, screenH * 0.35f); mountainPath.lineTo(screenW * 0.5f, screenH * 0.6f); mountainPath.lineTo(screenW * 0.75f, screenH * 0.45f); mountainPath.lineTo(screenW, screenH * 0.6f); mountainPath.lineTo(screenW, screenH); mountainPath.lineTo(0, screenH); mountainPath.close();
+            hillPath.reset(); hillPath.moveTo(0, screenH * 0.8f); hillPath.quadTo(screenW * 0.25f, screenH * 0.7f, screenW * 0.5f, screenH * 0.8f); hillPath.quadTo(screenW * 0.75f, screenH * 0.9f, screenW, screenH * 0.8f); hillPath.lineTo(screenW, screenH); hillPath.lineTo(0, screenH); hillPath.close();
+            cloudPath.reset(); cloudPath.addCircle(screenW * 0.2f, screenH * 0.2f, screenH * 0.05f, Path.Direction.CW); cloudPath.addCircle(screenW * 0.28f, screenH * 0.22f, screenH * 0.04f, Path.Direction.CW); cloudPath.addCircle(screenW * 0.15f, screenH * 0.22f, screenH * 0.03f, Path.Direction.CW); cloudPath.addCircle(screenW * 0.7f, screenH * 0.3f, screenH * 0.06f, Path.Direction.CW); cloudPath.addCircle(screenW * 0.8f, screenH * 0.32f, screenH * 0.04f, Path.Direction.CW); cloudPath.addCircle(screenW * 0.62f, screenH * 0.32f, screenH * 0.04f, Path.Direction.CW);
 
             loadBirdSprite();
 
@@ -624,7 +644,7 @@ public class FlappyBirdActivity extends AppCompatActivity {
                 birdY = oldBirdYRatio * screenH;
                 if (birdY < birdRadius) birdY = birdRadius + 10;
                 if (birdY > screenH - birdRadius) birdY = screenH - birdRadius - 10;
-                pipeSpeed = basePipeSpeed + (score * (refW * 0.0004f));
+                pipeSpeed = basePipeSpeed + (score * (refW * 0.0001f));
                 if (pipeSpeed > maxPipeSpeed) pipeSpeed = maxPipeSpeed;
                 for (Pipe p : pipes) {
                     float maxTop = screenH - pipeGap - (screenH * 0.1f);
@@ -637,7 +657,8 @@ public class FlappyBirdActivity extends AppCompatActivity {
             birdY = screenH / 2f;
             birdVelocity = 0;
             pipes.clear();
-            trail.clear();
+            trailHead = 0;
+            trailCount = 0;
             score = 0;
             pipeSpeed = basePipeSpeed;
             pointsSinceLastWorm = 0;
@@ -649,11 +670,21 @@ public class FlappyBirdActivity extends AppCompatActivity {
             currentFrameIndex = 1;
             sequenceIndex = 0;
             animationTick = 0;
+            lastFrameTime = 0;
             invalidate();
         }
 
-        public void pauseGame() { paused = true; }
-        public void resumeGame() { paused = false; Choreographer.getInstance().postFrameCallback(this); }
+        public void pauseGame() {
+            paused = true;
+            lastFrameTime = 0;
+        }
+
+        public void resumeGame() {
+            paused = false;
+            lastFrameTime = 0;
+            Choreographer.getInstance().postFrameCallback(this);
+        }
+
         public boolean isPlaying() { return playing; }
         public boolean isGameOver() { return gameOver; }
 
@@ -663,7 +694,6 @@ public class FlappyBirdActivity extends AppCompatActivity {
             float topHeight = minTop + (float) Math.random() * (maxTop - minTop);
 
             Pipe newPipe = new Pipe(screenW, topHeight);
-
             if (!isImmune && pointsSinceLastWorm >= 5) {
                 newPipe.hasWorm = true;
                 pointsSinceLastWorm = 0;
@@ -678,6 +708,7 @@ public class FlappyBirdActivity extends AppCompatActivity {
                 if (gameOver || paused) return true;
                 if (!playing) {
                     playing = true;
+                    lastFrameTime = 0;
                     if (listener != null) listener.onGameStarted();
                     Choreographer.getInstance().postFrameCallback(this);
                 }
@@ -689,33 +720,46 @@ public class FlappyBirdActivity extends AppCompatActivity {
 
         @Override
         public void doFrame(long frameTimeNanos) {
-            if (!playing || paused || gameOver) return;
+            if (!playing || paused || gameOver) {
+                lastFrameTime = 0;
+                return;
+            }
+
+            if (lastFrameTime == 0) {
+                lastFrameTime = frameTimeNanos;
+                Choreographer.getInstance().postFrameCallback(this);
+                return;
+            }
+            float dt = (frameTimeNanos - lastFrameTime) / 1000000000f;
+            lastFrameTime = frameTimeNanos;
+            if (dt > 0.05f) dt = 0.05f;
+
+            float speedFactor = dt * 60f;
 
             if (isImmune && System.currentTimeMillis() >= immunityEndTime) {
                 isImmune = false;
             }
 
-            sparkleAngle += 12f;
+            sparkleAngle += 12f * speedFactor;
             if (sparkleAngle > 360f) sparkleAngle -= 360f;
 
-            parallaxScroll -= pipeSpeed;
+            parallaxScroll -= pipeSpeed * speedFactor;
 
-            birdVelocity += gravity;
+            birdVelocity += gravity * speedFactor;
             if (birdVelocity > terminalVelocity) birdVelocity = terminalVelocity;
-            birdY += birdVelocity;
+            birdY += birdVelocity * speedFactor;
 
-            // --- SMOOTH WING ANIMATION PHYSICS ---
-            int flapSpeedThreshold = 8;
+            float flapSpeedThreshold = 8f;
 
             if (birdVelocity < terminalVelocity * 0.4f) {
-                animationTick++;
+                animationTick += speedFactor;
                 if (animationTick >= flapSpeedThreshold) {
                     animationTick = 0;
                     sequenceIndex = (sequenceIndex + 1) % flapSequence.length;
                     currentFrameIndex = flapSequence[sequenceIndex];
                 }
             } else {
-                animationTick++;
+                animationTick += speedFactor;
                 if (animationTick >= flapSpeedThreshold) {
                     currentFrameIndex = 0;
                     sequenceIndex = 0;
@@ -730,20 +774,25 @@ public class FlappyBirdActivity extends AppCompatActivity {
             float tailX = birdX - (float) Math.cos(Math.toRadians(tiltAngle)) * tailOffset;
             float tailY = birdY - (float) Math.sin(Math.toRadians(tiltAngle)) * tailOffset;
 
-            trail.addFirst(new TrailPoint(tailX, tailY));
-            if (trail.size() > 15) trail.removeLast();
-            for (TrailPoint t : trail) { t.x -= pipeSpeed; }
+            trailHead = (trailHead + 1) % MAX_TRAIL;
+            trail[trailHead].x = tailX;
+            trail[trailHead].y = tailY;
+            if (trailCount < MAX_TRAIL) trailCount++;
+
+            for (int i = 0; i < trailCount; i++) {
+                trail[i].x -= pipeSpeed * speedFactor;
+            }
 
             for (int i = 0; i < pipes.size(); i++) {
                 Pipe p = pipes.get(i);
-                p.x -= pipeSpeed;
+                p.x -= pipeSpeed * speedFactor;
 
                 if (p.hasWorm && !p.wormEaten) {
                     float wormX = p.x + (pipeWidth / 2f);
                     float wormY = p.topHeight + (pipeGap / 2f);
-                    float dx = birdX - wormX;
-                    float dy = birdY - wormY;
-                    if ((dx * dx) + (dy * dy) <= ((birdRadius + wormRadius) * (birdRadius + wormRadius))) {
+                    float dxx = birdX - wormX;
+                    float dyy = birdY - wormY;
+                    if ((dxx * dxx) + (dyy * dyy) <= ((birdRadius + wormRadius) * (birdRadius + wormRadius))) {
                         p.wormEaten = true;
                         isImmune = true;
                         immunityEndTime = System.currentTimeMillis() + 4000;
@@ -764,12 +813,9 @@ public class FlappyBirdActivity extends AppCompatActivity {
                 if (!p.passed && p.x + pipeWidth < birdX) {
                     p.passed = true;
                     score++;
+                    if (!isImmune) pointsSinceLastWorm++;
 
-                    if (!isImmune) {
-                        pointsSinceLastWorm++;
-                    }
-
-                    pipeSpeed = basePipeSpeed + (score * (refW * 0.0004f));
+                    pipeSpeed = basePipeSpeed + (score * (refW * 0.0001f));
                     if (pipeSpeed > maxPipeSpeed) pipeSpeed = maxPipeSpeed;
                     if (listener != null) listener.onScoreUpdated(score);
                 }
@@ -797,42 +843,37 @@ public class FlappyBirdActivity extends AppCompatActivity {
 
             if (isImmune) return;
 
-            float hitRadius = birdRadius * 0.65f;
-            RectF birdRect = new RectF(birdX - hitRadius, birdY - hitRadius, birdX + hitRadius, birdY + hitRadius);
+            float hitR = birdRadius * 0.65f;
+            hitRect.set(birdX - hitR, birdY - hitR, birdX + hitR, birdY + hitR);
 
             for (Pipe p : pipes) {
-                RectF topPipe = new RectF(p.x, 0, p.x + pipeWidth, p.topHeight);
-                RectF bottomPipe = new RectF(p.x, p.topHeight + pipeGap, p.x + pipeWidth, screenH);
-                if (RectF.intersects(birdRect, topPipe) || RectF.intersects(birdRect, bottomPipe)) {
+                topCollision.set(p.x, 0, p.x + pipeWidth, p.topHeight);
+                bottomCollision.set(p.x, p.topHeight + pipeGap, p.x + pipeWidth, screenH);
+                if (RectF.intersects(hitRect, topCollision) || RectF.intersects(hitRect, bottomCollision)) {
                     triggerGameOver(); return;
                 }
             }
         }
 
-        // --- Method to smoothly capture the exact moment of death without lag ---
         private Bitmap getDeathSnapshot() {
             try {
-                // Instantly grab the screen
                 Bitmap fullBitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
                 Canvas canvas = new Canvas(fullBitmap);
                 this.draw(canvas);
 
-                // Define the square crop size (about 40% of the screen width for a good zoomed-in look)
                 int size = (int) (Math.min(getWidth(), getHeight()) * 0.40f);
                 if (size <= 0) size = 300;
 
-                // Center the crop box exactly on the bird
                 int left = (int) (birdX - size / 2f);
                 int top = (int) (birdY - size / 2f);
 
-                // Clamp to screen edges so it doesn't crash if hitting the top/bottom boundary
                 if (left < 0) left = 0;
                 if (top < 0) top = 0;
                 if (left + size > getWidth()) left = getWidth() - size;
                 if (top + size > getHeight()) top = getHeight() - size;
 
                 Bitmap cropped = Bitmap.createBitmap(fullBitmap, left, top, size, size);
-                fullBitmap.recycle(); // Free huge screen memory immediately
+                fullBitmap.recycle();
                 return cropped;
             } catch (Exception e) {
                 return null;
@@ -840,9 +881,10 @@ public class FlappyBirdActivity extends AppCompatActivity {
         }
 
         private void triggerGameOver() {
-            if (gameOver) return; // Prevent multiple triggers
+            if (gameOver) return;
             gameOver = true;
             playing = false;
+            lastFrameTime = 0;
 
             if (vibrationEnabled) {
                 Vibrator vibrator = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
@@ -855,13 +897,12 @@ public class FlappyBirdActivity extends AppCompatActivity {
                 }
             }
 
-            // Capture the proof of death before notifying the menu
             Bitmap snapshot = getDeathSnapshot();
             if (listener != null) listener.onGameOver(score, snapshot);
         }
 
-        private void drawTiledPath(Canvas canvas, Path path, float rawScroll, float scrollSpeedMultiplier, Paint paint) {
-            float scrollOffset = (rawScroll * scrollSpeedMultiplier) % screenW;
+        private void drawTiledPath(Canvas canvas, Path path, float rawScroll, float speedMult, Paint paint) {
+            float scrollOffset = (rawScroll * speedMult) % screenW;
             if (scrollOffset > 0) scrollOffset -= screenW;
 
             canvas.save();
@@ -874,40 +915,34 @@ public class FlappyBirdActivity extends AppCompatActivity {
 
         private void drawProgrammaticPipe(Canvas canvas, RectF rect) {
             canvas.drawRect(rect, pipeFillPaint);
-
             float highlightWidth = rect.width() * 0.15f;
             canvas.drawRect(rect.left + 8f, rect.top + 4f, rect.left + 8f + highlightWidth, rect.bottom - 4f, pipeHighlightPaint);
-
             float shadowWidth = rect.width() * 0.25f;
             canvas.drawRect(rect.right - 8f - shadowWidth, rect.top + 4f, rect.right - 8f, rect.bottom - 4f, pipeShadowPaint);
-
             canvas.drawRect(rect, pipeOutlinePaint);
         }
 
         private void drawGoldenWorm(Canvas canvas, float cx, float cy, float r) {
             canvas.save();
-            Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG); glowPaint.setColor(Color.parseColor("#FFD700")); glowPaint.setAlpha(80);
-            canvas.drawCircle(cx, cy, r * 1.8f, glowPaint);
-
+            canvas.drawCircle(cx, cy, r * 1.8f, wormGlowPaint);
             canvas.save();
             canvas.rotate(sparkleAngle, cx, cy);
-            Paint sparklePaint = new Paint(Paint.ANTI_ALIAS_FLAG); sparklePaint.setColor(Color.WHITE); sparklePaint.setStrokeWidth(3f);
             for (int i = 0; i < 4; i++) {
-                canvas.rotate(90, cx, cy); canvas.drawLine(cx, cy - r * 1.5f, cx, cy - r * 2.2f, sparklePaint);
-                canvas.drawCircle(cx, cy - r * 1.8f, 3f, sparklePaint);
+                canvas.rotate(90, cx, cy);
+                canvas.drawLine(cx, cy - r * 1.5f, cx, cy - r * 2.2f, wormSparklePaint);
+                canvas.drawCircle(cx, cy - r * 1.8f, 3f, wormSparklePaint);
             }
             canvas.restore();
 
-            Paint bodyPaint = new Paint(Paint.ANTI_ALIAS_FLAG); bodyPaint.setColor(Color.parseColor("#FFD700"));
-            Paint detailPaint = new Paint(Paint.ANTI_ALIAS_FLAG); detailPaint.setColor(Color.parseColor("#F39C12"));
-            canvas.drawCircle(cx - r * 0.6f, cy + r * 0.3f, r * 0.5f, detailPaint); canvas.drawCircle(cx - r * 0.6f, cy + r * 0.3f, r * 0.4f, bodyPaint);
-            canvas.drawCircle(cx, cy, r * 0.6f, detailPaint); canvas.drawCircle(cx, cy, r * 0.5f, bodyPaint);
-            canvas.drawCircle(cx + r * 0.6f, cy - r * 0.2f, r * 0.7f, detailPaint); canvas.drawCircle(cx + r * 0.6f, cy - r * 0.2f, r * 0.6f, bodyPaint);
+            canvas.drawCircle(cx - r * 0.6f, cy + r * 0.3f, r * 0.5f, wormDetailPaint);
+            canvas.drawCircle(cx - r * 0.6f, cy + r * 0.3f, r * 0.4f, wormBodyPaint);
+            canvas.drawCircle(cx, cy, r * 0.6f, wormDetailPaint);
+            canvas.drawCircle(cx, cy, r * 0.5f, wormBodyPaint);
+            canvas.drawCircle(cx + r * 0.6f, cy - r * 0.2f, r * 0.7f, wormDetailPaint);
+            canvas.drawCircle(cx + r * 0.6f, cy - r * 0.2f, r * 0.6f, wormBodyPaint);
 
-            Paint eyeWhite = new Paint(Paint.ANTI_ALIAS_FLAG); eyeWhite.setColor(Color.WHITE);
-            canvas.drawCircle(cx + r * 0.8f, cy - r * 0.35f, r * 0.2f, eyeWhite);
-            Paint eyeBlack = new Paint(Paint.ANTI_ALIAS_FLAG); eyeBlack.setColor(Color.BLACK);
-            canvas.drawCircle(cx + r * 0.85f, cy - r * 0.35f, r * 0.1f, eyeBlack);
+            canvas.drawCircle(cx + r * 0.8f, cy - r * 0.35f, r * 0.2f, wormEyeWhite);
+            canvas.drawCircle(cx + r * 0.85f, cy - r * 0.35f, r * 0.1f, wormEyeBlack);
             canvas.restore();
         }
 
@@ -922,7 +957,6 @@ public class FlappyBirdActivity extends AppCompatActivity {
                     s.alpha += s.twinkleSpeed;
                     if (s.alpha > 1f) { s.alpha = 1f; s.twinkleSpeed = -s.twinkleSpeed; }
                     else if (s.alpha < 0.1f) { s.alpha = 0.1f; s.twinkleSpeed = -s.twinkleSpeed; }
-
                     starPaint.setAlpha((int) (s.alpha * 255));
                     canvas.drawCircle(s.x, s.y, s.radius, starPaint);
                 }
@@ -932,74 +966,64 @@ public class FlappyBirdActivity extends AppCompatActivity {
             drawTiledPath(canvas, mountainPath, parallaxScroll, 0.35f, mountainPaint);
             drawTiledPath(canvas, hillPath, parallaxScroll, 0.6f, hillPaint);
 
-            float capHeight = refH * 0.04f;
-            float capExtend = refW * 0.015f;
+            float capH = refH * 0.04f;
+            float capExt = refW * 0.015f;
 
             for (Pipe p : pipes) {
-                RectF topBody = new RectF(p.x, -20f, p.x + pipeWidth, p.topHeight - capHeight);
-                RectF topCap = new RectF(p.x - capExtend, p.topHeight - capHeight, p.x + pipeWidth + capExtend, p.topHeight);
-                RectF bottomCap = new RectF(p.x - capExtend, p.topHeight + pipeGap, p.x + pipeWidth + capExtend, p.topHeight + pipeGap + capHeight);
-                RectF bottomBody = new RectF(p.x, p.topHeight + pipeGap + capHeight, p.x + pipeWidth, screenH + 20f);
+                tBodyRect.set(p.x, -20f, p.x + pipeWidth, p.topHeight - capH);
+                tCapRect.set(p.x - capExt, p.topHeight - capH, p.x + pipeWidth + capExt, p.topHeight);
+                bCapRect.set(p.x - capExt, p.topHeight + pipeGap, p.x + pipeWidth + capExt, p.topHeight + pipeGap + capH);
+                bBodyRect.set(p.x, p.topHeight + pipeGap + capH, p.x + pipeWidth, screenH + 20f);
 
-                drawProgrammaticPipe(canvas, topBody);
-                drawProgrammaticPipe(canvas, topCap);
-                drawProgrammaticPipe(canvas, bottomBody);
-                drawProgrammaticPipe(canvas, bottomCap);
+                canvas.drawRect(tBodyRect, pipeFillPaint);
+                canvas.drawRect(tBodyRect.left + 8f, tBodyRect.top + 4f, tBodyRect.left + 8f + (tBodyRect.width() * 0.15f), tBodyRect.bottom - 4f, pipeHighlightPaint);
+                canvas.drawRect(tBodyRect.right - 8f - (tBodyRect.width() * 0.25f), tBodyRect.top + 4f, tBodyRect.right - 8f, tBodyRect.bottom - 4f, pipeShadowPaint);
+                canvas.drawRect(tBodyRect, pipeOutlinePaint);
+                canvas.drawRect(tCapRect, pipeFillPaint);
+                canvas.drawRect(tCapRect.left + 8f, tCapRect.top + 4f, tCapRect.left + 8f + (tCapRect.width() * 0.15f), tCapRect.bottom - 4f, pipeHighlightPaint);
+                canvas.drawRect(tCapRect.right - 8f - (tCapRect.width() * 0.25f), tCapRect.top + 4f, tCapRect.right - 8f, tCapRect.bottom - 4f, pipeShadowPaint);
+                canvas.drawRect(tCapRect, pipeOutlinePaint);
+                canvas.drawRect(bCapRect, pipeFillPaint);
+                canvas.drawRect(bCapRect.left + 8f, bCapRect.top + 4f, bCapRect.left + 8f + (bCapRect.width() * 0.15f), bCapRect.bottom - 4f, pipeHighlightPaint);
+                canvas.drawRect(bCapRect.right - 8f - (bCapRect.width() * 0.25f), bCapRect.top + 4f, bCapRect.right - 8f, bCapRect.bottom - 4f, pipeShadowPaint);
+                canvas.drawRect(bCapRect, pipeOutlinePaint);
+                canvas.drawRect(bBodyRect, pipeFillPaint);
+                canvas.drawRect(bBodyRect.left + 8f, bBodyRect.top + 4f, bBodyRect.left + 8f + (bBodyRect.width() * 0.15f), bBodyRect.bottom - 4f, pipeHighlightPaint);
+                canvas.drawRect(bBodyRect.right - 8f - (bBodyRect.width() * 0.25f), bBodyRect.top + 4f, bBodyRect.right - 8f, bBodyRect.bottom - 4f, pipeShadowPaint);
+                canvas.drawRect(bBodyRect, pipeOutlinePaint);
 
                 if (p.hasWorm && !p.wormEaten) {
                     drawGoldenWorm(canvas, p.x + (pipeWidth / 2f), p.topHeight + (pipeGap / 2f), wormRadius);
                 }
             }
 
-            if (!trail.isEmpty()) {
-                int index = 0;
-                for (TrailPoint t : trail) {
-                    int alpha = (int) (200 * (1f - ((float) index / trail.size())));
-                    float radius = birdRadius * 0.35f * (1f - ((float) index / trail.size()));
+            if (trailCount > 0) {
+                for (int i = 0; i < trailCount; i++) {
+                    int idx = (trailHead - i + MAX_TRAIL) % MAX_TRAIL;
+                    TrailPoint t = trail[idx];
+                    int alpha = (int) (200 * (1f - ((float) i / trailCount)));
+                    float radius = birdRadius * 0.35f * (1f - ((float) i / trailCount));
                     trailPaint.setAlpha(alpha);
                     canvas.drawCircle(t.x, t.y, radius, trailPaint);
-                    index++;
                 }
             }
 
             if (isImmune) {
                 if (themeState == 2) {
-                    Paint domePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                    domePaint.setColor(Color.parseColor("#4400FFFF"));
-                    canvas.drawCircle(birdX, birdY, birdRadius * 2.0f, domePaint);
-
-                    domePaint.setStyle(Paint.Style.STROKE);
-                    domePaint.setStrokeWidth(4f);
-                    domePaint.setColor(Color.parseColor("#8800FFFF"));
-                    canvas.drawCircle(birdX, birdY, birdRadius * 2.0f, domePaint);
-
-                    Paint saucerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                    saucerPaint.setColor(Color.parseColor("#B0C4DE"));
-                    RectF saucerRect = new RectF(birdX - birdRadius * 2.8f, birdY - birdRadius * 0.6f, birdX + birdRadius * 2.8f, birdY + birdRadius * 0.6f);
-                    canvas.drawOval(saucerRect, saucerPaint);
-
-                    saucerPaint.setStyle(Paint.Style.STROKE);
-                    saucerPaint.setStrokeWidth(6f);
-                    saucerPaint.setColor(Color.parseColor("#39FF14"));
-                    canvas.drawOval(saucerRect, saucerPaint);
-
-                    Paint lightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                    lightPaint.setColor(Color.parseColor("#FFFFFF"));
+                    canvas.drawCircle(birdX, birdY, birdRadius * 2.0f, domeFillPaint);
+                    canvas.drawCircle(birdX, birdY, birdRadius * 2.0f, domeStrokePaint);
+                    saucerRect.set(birdX - birdRadius * 2.8f, birdY - birdRadius * 0.6f, birdX + birdRadius * 2.8f, birdY + birdRadius * 0.6f);
+                    canvas.drawOval(saucerRect, saucerFillPaint);
+                    canvas.drawOval(saucerRect, saucerStrokePaint);
                     canvas.drawCircle(birdX - birdRadius * 1.8f, birdY, 6f, lightPaint);
                     canvas.drawCircle(birdX + birdRadius * 1.8f, birdY, 6f, lightPaint);
                     canvas.drawCircle(birdX, birdY + birdRadius * 0.4f, 7f, lightPaint);
-
                 } else {
-                    Paint auraPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-                    auraPaint.setColor(Color.parseColor("#FFD700")); auraPaint.setAlpha(80);
-                    canvas.drawCircle(birdX, birdY, birdRadius * 1.8f, auraPaint);
-                    auraPaint.setStyle(Paint.Style.STROKE); auraPaint.setStrokeWidth(5f); auraPaint.setAlpha(220);
-                    canvas.drawCircle(birdX, birdY, birdRadius * 1.8f, auraPaint);
-
+                    canvas.drawCircle(birdX, birdY, birdRadius * 1.8f, auraFillPaint);
+                    canvas.drawCircle(birdX, birdY, birdRadius * 1.8f, auraStrokePaint);
                     canvas.save();
                     canvas.translate(birdX, birdY);
                     canvas.rotate(sparkleAngle);
-                    Paint starP = new Paint(Paint.ANTI_ALIAS_FLAG); starP.setColor(Color.WHITE);
                     for (int s = 0; s < 4; s++) { canvas.rotate(90); canvas.drawCircle(0, -birdRadius * 1.8f, 6f, starP); }
                     canvas.restore();
                 }
@@ -1026,29 +1050,14 @@ public class FlappyBirdActivity extends AppCompatActivity {
             if (isImmune && immunityEndTime > System.currentTimeMillis()) {
                 long timeLeft = immunityEndTime - System.currentTimeMillis();
                 float progress = Math.max(0f, Math.min(1f, timeLeft / 4000f));
-
                 float barW = screenW * 0.55f;
                 float barH = 22f;
                 float barX = (screenW - barW) / 2f;
                 float barY = screenH * 0.14f;
 
-                Paint hudBg = new Paint(Paint.ANTI_ALIAS_FLAG);
-                hudBg.setColor(Color.parseColor("#99000000"));
                 canvas.drawRoundRect(barX - 24f, barY - 48f, barX + barW + 24f, barY + barH + 16f, 30f, 30f, hudBg);
-
-                Paint barBg = new Paint(Paint.ANTI_ALIAS_FLAG);
-                barBg.setColor(Color.parseColor("#40FFFFFF"));
                 canvas.drawRoundRect(barX, barY, barX + barW, barY + barH, 11f, 11f, barBg);
-
-                Paint barFill = new Paint(Paint.ANTI_ALIAS_FLAG);
-                barFill.setColor(themeState == 2 ? Color.parseColor("#00FFFF") : Color.parseColor("#FFD700"));
                 canvas.drawRoundRect(barX, barY, barX + (barW * progress), barY + barH, 11f, 11f, barFill);
-
-                Paint timeText = new Paint(Paint.ANTI_ALIAS_FLAG);
-                timeText.setColor(Color.WHITE);
-                timeText.setTextSize(34f);
-                timeText.setTypeface(Typeface.DEFAULT_BOLD);
-                timeText.setTextAlign(Paint.Align.CENTER);
 
                 String emoji = (themeState == 2) ? "🛸" : "⭐";
                 String timeStr = String.format(Locale.US, "%s IMMUNITY: %.1fs %s", emoji, timeLeft / 1000f, emoji);
@@ -1067,7 +1076,6 @@ public class FlappyBirdActivity extends AppCompatActivity {
             TrailPoint(float x, float y) { this.x = x; this.y = y; }
         }
 
-        // --- FIXED: ADDED THE MISSING 'float' BEFORE 'y' ---
         private static class Star {
             float x, y, radius, alpha, twinkleSpeed;
             Star(float x, float y, float r, float a, float ts) {
