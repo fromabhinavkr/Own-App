@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/tetrisRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -22,7 +22,8 @@
         android:paddingBottom="24dp"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:elevation="4dp">
+        android:elevation="4dp"
+        tools:ignore="UselessParent">
 
         <!-- Unified Smart Pill: Pause Icon + Score Text (Aligned Left) -->
         <LinearLayout
@@ -44,30 +45,50 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp" />
 
-            <!-- Vertical Layout for Score & Best Score -->
-            <LinearLayout
+            <!-- FrameLayout overlays Swipe text and Score UI -->
+            <FrameLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
-                android:orientation="vertical"
-                android:gravity="center_vertical">
+                android:layout_gravity="center_vertical">
 
                 <TextView
-                    android:id="@+id/tvCurrentScore"
+                    android:id="@+id/tvTapToStart"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Score: 0"
+                    android:text="Swipe to Move"
                     android:textSize="15sp"
-                    android:textStyle="bold" />
+                    android:singleLine="true"
+                    android:textStyle="bold"
+                    android:layout_gravity="center_vertical" />
 
-                <TextView
-                    android:id="@+id/tvHighScore"
+                <!-- Hidden until gameplay starts: Score Container -->
+                <LinearLayout
+                    android:id="@+id/scoreContainer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Best: 0"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tvCurrentScore"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Score: 0"
+                        android:textSize="15sp"
+                        android:singleLine="true"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvHighScore"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Best: 0"
+                        android:textSize="11sp"
+                        android:singleLine="true"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </FrameLayout>
         </LinearLayout>
 
         <!-- NEXT Block Pill (Aligned Right) -->
@@ -107,7 +128,8 @@
         android:layout_height="match_parent"
         android:background="#99000000"
         android:visibility="gone"
-        android:elevation="10dp">
+        android:elevation="10dp"
+        tools:ignore="UselessParent">
 
         <LinearLayout
             android:id="@+id/pauseCard"
@@ -148,7 +170,6 @@
                 android:layout_marginTop="12dp"
                 android:text="Vibration: ON" />
 
-            <!-- Renamed to Exit Game -->
             <Button
                 android:id="@+id/btnQuitFromPause"
                 style="@style/ModernButtonStyle"
@@ -169,7 +190,8 @@
         android:layout_height="match_parent"
         android:background="#99000000"
         android:visibility="gone"
-        android:elevation="10dp">
+        android:elevation="10dp"
+        tools:ignore="UselessParent">
 
         <LinearLayout
             android:id="@+id/gameOverCard"
@@ -229,16 +251,5 @@
                 android:text="Quit" />
         </LinearLayout>
     </RelativeLayout>
-
-    <TextView
-        android:id="@+id/tvTapToStart"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:text="Swipe to Move\nTap to Rotate"
-        android:gravity="center"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:elevation="2dp" />
 
 </RelativeLayout>

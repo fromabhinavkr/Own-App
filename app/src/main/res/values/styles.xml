@@ -50,4 +50,19 @@
         <item name="android:windowContentOverlay">@null</item>
     </style>
 
+    <!-- Breakout Game Strings -->
+    <string name="score_0">Score: 0</string>
+    <string name="best_0">Best: 0</string>
+    <string name="paused">PAUSED</string>
+    <string name="resume_game">Resume Game</string>
+    <string name="vib_on">Vib: ON</string>
+    <string name="music_on">Music: ON</string>
+    <string name="speed_easy">Speed: Easy</string>
+    <string name="exit_game">Exit Game</string>
+    <string name="game_over">GAME OVER</string>
+    <string name="new_high_score">🏆 NEW HIGH SCORE! 🏆</string>
+    <string name="play_again">Play Again</string>
+    <string name="quit">Quit</string>
+    <string name="tap_to_launch">Tap to Launch</string>
+
 </resources>

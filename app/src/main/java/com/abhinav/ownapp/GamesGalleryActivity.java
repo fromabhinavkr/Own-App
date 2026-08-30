@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
@@ -19,6 +20,8 @@ import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
+import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -48,6 +51,39 @@ public class GamesGalleryActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_games_gallery);
 
+        // ADAPTIVE LAYOUT LOGIC: Programmatic fix for Landscape vs Portrait
+        GridLayout gridLayout = findViewById(R.id.gamesGridLayout);
+        if (gridLayout != null) {
+            boolean isLandscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+            gridLayout.setColumnCount(isLandscape ? 4 : 2);
+
+            // 100dp height limit exclusively for Landscape mode
+            int landscapeHeight = (int) (100 * getResources().getDisplayMetrics().density);
+
+            int[] cardIds = {R.id.cardSnakeGame, R.id.cardFlappyBird, R.id.cardTetris,
+                    R.id.cardBreakout, R.id.cardMazeBall, R.id.cardMyPlanet};
+
+            for (int id : cardIds) {
+                LinearLayout card = findViewById(id);
+                if (card != null) {
+                    // 1. Force the GridLayout to refresh its column weights dynamically
+                    GridLayout.LayoutParams params = (GridLayout.LayoutParams) card.getLayoutParams();
+                    params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1, 1f);
+                    card.setLayoutParams(params);
+
+                    // 2. Safely override the Image Height without touching your XML
+                    ImageView img = (ImageView) card.getChildAt(0);
+                    if (isLandscape) {
+                        img.getLayoutParams().height = landscapeHeight;
+                    } else {
+                        // Keeps your requested WRAP_CONTENT perfectly intact for Portrait
+                        img.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    }
+                    img.requestLayout();
+                }
+            }
+        }
+
         // --- 3-STATE THEME LOGIC ---
         SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
         themeState = prefs.getInt("app_theme_state", -1);
@@ -61,7 +97,7 @@ public class GamesGalleryActivity extends AppCompatActivity {
         final int textColor;
         final int subTextColor;
 
-        if (themeState == 0) { // Light Mode (Pure White BG, Light Grey Cards)
+        if (themeState == 0) { // Light Mode
             bgColor = Color.WHITE;
             cardColor = Color.parseColor("#F2F2F7");
             textColor = Color.parseColor("#333333");
@@ -124,7 +160,6 @@ public class GamesGalleryActivity extends AppCompatActivity {
                         revealX = intent.getIntExtra("REVEAL_X", root.getWidth() / 2);
                         revealY = intent.getIntExtra("REVEAL_Y", root.getHeight() / 2);
 
-                        // Use hypotenuse to ensure the circle covers the entire screen perfectly
                         float finalRadius = (float) Math.hypot(root.getWidth(), root.getHeight());
 
                         Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, 0, finalRadius);
@@ -211,7 +246,6 @@ public class GamesGalleryActivity extends AppCompatActivity {
             btnHelpMyPlanet.setTextColor(subTextColor);
             btnHelpMyPlanet.setBackground(helpBg);
 
-            // Pass the current state to the dialog so it matches
             final int finalThemeState = themeState;
             btnHelpMyPlanet.setOnClickListener(v -> showInstructionsDialog(finalThemeState));
 
@@ -221,11 +255,9 @@ public class GamesGalleryActivity extends AppCompatActivity {
         }
     }
 
-    // --- Smart Lifecycle Interceptors ---
     @Override
     protected void onResume() {
         super.onResume();
-        // Force the window to remain transparent to override any MainApplication callbacks seamlessly
         getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         enforceStatusBarIcons();
     }
@@ -238,21 +270,18 @@ public class GamesGalleryActivity extends AppCompatActivity {
         }
     }
 
-    // Method to forcibly correct the icons for Light/Dark/Star mode safely
     private void enforceStatusBarIcons() {
-        // Only target the status bar color, leaving the window background transparent
         getWindow().setStatusBarColor(bgColor);
-
         View decor = getWindow().getDecorView();
         WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), decor);
 
-        if (themeState == 0) { // Light Mode -> Icons MUST be Dark
+        if (themeState == 0) {
             controller.setAppearanceLightStatusBars(true);
             controller.setAppearanceLightNavigationBars(true);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 getWindow().setNavigationBarColor(bgColor);
             }
-        } else { // Dark or Star Mode -> Icons MUST be White
+        } else {
             controller.setAppearanceLightStatusBars(false);
             controller.setAppearanceLightNavigationBars(false);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -266,16 +295,16 @@ public class GamesGalleryActivity extends AppCompatActivity {
 
         int dialogBgColor, dialogTextColor, dialogSubTextColor;
 
-        if (themeState == 0) { // Light Mode
+        if (themeState == 0) {
             dialogBgColor = Color.WHITE;
             dialogTextColor = Color.parseColor("#1C1C1E");
             dialogSubTextColor = Color.parseColor("#666666");
-        } else if (themeState == 1) { // Standard Dark Mode
+        } else if (themeState == 1) {
             dialogBgColor = Color.parseColor("#2C2C2E");
             dialogTextColor = Color.WHITE;
             dialogSubTextColor = Color.parseColor("#B0B0B8");
-        } else { // Star Mode (AMOLED Black)
-            dialogBgColor = Color.parseColor("#1C1C1E"); // Keep dialog card visible against pure black
+        } else {
+            dialogBgColor = Color.parseColor("#1C1C1E");
             dialogTextColor = Color.WHITE;
             dialogSubTextColor = Color.parseColor("#B0B0B8");
         }

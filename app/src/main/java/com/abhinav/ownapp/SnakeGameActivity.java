@@ -14,17 +14,17 @@ import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -48,16 +48,15 @@ public class SnakeGameActivity extends AppCompatActivity {
     private TextView tvScore, tvBestScore;
     private LinearLayout topUiBar;
 
-    // Track dynamic speed icon
-    private GameIconView closedSpeedIconView;
-    private GameIconView openSpeedIconView;
-    private int currentSpeedIcon = GameIconView.ICON_RUN;
+    // Track dynamic speed image icons
+    private ImageView closedSpeedIconView;
+    private ImageView openSpeedIconView;
+    private int currentSpeedLevel = 1; // 0 = Easy, 1 = Medium, 2 = Hard
 
     // --- 3-STATE THEME VARIABLES ---
     private int themeState; // 0 = Light, 1 = Dark, 2 = Star
-
-    // Extracted colors for icon swapping
     private int iconColor;
+    private SharedPreferences prefs;
 
     private static final int SPEED_EASY = 220;
     private static final int SPEED_MEDIUM = 130;
@@ -86,7 +85,7 @@ public class SnakeGameActivity extends AppCompatActivity {
             return WindowInsetsCompat.CONSUMED;
         });
 
-        SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+        prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
 
         themeState = prefs.getInt("app_theme_state", -1);
         if (themeState == -1) {
@@ -100,7 +99,6 @@ public class SnakeGameActivity extends AppCompatActivity {
         tvScore = findViewById(R.id.tvScore);
         tvBestScore = findViewById(R.id.tvBestScore);
 
-        // Inject custom Vector Icon Views
         pauseIconView = new GameIconView(this);
         pauseIconContainer.addView(pauseIconView);
 
@@ -150,14 +148,13 @@ public class SnakeGameActivity extends AppCompatActivity {
             pauseIconView.setIcon(isNowPaused ? GameIconView.ICON_PLAY : GameIconView.ICON_PAUSE, iconColor);
         });
 
-        showGameModeDialog(prefs);
+        showGameModeDialog();
     }
 
     // --- SMOOTH CLOSING ANIMATION ---
     @Override
     public void finish() {
         super.finish();
-        // Uses 0 for enter anim and fade_out for exit to completely eliminate the white flash!
         overridePendingTransition(0, android.R.anim.fade_out);
     }
 
@@ -169,19 +166,16 @@ public class SnakeGameActivity extends AppCompatActivity {
             return;
         }
 
-        // If waiting for mode selection or Game Over, back button exits
         if (gameEngine.isWaitingForMode() || gameEngine.isGameOver()) {
             finish();
             return;
         }
 
-        // If on Pause Canvas, back button EXITS the game completely (2nd press logic)
         if (gameEngine.isPaused()) {
             finish();
             return;
         }
 
-        // If currently playing, back button PAUSES the game (1st press logic)
         if (gameEngine.isPlaying() && !gameEngine.isPaused()) {
             if (btnPause != null) {
                 btnPause.performClick();
@@ -192,7 +186,6 @@ public class SnakeGameActivity extends AppCompatActivity {
         super.onBackPressed();
     }
 
-    // --- BUG FIX: DO NOT AUTO-CLICK PAUSE IF ALREADY PAUSED ---
     @Override
     protected void onPause() {
         super.onPause();
@@ -219,7 +212,7 @@ public class SnakeGameActivity extends AppCompatActivity {
 
     @Override public void onConfigurationChanged(@NonNull Configuration newConfig) { super.onConfigurationChanged(newConfig); }
 
-    private void showGameModeDialog(SharedPreferences prefs) {
+    private void showGameModeDialog() {
         AlertDialog dialog = new AlertDialog.Builder(this).setCancelable(false).create();
         if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 
@@ -251,10 +244,17 @@ public class SnakeGameActivity extends AppCompatActivity {
         int openPlays = prefs.getInt("snake_plays_open", 0);
         int openHigh = prefs.getInt("snake_high_score_open", 0);
 
-        closedSpeedIconView = new GameIconView(this);
-        openSpeedIconView = new GameIconView(this);
+        // Load saved speed preference
+        currentSpeedLevel = prefs.getInt("snake_saved_speed_level", 1);
+        int initialSpeed = SPEED_MEDIUM;
+        if (currentSpeedLevel == 0) initialSpeed = SPEED_EASY;
+        else if (currentSpeedLevel == 2) initialSpeed = SPEED_HARD;
+        gameEngine.setSpeed(initialSpeed);
 
-        // Closed Mode Button with Speed Icon
+        closedSpeedIconView = new ImageView(this);
+        openSpeedIconView = new ImageView(this);
+
+        // Closed Mode Button
         LinearLayout btnClosed = createModeButton("Closed Ground", "Played: " + closedPlays + "  |  Best: " + closedHigh,
                 pillBgColor, boxBgColor, titleColor, subTextColor, GameIconView.ICON_CLOSED, closedSpeedIconView);
         btnClosed.setOnClickListener(v -> {
@@ -268,7 +268,7 @@ public class SnakeGameActivity extends AppCompatActivity {
         space.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 30));
         dialogRoot.addView(space);
 
-        // Open Mode Button with Speed Icon
+        // Open Mode Button
         LinearLayout btnOpen = createModeButton("Open Ground", "Played: " + openPlays + "  |  Best: " + openHigh,
                 pillBgColor, boxBgColor, titleColor, subTextColor, GameIconView.ICON_OPEN, openSpeedIconView);
         btnOpen.setOnClickListener(v -> {
@@ -279,12 +279,11 @@ public class SnakeGameActivity extends AppCompatActivity {
         dialogRoot.addView(btnOpen);
 
         dialog.setView(dialogRoot);
-        // Exits smoothly if user dismisses mode selection dialog via system back button
         dialog.setOnCancelListener(d -> finish());
         dialog.show();
     }
 
-    private LinearLayout createModeButton(String title, String subtitle, int pillColor, int boxColor, int titleColor, int subColor, int iconType, GameIconView speedIconView) {
+    private LinearLayout createModeButton(String title, String subtitle, int pillColor, int boxColor, int titleColor, int subColor, int iconType, ImageView speedImageView) {
         LinearLayout button = new LinearLayout(this);
         button.setOrientation(LinearLayout.HORIZONTAL);
         button.setGravity(Gravity.CENTER_VERTICAL);
@@ -322,88 +321,62 @@ public class SnakeGameActivity extends AppCompatActivity {
         textContainer.addView(tvSub);
         button.addView(textContainer);
 
-        // Add Speed settings icon inside the mode button
+        // Add Speed settings image inside the mode button
         FrameLayout speedIconBox = new FrameLayout(this);
         speedIconBox.setLayoutParams(new LinearLayout.LayoutParams(110, 110));
-        speedIconBox.setBackground(createBoxShape(boxColor));
-        speedIconView.setIcon(currentSpeedIcon, iconColor);
-        speedIconBox.addView(speedIconView);
+        speedIconBox.setBackground(createBoxShape(boxColor)); // RESTORED Box Background Color
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            speedIconBox.setClipToOutline(true);
+        }
+
+        speedImageView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        speedImageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        // Added internal padding so the stickman shrinks and fits perfectly inside the box
+        speedImageView.setPadding(22, 22, 22, 22);
+
+        updateSpeedIconDrawable(speedImageView);
+        speedIconBox.addView(speedImageView);
         button.addView(speedIconBox);
 
-        // Clicking the speed icon opens difficulty menu, preventing mode selection click
-        speedIconBox.setOnClickListener(v -> showDifficultyDialog());
+        // Clicking the speed icon cycles the difficulties instantly
+        speedIconBox.setOnClickListener(v -> {
+            currentSpeedLevel = (currentSpeedLevel + 1) % 3;
+            int speed = SPEED_MEDIUM;
+            if (currentSpeedLevel == 0) speed = SPEED_EASY;
+            else if (currentSpeedLevel == 2) speed = SPEED_HARD;
+
+            // Save preference and apply
+            prefs.edit().putInt("snake_saved_speed_level", currentSpeedLevel).apply();
+            gameEngine.setSpeed(speed);
+            updateSpeedIcons();
+        });
 
         return button;
     }
 
-    private void showDifficultyDialog() {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_difficulty, null);
-        AlertDialog dialog = new AlertDialog.Builder(this).setView(dialogView).create();
-        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-
-        LinearLayout dialogRoot = dialogView.findViewById(R.id.dialogRoot);
-        TextView tvTitle = dialogView.findViewById(R.id.tvTitle);
-        Button btnEasy = dialogView.findViewById(R.id.btnEasy);
-        Button btnMedium = dialogView.findViewById(R.id.btnMedium);
-        Button btnHard = dialogView.findViewById(R.id.btnHard);
-
-        int popupBg = themeState == 0 ? Color.parseColor("#FFFFFF") : (themeState == 1 ? Color.parseColor("#2C2C2E") : Color.parseColor("#1C1C1E"));
-        int btnBgColor = themeState == 0 ? Color.parseColor("#333333") : Color.parseColor("#E5E5EA");
-        int btnTextColor = themeState == 0 ? Color.WHITE : Color.BLACK;
-        int titleColor = themeState == 0 ? Color.BLACK : Color.WHITE;
-
-        GradientDrawable dialogShape = new GradientDrawable();
-        dialogShape.setColor(popupBg);
-        dialogShape.setCornerRadius(60f);
-        if (dialogRoot != null) dialogRoot.setBackground(dialogShape);
-
-        if (tvTitle != null) tvTitle.setTextColor(titleColor);
-
-        Button[] buttons = {btnEasy, btnMedium, btnHard};
-        for (Button b : buttons) {
-            if (b != null) {
-                b.setBackgroundTintList(null);
-                b.setBackground(createPillShape(btnBgColor));
-                b.setTextColor(btnTextColor);
-            }
-        }
-
-        if (btnEasy != null) btnEasy.setOnClickListener(v -> {
-            currentSpeedIcon = GameIconView.ICON_WALK;
-            gameEngine.setSpeed(SPEED_EASY);
-            updateSpeedIcons();
-            dialog.dismiss();
-        });
-        if (btnMedium != null) btnMedium.setOnClickListener(v -> {
-            currentSpeedIcon = GameIconView.ICON_RUN;
-            gameEngine.setSpeed(SPEED_MEDIUM);
-            updateSpeedIcons();
-            dialog.dismiss();
-        });
-        if (btnHard != null) btnHard.setOnClickListener(v -> {
-            currentSpeedIcon = GameIconView.ICON_TURBO;
-            gameEngine.setSpeed(SPEED_HARD);
-            updateSpeedIcons();
-            dialog.dismiss();
-        });
-        dialog.show();
+    private void updateSpeedIcons() {
+        updateSpeedIconDrawable(closedSpeedIconView);
+        updateSpeedIconDrawable(openSpeedIconView);
     }
 
-    private void updateSpeedIcons() {
-        if (closedSpeedIconView != null) closedSpeedIconView.setIcon(currentSpeedIcon, iconColor);
-        if (openSpeedIconView != null) openSpeedIconView.setIcon(currentSpeedIcon, iconColor);
+    private void updateSpeedIconDrawable(ImageView iv) {
+        if (iv == null) return;
+        String name = "game_medium";
+        if (currentSpeedLevel == 0) name = "game_easy";
+        else if (currentSpeedLevel == 2) name = "game_difficult";
+
+        int resId = getResources().getIdentifier(name, "drawable", getPackageName());
+        if (resId != 0) {
+            iv.setImageResource(resId);
+        }
     }
 
     // --- MATHEMATICAL VECTOR ICON ENGINE ---
     public static class GameIconView extends View {
         public static final int ICON_PAUSE = 0;
         public static final int ICON_PLAY = 1;
-        public static final int ICON_WALK = 2;
-        public static final int ICON_RUN = 3;
-        public static final int ICON_TURBO = 4;
         public static final int ICON_CLOSED = 5;
         public static final int ICON_OPEN = 6;
-        public static final int ICON_SCORE = 7;
 
         private int iconType = ICON_PAUSE;
         private Paint paint;
@@ -443,43 +416,6 @@ public class SnakeGameActivity extends AppCompatActivity {
                 p.close();
                 canvas.drawPath(p, paint);
             }
-            // Enlarge and thicken the Speed Icons for a Premium look
-            else if (iconType == ICON_WALK) {
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(6.0f);
-                canvas.drawCircle(cx, cy - 16f, 4.5f, paint);
-                canvas.drawLine(cx, cy - 11f, cx, cy + 6f, paint);
-                canvas.drawLine(cx, cy - 6f, cx - 10f, cy + 6f, paint);
-                canvas.drawLine(cx, cy - 6f, cx + 10f, cy + 6f, paint);
-                canvas.drawLine(cx, cy + 6f, cx - 7f, cy + 20f, paint);
-                canvas.drawLine(cx, cy + 6f, cx + 7f, cy + 20f, paint);
-            }
-            else if (iconType == ICON_RUN) {
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(6.0f);
-                canvas.drawCircle(cx + 6f, cy - 16f, 4.5f, paint);
-                canvas.drawLine(cx + 2f, cy - 11f, cx - 3f, cy + 5f, paint);
-                canvas.drawLine(cx, cy - 4f, cx + 13f, cy - 1f, paint);
-                canvas.drawLine(cx, cy - 4f, cx - 13f, cy - 8f, paint);
-                canvas.drawLine(cx - 3f, cy + 5f, cx - 13f, cy + 16f, paint);
-                canvas.drawLine(cx - 3f, cy + 5f, cx + 8f, cy + 13f, paint);
-                canvas.drawLine(cx + 8f, cy + 13f, cx + 8f, cy + 22f, paint);
-            }
-            else if (iconType == ICON_TURBO) {
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(6.0f);
-                canvas.drawCircle(cx + 12f, cy - 13f, 4.5f, paint);
-                canvas.drawLine(cx + 7f, cy - 8f, cx - 8f, cy + 7f, paint);
-                canvas.drawLine(cx, cy - 1f, cx + 15f, cy + 5f, paint);
-                canvas.drawLine(cx, cy - 1f, cx - 16f, cy - 11f, paint);
-                canvas.drawLine(cx - 8f, cy + 7f, cx - 20f, cy + 12f, paint);
-                canvas.drawLine(cx - 8f, cy + 7f, cx + 7f, cy + 18f, paint);
-
-                paint.setStrokeWidth(3.5f); // Keep motion lines slightly thinner for visual speed effect
-                canvas.drawLine(cx - 24f, cy - 12f, cx - 13f, cy - 12f, paint);
-                canvas.drawLine(cx - 27f, cy + 2f, cx - 16f, cy + 2f, paint);
-                canvas.drawLine(cx - 21f, cy + 16f, cx - 8f, cy + 16f, paint);
-            }
             else if (iconType == ICON_CLOSED) {
                 paint.setStyle(Paint.Style.STROKE);
                 canvas.drawRect(cx - 12f, cy - 12f, cx + 12f, cy + 12f, paint);
@@ -494,11 +430,6 @@ public class SnakeGameActivity extends AppCompatActivity {
                 canvas.drawLine(cx - 8f, cy, cx + 8f, cy, paint);
                 canvas.drawLine(cx + 2f, cy - 5f, cx + 8f, cy, paint);
                 canvas.drawLine(cx + 2f, cy + 5f, cx + 8f, cy, paint);
-            }
-            else if (iconType == ICON_SCORE) {
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(4.5f);
-                canvas.drawCircle(cx, cy, 7f, paint);
             }
         }
     }
@@ -518,7 +449,6 @@ public class SnakeGameActivity extends AppCompatActivity {
         private boolean isOpenGroundMode = false;
         private boolean isWaitingForMode = true;
 
-        // --- SCORE VARIABLES ---
         private int score = 0;
         private int currentModeHighScore = 0;
         private boolean isNewHighScore = false;
@@ -534,14 +464,12 @@ public class SnakeGameActivity extends AppCompatActivity {
         private final int appleColor;
         private final int textColor;
 
-        // --- AUTO-PILOT PINK POWER-UP VARIABLES ---
         private Point pinkApple;
         private long pinkAppleSpawnTime = 0;
         private boolean isPinkMode = false;
-        private int redApplesEatenForPink = 0; // Strict tracker for spawning the Pink Apple every 5th regular point!
+        private int redApplesEatenForPink = 0;
         private int redApplesEatenInPinkMode = 0;
 
-        // Animation variables
         private int currentSnakeColor;
         private float currentGlowRadius = 0f;
         private ValueAnimator colorAnimator;
@@ -554,17 +482,17 @@ public class SnakeGameActivity extends AppCompatActivity {
             super(context);
             this.prefs = preferences;
 
-            if (themeState == 0) { // Light
+            if (themeState == 0) {
                 bgColor = Color.parseColor("#FFFFFF");
                 normalSnakeColor = Color.parseColor("#000000");
                 appleColor = Color.parseColor("#FF3B30");
                 textColor = Color.BLACK;
-            } else if (themeState == 1) { // Dark
+            } else if (themeState == 1) {
                 bgColor = Color.parseColor("#1C1C1E");
                 normalSnakeColor = Color.parseColor("#FFFFFF");
                 appleColor = Color.parseColor("#FF3B30");
                 textColor = Color.WHITE;
-            } else { // Star
+            } else {
                 bgColor = Color.parseColor("#000000");
                 normalSnakeColor = Color.parseColor("#FFFFFF");
                 appleColor = Color.parseColor("#FF3B30");
@@ -576,7 +504,6 @@ public class SnakeGameActivity extends AppCompatActivity {
             setLayerType(LAYER_TYPE_SOFTWARE, null);
         }
 
-        // Getters for Activity back-button logic
         public boolean isPaused() { return isPaused; }
         public boolean isPlaying() { return !isWaitingForMode && !isGameOver; }
         public boolean isWaitingForMode() { return isWaitingForMode; }
@@ -592,7 +519,6 @@ public class SnakeGameActivity extends AppCompatActivity {
             this.isOpenGroundMode = openGround;
             this.isWaitingForMode = false;
 
-            // Set High Score specifically for the chosen mode
             if (openGround) {
                 currentModeHighScore = prefs.getInt("snake_high_score_open", 0);
             } else {
@@ -806,9 +732,7 @@ public class SnakeGameActivity extends AppCompatActivity {
 
             snake.add(0, newHead);
 
-            // Did we eat the regular RED apple?
             if (apple != null && newHead.x == apple.x && newHead.y == apple.y) {
-                // REGULAR RED APPLES ARE NOW WORTH EXACTLY 1 POINT
                 score += 1;
                 if (score > currentModeHighScore) currentModeHighScore = score;
                 updateScoreUI();
@@ -818,10 +742,9 @@ public class SnakeGameActivity extends AppCompatActivity {
                     redApplesEatenForPink++;
                 }
 
-                // EXACTLY EVERY 5th POINT: Spawn the Pink Powerup Apple
                 if (redApplesEatenForPink >= 5 && !isPinkMode && pinkApple == null) {
                     spawnPinkApple();
-                    redApplesEatenForPink = 0; // Reset counter. If missed, it takes exactly 5 more regular apples to try again!
+                    redApplesEatenForPink = 0;
                 }
 
                 if (isPinkMode) {
@@ -832,15 +755,14 @@ public class SnakeGameActivity extends AppCompatActivity {
                     }
                 }
             }
-            // Did we eat the PINK power-up?
             else if (pinkApple != null && newHead.x == pinkApple.x && newHead.y == pinkApple.y) {
-                score += 5; // Pink Apple gives a flat 5 points bonus
+                score += 5;
                 if (score > currentModeHighScore) currentModeHighScore = score;
                 updateScoreUI();
                 pinkApple = null;
                 isPinkMode = true;
                 redApplesEatenInPinkMode = 0;
-                redApplesEatenForPink = 0; // Failsafe counter reset
+                redApplesEatenForPink = 0;
                 animateSnakeColor(currentSnakeColor, PINK_POWER_COLOR, currentGlowRadius, 25f);
             }
             else {
@@ -930,7 +852,6 @@ public class SnakeGameActivity extends AppCompatActivity {
             paint.clearShadowLayer();
 
             if (isPaused && !isGameOver) {
-                // Dimming overlay to ensure crisp contrast
                 paint.setColor(themeState == 0 ? Color.argb(210, 255, 255, 255) : Color.argb(210, 0, 0, 0));
                 canvas.drawRect(0, 0, getWidth(), getHeight(), paint);
 
@@ -938,7 +859,6 @@ public class SnakeGameActivity extends AppCompatActivity {
                 canvas.drawText("PAUSED", getWidth() / 2f, getHeight() / 2f, paint); paint.setTextAlign(Paint.Align.LEFT);
             }
             if (isGameOver) {
-                // Dimming overlay to ensure crisp contrast
                 paint.setColor(themeState == 0 ? Color.argb(210, 255, 255, 255) : Color.argb(210, 0, 0, 0));
                 canvas.drawRect(0, 0, getWidth(), getHeight(), paint);
 
@@ -950,9 +870,7 @@ public class SnakeGameActivity extends AppCompatActivity {
             }
         }
 
-        @Override public boolean performClick() { return super.performClick(); }
-
-        @Override public boolean onTouchEvent(@NonNull MotionEvent event) {
+        @Override public boolean onTouchEvent(MotionEvent event) {
             if (isWaitingForMode) return true;
             if (isGameOver && event.getAction() == MotionEvent.ACTION_DOWN) { initGame(); return true; }
             if (isPaused) return true;
@@ -962,14 +880,17 @@ public class SnakeGameActivity extends AppCompatActivity {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN: startX = event.getX(); startY = event.getY(); return true;
                 case MotionEvent.ACTION_UP:
-                    performClick(); float endX = event.getX(); float endY = event.getY(); float dx = endX - startX; float dy = endY - startY;
+                    float endX = event.getX(); float endY = event.getY(); float dx = endX - startX; float dy = endY - startY;
                     if (Math.abs(dx) > 50 || Math.abs(dy) > 50) {
                         if (Math.abs(dx) > Math.abs(dy)) { if (dx > 0 && direction != 2) nextDirection = 0; else if (dx < 0 && direction != 0) nextDirection = 2; }
                         else { if (dy > 0 && direction != 3) nextDirection = 1; else if (dy < 0 && direction != 1) nextDirection = 3; }
                     }
+                    performClick(); // Android studio accessibility requirement handled safely
                     return true;
             }
             return super.onTouchEvent(event);
         }
+
+        @Override public boolean performClick() { return super.performClick(); }
     }
 }

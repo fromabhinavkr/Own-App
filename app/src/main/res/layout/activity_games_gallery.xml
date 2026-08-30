@@ -30,7 +30,9 @@
         android:layout_height="match_parent"
         android:scrollbars="none">
 
+        <!-- ID is required for the Landscape dynamic columns in Java -->
         <GridLayout
+            android:id="@+id/gamesGridLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:columnCount="2"
