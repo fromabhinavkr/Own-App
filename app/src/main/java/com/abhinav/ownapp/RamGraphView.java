@@ -20,7 +20,9 @@ public class RamGraphView extends View {
     private LinkedList<Float> history = new LinkedList<>();
     private final int MAX_DATA_POINTS = 40;
     private float currentPercent = 0f;
-    private boolean isDarkTheme = true;
+
+    // --- 3-STATE THEME VARIABLE ---
+    private int themeState = 1; // 0 = Light, 1 = Dark, 2 = Star
 
     private boolean isFirstData = true;
 
@@ -30,20 +32,41 @@ public class RamGraphView extends View {
         for (int i = 0; i < MAX_DATA_POINTS; i++) history.add(0f);
     }
 
+    // Legacy support just in case DeviceStatsHelper still passes a boolean
     public void setTheme(boolean isDark) {
-        this.isDarkTheme = isDark;
+        this.themeState = isDark ? 1 : 0;
+        initPaints();
+        invalidate();
+    }
+
+    // NEW: Full 3-State Theme Support (FIXES YOUR ERROR)
+    public void setThemeState(int themeState) {
+        this.themeState = themeState;
         initPaints();
         invalidate();
     }
 
     private void initPaints() {
         int accentBlue = Color.parseColor("#4A90E2");
-        int trackColor = isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA");
-        int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#1C1C1E");
+        int trackColor, textColor, gridColor, gridTextColor;
 
-        // Semi-transparent colors for the background grid
-        int gridColor = isDarkTheme ? Color.parseColor("#26FFFFFF") : Color.parseColor("#1A000000");
-        int gridTextColor = isDarkTheme ? Color.parseColor("#99FFFFFF") : Color.parseColor("#80000000");
+        // --- 3-STATE COLOR INJECTION LOGIC ---
+        if (themeState == 0) { // Light Mode
+            trackColor = Color.parseColor("#E5E5EA");
+            textColor = Color.parseColor("#1C1C1E");
+            gridColor = Color.parseColor("#1A000000");
+            gridTextColor = Color.parseColor("#80000000");
+        } else if (themeState == 1) { // Standard Dark Mode
+            trackColor = Color.parseColor("#3A3A3C");
+            textColor = Color.WHITE;
+            gridColor = Color.parseColor("#26FFFFFF");
+            gridTextColor = Color.parseColor("#99FFFFFF");
+        } else { // Star Mode (AMOLED Pure Black)
+            trackColor = Color.parseColor("#1C1C1E");
+            textColor = Color.WHITE;
+            gridColor = Color.parseColor("#15FFFFFF");
+            gridTextColor = Color.parseColor("#80FFFFFF");
+        }
 
         linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         linePaint.setColor(accentBlue);
@@ -77,12 +100,10 @@ public class RamGraphView extends View {
         percentSignPaint.setTextSize(35f);
         percentSignPaint.setTextAlign(Paint.Align.LEFT);
 
-        // --- NEW: Paints for the Dotted Grid and Labels ---
         gridLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         gridLinePaint.setColor(gridColor);
         gridLinePaint.setStyle(Paint.Style.STROKE);
         gridLinePaint.setStrokeWidth(2.5f);
-        // Creates the dotted/dashed effect
         gridLinePaint.setPathEffect(new DashPathEffect(new float[]{10f, 10f}, 0));
 
         gridTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -112,7 +133,6 @@ public class RamGraphView extends View {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-
         int gradientStart = Color.parseColor("#504A90E2");
         int gradientEnd = Color.TRANSPARENT;
         fillPaint.setShader(new LinearGradient(0, 0, 0, h, gradientStart, gradientEnd, Shader.TileMode.CLAMP));
@@ -153,31 +173,25 @@ public class RamGraphView extends View {
         canvas.drawText("%", percentX, textY, percentSignPaint);
 
         // --- 2. DRAW THE DOTTED GRID & WAVE GRAPH (Right Side) ---
-
-        // Strictly bound the graph to a safe box on the right side
         float graphStartX = w * 0.45f;
-        float graphEndX = w * 0.88f; // Leave 12% space on the far right for text labels
+        float graphEndX = w * 0.88f;
         float graphTop = h * 0.15f;
         float graphBottom = h * 0.85f;
         float graphHeight = graphBottom - graphTop;
 
-        // Draw Grid Lines and Percent Labels
         float[] gridPercentages = {100f, 75f, 50f, 25f, 0f};
         for (float p : gridPercentages) {
             float yPos = graphBottom - (p / 100f * graphHeight);
 
-            // Draw Dotted Line
             gridPath.reset();
             gridPath.moveTo(graphStartX, yPos);
             gridPath.lineTo(graphEndX, yPos);
             canvas.drawPath(gridPath, gridLinePaint);
 
-            // Draw "100%", "75%", etc. labels dynamically aligned with the lines
             float textOffset = (gridTextPaint.descent() + gridTextPaint.ascent()) / 2f;
             canvas.drawText((int)p + "%", graphEndX + 16f, yPos - textOffset, gridTextPaint);
         }
 
-        // Draw the Smooth Live Wave
         float stepX = (graphEndX - graphStartX) / (MAX_DATA_POINTS - 1);
 
         graphPath.reset();
@@ -194,7 +208,6 @@ public class RamGraphView extends View {
             float curX = graphStartX + (i * stepX);
             float curY = graphBottom - (history.get(i) / 100f * graphHeight);
 
-            // Cubic Bezier calculation for a flowing wave instead of sharp jagged lines
             float cx1 = prevX + (curX - prevX) / 2f;
             float cy1 = prevY;
             float cx2 = prevX + (curX - prevX) / 2f;

@@ -54,7 +54,6 @@
             android:layout_weight="1"
             android:scrollbars="none">
 
-            <!-- CHANGED: Replaced LinearLayout with GridLayout to automatically handle 2-Column layout properly! -->
             <GridLayout
                 android:id="@+id/homeShortcutList"
                 android:layout_width="match_parent"
@@ -67,7 +66,8 @@
     <LinearLayout
         android:id="@+id/searchCapsule"
         android:layout_width="match_parent"
-        android:layout_height="55dp"
+        android:layout_height="wrap_content"
+        android:minHeight="55dp"
         android:layout_alignParentBottom="true"
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="24dp"
@@ -75,7 +75,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:elevation="12dp"
-        android:paddingHorizontal="8dp"
+        android:paddingHorizontal="6dp"
         android:animateLayoutChanges="true">
 
         <ImageView
@@ -94,28 +94,58 @@
             android:src="@android:drawable/ic_media_next"
             android:background="?selectableItemBackgroundBorderless"/>
 
-        <EditText
-            android:id="@+id/etSearchUrl"
+        <LinearLayout
+            android:id="@+id/urlInputContainer"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="43dp"
             android:layout_weight="1"
-            android:background="@null"
-            android:hint="Search here"
-            android:textColorHint="#888888"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:paddingHorizontal="8dp"
-            android:singleLine="true"
-            android:imeOptions="actionGo"
-            android:inputType="textUri" />
+            android:layout_marginVertical="6dp"
+            android:layout_marginHorizontal="4dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="4dp">
 
-        <ImageView
-            android:id="@+id/btnBrowserGo"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:padding="10dp"
-            android:src="@android:drawable/ic_menu_search"
-            android:background="?selectableItemBackgroundBorderless"/>
+            <EditText
+                android:id="@+id/etSearchUrl"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:minHeight="43dp"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="Search here"
+                android:textColorHint="#888888"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:imeOptions="actionGo"
+                android:inputType="textUri" />
+
+            <FrameLayout
+                android:layout_width="36dp"
+                android:layout_height="36dp">
+
+                <ImageView
+                    android:id="@+id/btnBrowserGo"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="8dp"
+                    android:src="@android:drawable/ic_menu_search"
+                    android:background="?selectableItemBackgroundBorderless"/>
+
+                <ProgressBar
+                    android:id="@+id/pageLoadIndicator"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:indeterminate="true"
+                    android:indeterminateTint="#00E676"
+                    android:padding="2dp"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+        </LinearLayout>
 
         <ImageView
             android:id="@+id/btnBrowserMenu"
@@ -124,6 +154,29 @@
             android:padding="10dp"
             android:src="@android:drawable/ic_menu_more"
             android:background="?selectableItemBackgroundBorderless"/>
+
+        <FrameLayout
+            android:id="@+id/btnAutoScroll"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?selectableItemBackgroundBorderless">
+
+            <ImageView
+                android:id="@+id/ivAutoScrollIcon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="10dp"
+                android:src="@drawable/ic_hand_gesture" />
+
+            <ProgressBar
+                android:id="@+id/autoActionIndicator"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:indeterminate="true"
+                android:indeterminateTint="#00E676"
+                android:padding="2dp"
+                android:visibility="gone" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/btnFullscreenToggle"
@@ -134,6 +187,15 @@
             android:textStyle="bold"
             android:gravity="center"
             android:background="?selectableItemBackgroundBorderless"/>
+
+        <ImageView
+            android:id="@+id/btnDismissSearch"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="10dp"
+            android:src="@drawable/ic_arrow_down"
+            android:background="?selectableItemBackgroundBorderless"
+            android:visibility="gone"/>
     </LinearLayout>
 
     <LinearLayout

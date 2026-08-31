@@ -8,85 +8,100 @@
     android:padding="16dp"
     android:fitsSystemWindows="true">
 
-    <!-- 1. Dynamic Top Header & Theme Toggle (FIXED: Switched to Horizontal LinearLayout for Flex) -->
+    <!-- 1. DYNAMIC CENTERED PILL-IN-PILL HEADER -->
     <LinearLayout
         android:id="@+id/header_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:layout_alignParentTop="true"
         android:layout_marginTop="8dp">
 
-        <ImageButton
-            android:id="@+id/btn_app_theme_toggle"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/theme_toggle_desc"
-            android:src="@drawable/ic_moon"
-            android:scaleType="fitCenter"
-            android:padding="8dp"
-            tools:ignore="ImageContrastCheck" />
-
+        <!-- Outer Capsule (ZERO SHADOWS) -->
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:orientation="vertical">
-
-            <!-- FIX: Auto-sizing applied -->
-            <TextView
-                android:id="@+id/tvGreeting"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Good Evening"
-                android:textSize="13sp"
-                android:maxLines="1"
-                app:autoSizeTextType="uniform"
-                app:autoSizeMinTextSize="10sp"
-                app:autoSizeMaxTextSize="13sp" />
-
-            <TextView
-                android:id="@+id/tvWelcome"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Welcome!"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:maxLines="1"
-                app:autoSizeTextType="uniform"
-                app:autoSizeMinTextSize="14sp"
-                app:autoSizeMaxTextSize="22sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/date_pill"
+            android:id="@+id/top_capsule"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/modern_button"
             android:orientation="horizontal"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:gravity="center_vertical">
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:gravity="center_vertical"
+            android:elevation="0dp">
 
-            <ImageView
-                android:id="@+id/ivCalendar"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:src="@android:drawable/ic_menu_my_calendar"
-                android:layout_marginEnd="6dp" />
+            <!-- Inner Circle Pill for Mode Button -->
+            <FrameLayout
+                android:id="@+id/theme_toggle_pill"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:elevation="0dp">
 
-            <TextView
-                android:id="@+id/tvDate"
+                <ImageButton
+                    android:id="@+id/btn_app_theme_toggle"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_moon"
+                    android:scaleType="fitCenter"
+                    android:padding="12dp"
+                    android:contentDescription="@string/theme_toggle_desc" />
+            </FrameLayout>
+
+            <!-- Stacked Container for Time and Date -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="May 20, 2025"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:maxLines="1" />
+                android:orientation="vertical"
+                android:layout_marginStart="16dp"
+                android:gravity="center">
+
+                <!-- Inner Pill for Time -->
+                <LinearLayout
+                    android:id="@+id/time_pill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="4dp"
+                    android:gravity="center"
+                    android:elevation="0dp">
+
+                    <TextClock
+                        android:id="@+id/tvTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:format12Hour="hh:mm a"
+                        android:format24Hour="HH:mm"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:includeFontPadding="false" />
+                </LinearLayout>
+
+                <!-- Inner Pill for Date (Clickable for Calendar) -->
+                <LinearLayout
+                    android:id="@+id/date_pill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:elevation="0dp">
+
+                    <TextClock
+                        android:id="@+id/tvDate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:format12Hour="EEE, MMM dd"
+                        android:format24Hour="EEE, MMM dd"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:includeFontPadding="false" />
+                </LinearLayout>
+
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
@@ -96,7 +111,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/header_layout"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="24dp"
         android:layout_marginBottom="16dp"
         android:gravity="top"
         android:orientation="vertical">
@@ -113,237 +128,234 @@
         android:layout_below="@id/dashboard_container"
         android:clipToPadding="false"
         android:scrollbars="none"
-        android:paddingBottom="34dp"
+        android:paddingBottom="16dp"
         android:fillViewport="true">
 
-        <LinearLayout
+        <!-- Grid Directly inside ScrollView for perfect height matching -->
+        <GridLayout
+            android:id="@+id/tabsGrid"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="match_parent"
+            android:columnCount="2"
+            android:rowCount="2"
+            android:alignmentMode="alignMargins">
 
-            <!-- Spacer: Dynamically pushes the grid to the bottom of the screen if there's extra room -->
-            <Space
-                android:layout_width="match_parent"
+            <!-- CARD 1: Widgets -->
+            <!-- PERFECT FLEX LAYOUT: Height 0dp, Row/Column Weights = 1 -->
+            <LinearLayout
+                android:id="@+id/btnPlaceWidget"
+                android:layout_width="0dp"
                 android:layout_height="0dp"
-                android:layout_weight="1" />
+                android:layout_columnWeight="1"
+                android:layout_rowWeight="1"
+                android:layout_gravity="fill"
+                android:orientation="vertical"
+                android:background="@drawable/modern_button"
+                android:layout_margin="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"
+                android:gravity="center">
 
-            <!-- Highly Adaptive GridLayout: Maintains structure regardless of text scaling or display size -->
-            <GridLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:columnCount="2"
-                android:alignmentMode="alignMargins">
+                <!-- Image takes remaining space dynamically -->
+                <ImageView
+                    android:id="@+id/ivWidgetIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:scaleType="fitCenter"
+                    android:padding="6dp"
+                    android:layout_marginBottom="6dp"
+                    android:src="@drawable/icon_main_widgets" />
 
-                <!-- CARD 1: Widgets -->
-                <LinearLayout
-                    android:id="@+id/btnPlaceWidget"
-                    android:layout_width="0dp"
+                <!-- Text stays anchored to the bottom -->
+                <TextView
+                    android:id="@+id/tvWidgetText"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_gravity="fill"
-                    android:orientation="vertical"
-                    android:background="@drawable/modern_button"
-                    android:layout_margin="6dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:paddingTop="16dp"
-                    android:paddingBottom="24dp"
-                    android:gravity="center">
-
-                    <ImageView
-                        android:id="@+id/ivWidgetIcon"
-                        android:layout_width="match_parent"
-                        android:layout_height="80dp"
-                        android:scaleType="fitCenter"
-                        android:padding="6dp"
-                        android:layout_marginBottom="6dp"
-                        android:src="@drawable/icon_main_widgets" />
-
-                    <!-- FIX: MaxLines & Auto-size guarantees text never breaks the layout -->
-                    <TextView
-                        android:id="@+id/tvWidgetText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Widgets"
-                        android:textSize="17sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:maxLines="1"
-                        app:autoSizeTextType="uniform"
-                        app:autoSizeMinTextSize="12sp"
-                        app:autoSizeMaxTextSize="17sp" />
-                    <TextView
-                        android:id="@+id/tvWidgetSub"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Customize your home"
-                        android:textSize="12sp"
-                        android:gravity="center"
-                        android:layout_marginTop="2dp"
-                        android:maxLines="2"
-                        app:autoSizeTextType="uniform"
-                        app:autoSizeMinTextSize="9sp"
-                        app:autoSizeMaxTextSize="12sp" />
-                </LinearLayout>
-
-                <!-- CARD 2: Games -->
-                <LinearLayout
-                    android:id="@+id/btnGames"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_gravity="fill"
-                    android:orientation="vertical"
-                    android:background="@drawable/modern_button"
-                    android:layout_margin="6dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:paddingTop="16dp"
-                    android:paddingBottom="24dp"
+                    android:text="Widgets"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
                     android:gravity="center"
-                    android:transitionName="shared_games_container">
-
-                    <ImageView
-                        android:id="@+id/ivGamesIcon"
-                        android:layout_width="match_parent"
-                        android:layout_height="80dp"
-                        android:scaleType="fitCenter"
-                        android:padding="6dp"
-                        android:layout_marginBottom="6dp"
-                        android:src="@drawable/icon_main_games" />
-
-                    <!-- FIX: MaxLines & Auto-size -->
-                    <TextView
-                        android:id="@+id/tvGamesText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Games"
-                        android:textSize="17sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:maxLines="1"
-                        app:autoSizeTextType="uniform"
-                        app:autoSizeMinTextSize="12sp"
-                        app:autoSizeMaxTextSize="17sp" />
-                    <TextView
-                        android:id="@+id/tvGamesSub"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Play and enjoy"
-                        android:textSize="12sp"
-                        android:gravity="center"
-                        android:layout_marginTop="2dp"
-                        android:maxLines="2"
-                        app:autoSizeTextType="uniform"
-                        app:autoSizeMinTextSize="9sp"
-                        app:autoSizeMaxTextSize="12sp" />
-                </LinearLayout>
-
-                <!-- CARD 3: Tools -->
-                <LinearLayout
-                    android:id="@+id/btnTools"
-                    android:layout_width="0dp"
+                    android:maxLines="1"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="12sp"
+                    app:autoSizeMaxTextSize="17sp" />
+                <TextView
+                    android:id="@+id/tvWidgetSub"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_gravity="fill"
-                    android:orientation="vertical"
-                    android:background="@drawable/modern_button"
-                    android:layout_margin="6dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:paddingTop="16dp"
-                    android:paddingBottom="24dp"
-                    android:gravity="center">
+                    android:text="Customize your home"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="2dp"
+                    android:maxLines="2"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="9sp"
+                    app:autoSizeMaxTextSize="12sp" />
+            </LinearLayout>
 
-                    <ImageView
-                        android:id="@+id/ivToolsIcon"
-                        android:layout_width="match_parent"
-                        android:layout_height="80dp"
-                        android:scaleType="fitCenter"
-                        android:padding="6dp"
-                        android:layout_marginBottom="6dp"
-                        android:src="@drawable/icon_main_tools" />
+            <!-- CARD 2: Games -->
+            <LinearLayout
+                android:id="@+id/btnGames"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_columnWeight="1"
+                android:layout_rowWeight="1"
+                android:layout_gravity="fill"
+                android:orientation="vertical"
+                android:background="@drawable/modern_button"
+                android:layout_margin="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"
+                android:gravity="center"
+                android:transitionName="shared_games_container">
 
-                    <!-- FIX: MaxLines & Auto-size -->
-                    <TextView
-                        android:id="@+id/tvToolsText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Tools"
-                        android:textSize="17sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:maxLines="1"
-                        app:autoSizeTextType="uniform"
-                        app:autoSizeMinTextSize="12sp"
-                        app:autoSizeMaxTextSize="17sp" />
-                    <TextView
-                        android:id="@+id/tvToolsSub"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Handy tools for you"
-                        android:textSize="12sp"
-                        android:gravity="center"
-                        android:layout_marginTop="2dp"
-                        android:maxLines="2"
-                        app:autoSizeTextType="uniform"
-                        app:autoSizeMinTextSize="9sp"
-                        app:autoSizeMaxTextSize="12sp" />
-                </LinearLayout>
+                <ImageView
+                    android:id="@+id/ivGamesIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:scaleType="fitCenter"
+                    android:padding="6dp"
+                    android:layout_marginBottom="6dp"
+                    android:src="@drawable/icon_main_games" />
 
-                <!-- CARD 4: Utilities -->
-                <LinearLayout
-                    android:id="@+id/btnUtilities"
-                    android:layout_width="0dp"
+                <TextView
+                    android:id="@+id/tvGamesText"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_gravity="fill"
-                    android:orientation="vertical"
-                    android:background="@drawable/modern_button"
-                    android:layout_margin="6dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:paddingTop="16dp"
-                    android:paddingBottom="24dp"
-                    android:gravity="center">
+                    android:text="Games"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="12sp"
+                    app:autoSizeMaxTextSize="17sp" />
+                <TextView
+                    android:id="@+id/tvGamesSub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Play and enjoy"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="2dp"
+                    android:maxLines="2"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="9sp"
+                    app:autoSizeMaxTextSize="12sp" />
+            </LinearLayout>
 
-                    <ImageView
-                        android:id="@+id/ivUtilitiesIcon"
-                        android:layout_width="match_parent"
-                        android:layout_height="80dp"
-                        android:scaleType="fitCenter"
-                        android:padding="6dp"
-                        android:layout_marginBottom="6dp"
-                        android:src="@drawable/icon_main_utilities" />
+            <!-- CARD 3: Tools -->
+            <LinearLayout
+                android:id="@+id/btnTools"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_columnWeight="1"
+                android:layout_rowWeight="1"
+                android:layout_gravity="fill"
+                android:orientation="vertical"
+                android:background="@drawable/modern_button"
+                android:layout_margin="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"
+                android:gravity="center">
 
-                    <!-- FIX: MaxLines & Auto-size -->
-                    <TextView
-                        android:id="@+id/tvUtilitiesText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Utilities"
-                        android:textSize="17sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:maxLines="1"
-                        app:autoSizeTextType="uniform"
-                        app:autoSizeMinTextSize="12sp"
-                        app:autoSizeMaxTextSize="17sp" />
-                    <TextView
-                        android:id="@+id/tvUtilitiesSub"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Essential utilities"
-                        android:textSize="12sp"
-                        android:gravity="center"
-                        android:layout_marginTop="2dp"
-                        android:maxLines="2"
-                        app:autoSizeTextType="uniform"
-                        app:autoSizeMinTextSize="9sp"
-                        app:autoSizeMaxTextSize="12sp" />
-                </LinearLayout>
+                <ImageView
+                    android:id="@+id/ivToolsIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:scaleType="fitCenter"
+                    android:padding="6dp"
+                    android:layout_marginBottom="6dp"
+                    android:src="@drawable/icon_main_tools" />
 
-            </GridLayout>
-        </LinearLayout>
+                <TextView
+                    android:id="@+id/tvToolsText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Tools"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="12sp"
+                    app:autoSizeMaxTextSize="17sp" />
+                <TextView
+                    android:id="@+id/tvToolsSub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Handy tools for you"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="2dp"
+                    android:maxLines="2"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="9sp"
+                    app:autoSizeMaxTextSize="12sp" />
+            </LinearLayout>
+
+            <!-- CARD 4: Utilities -->
+            <LinearLayout
+                android:id="@+id/btnUtilities"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_columnWeight="1"
+                android:layout_rowWeight="1"
+                android:layout_gravity="fill"
+                android:orientation="vertical"
+                android:background="@drawable/modern_button"
+                android:layout_margin="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"
+                android:gravity="center">
+
+                <ImageView
+                    android:id="@+id/ivUtilitiesIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:scaleType="fitCenter"
+                    android:padding="6dp"
+                    android:layout_marginBottom="6dp"
+                    android:src="@drawable/icon_main_utilities" />
+
+                <TextView
+                    android:id="@+id/tvUtilitiesText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Utilities"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="12sp"
+                    app:autoSizeMaxTextSize="17sp" />
+                <TextView
+                    android:id="@+id/tvUtilitiesSub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Essential utilities"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="2dp"
+                    android:maxLines="2"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="9sp"
+                    app:autoSizeMaxTextSize="12sp" />
+            </LinearLayout>
+
+        </GridLayout>
     </ScrollView>
 </RelativeLayout>

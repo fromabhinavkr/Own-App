@@ -1,5 +1,6 @@
 package com.abhinav.ownapp;
 
+import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.ClipData;
@@ -23,8 +24,12 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.StrictMode;
+import android.os.SystemClock;
 import android.text.TextUtils;
+import android.transition.AutoTransition;
 import android.transition.TransitionManager;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -78,14 +83,18 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private FrameLayout webViewContainer;
     private LinearLayout searchCapsule;
+    private LinearLayout urlInputContainer; // Inner Pill Container
     private EditText etSearchUrl;
     private ProgressBar progressBar;
+    private ProgressBar pageLoadIndicator; // Green loading ring
 
     // --- 3-STATE THEME VARIABLES ---
     private boolean isDarkTheme;
     private int themeState;
 
-    private ImageView btnBack, btnForward, btnGo, btnMenu;
+    private ImageView btnBack, btnForward, btnGo, btnMenu, ivAutoScrollIcon, btnDismissSearch;
+    private FrameLayout btnAutoScroll;
+    private ProgressBar autoActionIndicator;
     private TextView btnFullscreenToggle;
     private boolean isFullscreen = false;
     private LinearLayout tabsOverlay;
@@ -120,6 +129,32 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private static final String BROWSER_PREFS = "private_browser_shortcuts";
     private static final String PREF_CUSTOM_LINKS = "custom_links_json";
 
+    // --- AUTO SCROLL & SWIPE VARIABLES ---
+    private final Handler autoScrollHandler = new Handler(Looper.getMainLooper());
+    private int currentAutoScrollSpeed = 0;
+    private final Runnable autoScrollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            WebView current = getCurrentWeb();
+            if (current != null && currentAutoScrollSpeed > 0) {
+                current.scrollBy(0, currentAutoScrollSpeed);
+                autoScrollHandler.postDelayed(this, 16); // ~60 FPS smooth scrolling
+            }
+        }
+    };
+
+    private boolean isAutoSwiping = false;
+    private final Handler autoSwipeHandler = new Handler(Looper.getMainLooper());
+    private final Runnable autoSwipeRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isAutoSwiping) {
+                simulateSwipeUp();
+                autoSwipeHandler.postDelayed(this, 4000); // 4 seconds interval for Shorts/Reels
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -151,13 +186,19 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
         webViewContainer = findViewById(R.id.webViewContainer);
         searchCapsule = findViewById(R.id.searchCapsule);
+        urlInputContainer = findViewById(R.id.urlInputContainer);
         etSearchUrl = findViewById(R.id.etSearchUrl);
         progressBar = findViewById(R.id.browserProgressBar);
+        pageLoadIndicator = findViewById(R.id.pageLoadIndicator);
         btnBack = findViewById(R.id.btnBrowserBack);
         btnForward = findViewById(R.id.btnBrowserForward);
         btnGo = findViewById(R.id.btnBrowserGo);
         btnMenu = findViewById(R.id.btnBrowserMenu);
+        btnAutoScroll = findViewById(R.id.btnAutoScroll);
+        ivAutoScrollIcon = findViewById(R.id.ivAutoScrollIcon);
+        autoActionIndicator = findViewById(R.id.autoActionIndicator);
         btnFullscreenToggle = findViewById(R.id.btnFullscreenToggle);
+        btnDismissSearch = findViewById(R.id.btnDismissSearch);
         tabsOverlay = findViewById(R.id.tabsOverlay);
         tabsGrid = findViewById(R.id.tabsGrid);
 
@@ -186,22 +227,76 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         renderHomeShortcuts();
         setupModernBackGesture();
 
+        // --- BUTTER SMOOTH EXPANSION LOGIC ---
         etSearchUrl.setOnFocusChangeListener((v, hasFocus) -> {
-            TransitionManager.beginDelayedTransition((ViewGroup) rootLayout);
+            android.transition.TransitionSet transition = new android.transition.TransitionSet();
+            transition.addTransition(new android.transition.ChangeBounds());
+            transition.addTransition(new android.transition.Fade());
+            transition.setDuration(300); // 300ms gives a buttery glide
+            transition.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+            TransitionManager.beginDelayedTransition((ViewGroup) rootLayout, transition);
+
             RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams();
-            int margin24dp = (int) (24 * getResources().getDisplayMetrics().density);
+            int margin24dp = dp(24);
+            GradientDrawable gd = (GradientDrawable) searchCapsule.getBackground();
+            GradientDrawable urlGd = (GradientDrawable) urlInputContainer.getBackground();
+
             if (hasFocus) {
                 params.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
                 params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
                 params.topMargin = margin24dp;
                 params.bottomMargin = 0;
+
+                etSearchUrl.setMaxLines(6);
+
+                // Hide sibling tools
+                btnBack.setVisibility(View.GONE);
+                btnForward.setVisibility(View.GONE);
+                btnMenu.setVisibility(View.GONE);
+                btnAutoScroll.setVisibility(View.GONE);
+                btnFullscreenToggle.setVisibility(View.GONE);
+
+                btnDismissSearch.setVisibility(View.VISIBLE);
+
+                animateCornerRadius(gd, dp(100), dp(24));
+                animateCornerRadius(urlGd, dp(100), dp(16)); // Inner pill softens
+
+                etSearchUrl.postDelayed(() -> {
+                    etSearchUrl.requestFocus();
+                    InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) imm.showSoftInput(etSearchUrl, InputMethodManager.SHOW_IMPLICIT);
+                }, 300);
             } else {
                 params.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
                 params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
                 params.topMargin = 0;
                 params.bottomMargin = margin24dp;
+
+                etSearchUrl.setMaxLines(1);
+
+                int vis = isFullscreen ? View.GONE : View.VISIBLE;
+                btnBack.setVisibility(vis);
+                btnForward.setVisibility(vis);
+
+                // PERFECT FIX: Properly restore the container visibility!
+                urlInputContainer.setVisibility(vis);
+
+                btnMenu.setVisibility(vis);
+                btnAutoScroll.setVisibility(vis);
+                btnFullscreenToggle.setVisibility(View.VISIBLE);
+
+                btnDismissSearch.setVisibility(View.GONE);
+
+                animateCornerRadius(gd, dp(24), dp(100));
+                animateCornerRadius(urlGd, dp(16), dp(100)); // Inner pill rounds perfectly back
             }
             searchCapsule.setLayoutParams(params);
+        });
+
+        btnDismissSearch.setOnClickListener(v -> {
+            etSearchUrl.clearFocus();
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(etSearchUrl.getWindowToken(), 0);
         });
 
         btnBack.setOnClickListener(v -> {
@@ -213,10 +308,13 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         });
 
         btnGo.setOnClickListener(v -> loadUrlOrSearch());
+
         btnMenu.setOnClickListener(this::showRoundedMenu);
+
+        btnAutoScroll.setOnClickListener(this::showAutoScrollMenu);
+
         btnFullscreenToggle.setOnClickListener(v -> toggleFullscreenCapsule());
 
-        // --- Butter-Smooth Dragging Logic for the Shrunk Capsule ---
         btnFullscreenToggle.setOnTouchListener(new View.OnTouchListener() {
             private float dX;
             private float startX;
@@ -234,7 +332,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
                     case MotionEvent.ACTION_MOVE:
                         float newX = event.getRawX() + dX;
                         int screenWidth = getResources().getDisplayMetrics().widthPixels;
-                        int margin = (int) (16 * getResources().getDisplayMetrics().density);
+                        int margin = dp(16);
                         if (newX < margin) newX = margin;
                         if (newX > screenWidth - searchCapsule.getWidth() - margin) {
                             newX = screenWidth - searchCapsule.getWidth() - margin;
@@ -263,6 +361,13 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         });
 
         createNewTab(null);
+    }
+
+    private void animateCornerRadius(GradientDrawable drawable, float startRadius, float endRadius) {
+        ValueAnimator animator = ValueAnimator.ofFloat(startRadius, endRadius);
+        animator.setDuration(300);
+        animator.addUpdateListener(animation -> drawable.setCornerRadius((float) animation.getAnimatedValue()));
+        animator.start();
     }
 
     private void loadUrlOrSearch() {
@@ -321,7 +426,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             textColor = Color.WHITE;
             secondaryColor = Color.parseColor("#AAAAAA");
             iconBg = Color.parseColor("#2C2C2E");
-        } else { // Star Mode (Pure Black Canvas, Dark Grey Pills)
+        } else { // Star Mode
             cardBg = Color.parseColor("#141414");
             textColor = Color.WHITE;
             secondaryColor = Color.parseColor("#888888");
@@ -337,7 +442,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         addHomeShortcut("YouTube", "Video", "https://www.youtube.com/", "▶", cardBg, textColor, secondaryColor, iconBg, false, -1);
         addHomeShortcut("Bing", "Secure Search", "https://search.bing.com/", "B", cardBg, textColor, secondaryColor, iconBg, false, -1);
 
-        // Load multiple dynamic custom shortcuts
         try {
             JSONArray arr = new JSONArray(browserPrefs.getString(PREF_CUSTOM_LINKS, "[]"));
             for (int i = 0; i < arr.length(); i++) {
@@ -363,7 +467,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
         GradientDrawable cardDrawable = new GradientDrawable();
         cardDrawable.setColor(cardBg);
-        cardDrawable.setCornerRadius(dp(100)); // Beautiful Pill Shape
+        cardDrawable.setCornerRadius(dp(100));
         card.setBackground(cardDrawable);
 
         TextView icon = new TextView(this);
@@ -432,7 +536,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
         GradientDrawable cardDrawable = new GradientDrawable();
         cardDrawable.setColor(cardBg);
-        cardDrawable.setCornerRadius(dp(100)); // Beautiful Pill Shape
+        cardDrawable.setCornerRadius(dp(100));
         card.setBackground(cardDrawable);
 
         TextView icon = new TextView(this);
@@ -643,6 +747,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         setRequestedOrientation(mOriginalOrientation);
     }
 
+    // --- FLAWLESS CAPSULE SHRINK LOGIC ---
     private void toggleFullscreenCapsule() {
         etSearchUrl.clearFocus();
         isFullscreen = !isFullscreen;
@@ -650,9 +755,13 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
         btnBack.setVisibility(visibility);
         btnForward.setVisibility(visibility);
-        etSearchUrl.setVisibility(visibility);
-        btnGo.setVisibility(visibility);
+
+        // PERFECT FIX: We hide the entire nested URL container!
+        // This flawlessly removes the green loading indicator when the capsule shrinks.
+        urlInputContainer.setVisibility(visibility);
+
         btnMenu.setVisibility(visibility);
+        btnAutoScroll.setVisibility(visibility);
 
         RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams();
         if (isFullscreen) {
@@ -695,6 +804,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void switchTab(int index) {
         if (index < 0 || index >= tabs.size()) return;
+
+        stopAutoActions(); // Pause any automated scrolling/swiping on tab switch
+
         currentTabIndex = index;
         etSearchUrl.clearFocus();
         for (int i = 0; i < tabs.size(); i++)
@@ -759,83 +871,162 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private void renderVisualTabsGrid() {
         tabsGrid.removeAllViews();
 
-        int unselectedCardBg, selectedCardBg, unselectedText, selectedText, emptyPreviewBg;
+        int outerUnselectedBg, outerSelectedBg, innerBg, textColor, separatorColor;
 
         if (themeState == 0) { // Light Mode
-            unselectedCardBg = Color.WHITE;
-            selectedCardBg = Color.parseColor("#D0BCFF");
-            unselectedText = Color.BLACK;
-            selectedText = Color.parseColor("#381E72");
-            emptyPreviewBg = Color.parseColor("#F2F2F7");
+            outerUnselectedBg = Color.parseColor("#E5E5EA");
+            outerSelectedBg = Color.parseColor("#FFB59F");
+            innerBg = Color.WHITE;
+            textColor = Color.BLACK;
+            separatorColor = Color.BLACK;
         } else if (themeState == 1) { // Standard Dark Mode
-            unselectedCardBg = Color.parseColor("#332D2B");
-            selectedCardBg = Color.parseColor("#FFB59F");
-            unselectedText = Color.WHITE;
-            selectedText = Color.parseColor("#3E211A");
-            emptyPreviewBg = Color.parseColor("#1C1C1E");
-        } else { // Star Mode (AMOLED Black)
-            unselectedCardBg = Color.parseColor("#1C1C1E");
-            selectedCardBg = Color.parseColor("#FFB59F");
-            unselectedText = Color.WHITE;
-            selectedText = Color.parseColor("#3E211A");
-            emptyPreviewBg = Color.parseColor("#000000");
+            outerUnselectedBg = Color.parseColor("#332D2B");
+            outerSelectedBg = Color.parseColor("#FFB59F");
+            innerBg = Color.parseColor("#1C1C1E");
+            textColor = Color.WHITE;
+            separatorColor = Color.parseColor("#555555");
+        } else { // Star Mode
+            outerUnselectedBg = Color.parseColor("#2C2C2E");
+            outerSelectedBg = Color.parseColor("#FFB59F");
+            innerBg = Color.parseColor("#000000");
+            textColor = Color.WHITE;
+            separatorColor = Color.parseColor("#333333");
         }
 
         for (int i = 0; i < tabs.size(); i++) {
             final int index = i;
             TabInfo info = tabs.get(i);
-            LinearLayout card = new LinearLayout(this);
-            card.setOrientation(LinearLayout.VERTICAL);
+
+            LinearLayout outerCard = new LinearLayout(this);
+            outerCard.setOrientation(LinearLayout.VERTICAL);
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
             params.width = 0;
             params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
-            params.setMargins(12, 12, 12, 12);
-            card.setLayoutParams(params);
+            params.setMargins(dp(8), dp(8), dp(8), dp(8));
+            outerCard.setLayoutParams(params);
 
-            GradientDrawable gd = new GradientDrawable();
-            gd.setColor(index == currentTabIndex ? selectedCardBg : unselectedCardBg);
-            gd.setCornerRadius(30f);
-            card.setBackground(gd);
-            card.setPadding(20, 20, 20, 20);
+            GradientDrawable outerGd = new GradientDrawable();
+            outerGd.setColor(index == currentTabIndex ? outerSelectedBg : outerUnselectedBg);
+            outerGd.setCornerRadius(dp(16));
+            outerCard.setBackground(outerGd);
+            outerCard.setPadding(dp(6), dp(10), dp(6), dp(6));
 
             LinearLayout header = new LinearLayout(this);
             header.setOrientation(LinearLayout.HORIZONTAL);
+            header.setGravity(Gravity.CENTER_VERTICAL);
+            header.setPadding(dp(4), 0, dp(4), dp(6));
+
             TextView title = new TextView(this);
             title.setText(info.title);
-            title.setTextColor(index == currentTabIndex ? selectedText : unselectedText);
-            title.setTextSize(14f);
+            title.setTextColor(textColor);
+            title.setTextSize(13f);
+            title.setTypeface(null, android.graphics.Typeface.BOLD);
             title.setSingleLine(true);
+            title.setEllipsize(TextUtils.TruncateAt.END);
             title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
             TextView close = new TextView(this);
             close.setText("X");
-            close.setTextColor(index == currentTabIndex ? selectedText : unselectedText);
-            close.setTextSize(16f);
-            close.setPadding(10, 0, 0, 0);
+            close.setTextColor(textColor);
+            close.setTextSize(15f);
+            close.setTypeface(null, android.graphics.Typeface.BOLD);
+            close.setPadding(dp(10), 0, 0, 0);
             close.setOnClickListener(v -> closeTab(index));
+
             header.addView(title);
             header.addView(close);
 
+            View separator = new View(this);
+            LinearLayout.LayoutParams sepParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+            sepParams.setMargins(dp(2), 0, dp(2), dp(6));
+            separator.setLayoutParams(sepParams);
+            separator.setBackgroundColor(separatorColor);
+
             ImageView preview = new ImageView(this);
-            preview.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 400));
+            LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(160));
+            preview.setLayoutParams(previewParams);
             preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            preview.setPadding(0, 20, 0, 0);
+
+            GradientDrawable innerGd = new GradientDrawable();
+            innerGd.setColor(innerBg);
+            innerGd.setCornerRadius(dp(10));
+            preview.setBackground(innerGd);
+            preview.setClipToOutline(true);
+
             if (info.preview != null) {
                 preview.setImageBitmap(info.preview);
-                preview.setClipToOutline(true);
-            } else preview.setBackgroundColor(emptyPreviewBg);
+            }
 
-            card.addView(header);
-            card.addView(preview);
-            preview.setOnClickListener(v -> switchTab(index));
-            tabsGrid.addView(card);
+            outerCard.addView(header);
+            outerCard.addView(separator);
+            outerCard.addView(preview);
+
+            outerCard.setOnClickListener(v -> switchTab(index));
+            tabsGrid.addView(outerCard);
         }
     }
 
-    private void showRoundedMenu(View anchor) {
+    private void simulateSwipeUp() {
+        WebView web = getCurrentWeb();
+        if (web == null) return;
+
+        long downTime = SystemClock.uptimeMillis();
+        long eventTime = downTime;
+
+        float x = web.getWidth() / 2.0f;
+        float yStart = web.getHeight() * 0.8f;
+        float yEnd = web.getHeight() * 0.2f;
+
+        MotionEvent downEvent = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_DOWN, x, yStart, 0);
+        web.dispatchTouchEvent(downEvent);
+        downEvent.recycle();
+
+        int steps = 15;
+        for (int i = 1; i <= steps; i++) {
+            eventTime += 10;
+            float y = yStart - ((yStart - yEnd) * (i / (float) steps));
+            MotionEvent moveEvent = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_MOVE, x, y, 0);
+            web.dispatchTouchEvent(moveEvent);
+            moveEvent.recycle();
+        }
+
+        eventTime += 10;
+        MotionEvent upEvent = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_UP, x, yEnd, 0);
+        web.dispatchTouchEvent(upEvent);
+        upEvent.recycle();
+    }
+
+    private void stopAutoActions() {
+        currentAutoScrollSpeed = 0;
+        isAutoSwiping = false;
+        autoScrollHandler.removeCallbacks(autoScrollRunnable);
+        autoSwipeHandler.removeCallbacks(autoSwipeRunnable);
+        autoActionIndicator.setVisibility(View.GONE);
+    }
+
+    private void startAutoScroll(int speedMultiplier) {
+        stopAutoActions();
+        currentAutoScrollSpeed = speedMultiplier;
+        if (speedMultiplier > 0) {
+            autoActionIndicator.setVisibility(View.VISIBLE);
+            autoScrollHandler.post(autoScrollRunnable);
+        }
+    }
+
+    private void startAutoSwipe() {
+        stopAutoActions();
+        isAutoSwiping = true;
+        autoActionIndicator.setVisibility(View.VISIBLE);
+        autoSwipeHandler.postDelayed(autoSwipeRunnable, 4000);
+        Toast.makeText(this, "Auto Swipe Activated (4s)", Toast.LENGTH_SHORT).show();
+    }
+
+    private void showAutoScrollMenu(View anchor) {
         etSearchUrl.clearFocus();
         LinearLayout menuLayout = new LinearLayout(this);
         menuLayout.setOrientation(LinearLayout.VERTICAL);
+
+        menuLayout.setMinimumWidth(dp(220));
 
         int bgColor, textColor;
         if (themeState == 0) { // Light
@@ -845,21 +1036,114 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             bgColor = Color.parseColor("#992C2C2E");
             textColor = Color.WHITE;
         } else { // Star Mode
-            bgColor = Color.parseColor("#E61C1C1E"); // Smooth translucent black/gray
+            bgColor = Color.parseColor("#E61C1C1E");
             textColor = Color.WHITE;
         }
 
         GradientDrawable gd = new GradientDrawable();
         gd.setColor(bgColor);
-        gd.setCornerRadius(40f);
+        gd.setCornerRadius(dp(40));
         menuLayout.setBackground(gd);
-        menuLayout.setPadding(20, 20, 20, 20);
+        menuLayout.setPadding(dp(16), dp(16), dp(16), dp(16));
+
+        final PopupWindow[] popupWindow = new PopupWindow[1];
+
+        TextView tvStop = createMenuItem("Stop All", android.R.drawable.ic_media_pause, textColor);
+        tvStop.setOnClickListener(v -> {
+            popupWindow[0].dismiss();
+            stopAutoActions();
+        });
+
+        TextView tvSwipe = createMenuItem("Auto Swipe (4s)", android.R.drawable.ic_menu_upload, textColor);
+        tvSwipe.setOnClickListener(v -> {
+            popupWindow[0].dismiss();
+            startAutoSwipe();
+        });
+
+        TextView tv1x = createMenuItem("1x Speed", android.R.drawable.ic_media_play, textColor);
+        tv1x.setOnClickListener(v -> {
+            popupWindow[0].dismiss();
+            startAutoScroll(1);
+        });
+
+        TextView tv2x = createMenuItem("2x Speed", android.R.drawable.ic_media_ff, textColor);
+        tv2x.setOnClickListener(v -> {
+            popupWindow[0].dismiss();
+            startAutoScroll(3);
+        });
+
+        TextView tv3x = createMenuItem("3x Speed", android.R.drawable.ic_media_ff, textColor);
+        tv3x.setOnClickListener(v -> {
+            popupWindow[0].dismiss();
+            startAutoScroll(6);
+        });
+
+        TextView tv4x = createMenuItem("4x Speed", android.R.drawable.ic_media_ff, textColor);
+        tv4x.setOnClickListener(v -> {
+            popupWindow[0].dismiss();
+            startAutoScroll(12);
+        });
+
+        menuLayout.addView(tvStop);
+        menuLayout.addView(tvSwipe);
+        menuLayout.addView(tv1x);
+        menuLayout.addView(tv2x);
+        menuLayout.addView(tv3x);
+        menuLayout.addView(tv4x);
+
+        isMenuOpen = true;
+        updateBackgroundBlur();
+        popupWindow[0] = new PopupWindow(menuLayout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popupWindow[0].setElevation(dp(30));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            android.transition.Transition enterTrans = new android.transition.Slide(Gravity.BOTTOM);
+            enterTrans.setDuration(200);
+            popupWindow[0].setEnterTransition(enterTrans);
+
+            android.transition.Transition exitTrans = new android.transition.Fade();
+            exitTrans.setDuration(150);
+            popupWindow[0].setExitTransition(exitTrans);
+        }
+
+        popupWindow[0].setOnDismissListener(() -> {
+            isMenuOpen = false;
+            updateBackgroundBlur();
+        });
+
+        popupWindow[0].showAtLocation(anchor, Gravity.BOTTOM | Gravity.END, dp(20), dp(90));
+    }
+
+    private void showRoundedMenu(View anchor) {
+        etSearchUrl.clearFocus();
+        LinearLayout menuLayout = new LinearLayout(this);
+        menuLayout.setOrientation(LinearLayout.VERTICAL);
+
+        menuLayout.setMinimumWidth(dp(220));
+
+        int bgColor, textColor;
+        if (themeState == 0) { // Light
+            bgColor = Color.parseColor("#99FFFFFF");
+            textColor = Color.BLACK;
+        } else if (themeState == 1) { // Standard Dark
+            bgColor = Color.parseColor("#992C2C2E");
+            textColor = Color.WHITE;
+        } else { // Star Mode
+            bgColor = Color.parseColor("#E61C1C1E");
+            textColor = Color.WHITE;
+        }
+
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(bgColor);
+        gd.setCornerRadius(dp(40));
+        menuLayout.setBackground(gd);
+        menuLayout.setPadding(dp(16), dp(16), dp(16), dp(16));
 
         final PopupWindow[] popupWindow = new PopupWindow[1];
         WebView current = getCurrentWeb();
         if (current == null) return;
 
-        TextView tvHome = createMenuItem("Home / Start Page", android.R.drawable.ic_menu_compass, textColor);
+        TextView tvHome = createMenuItem("Home", android.R.drawable.ic_menu_compass, textColor);
         tvHome.setOnClickListener(v -> {
             popupWindow[0].dismiss();
             current.loadUrl("about:blank");
@@ -907,12 +1191,24 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         isMenuOpen = true;
         updateBackgroundBlur();
         popupWindow[0] = new PopupWindow(menuLayout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true);
-        popupWindow[0].setElevation(30f);
+        popupWindow[0].setElevation(dp(30));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            android.transition.Transition enterTrans = new android.transition.Slide(Gravity.BOTTOM);
+            enterTrans.setDuration(200);
+            popupWindow[0].setEnterTransition(enterTrans);
+
+            android.transition.Transition exitTrans = new android.transition.Fade();
+            exitTrans.setDuration(150);
+            popupWindow[0].setExitTransition(exitTrans);
+        }
+
         popupWindow[0].setOnDismissListener(() -> {
             isMenuOpen = false;
             updateBackgroundBlur();
         });
-        popupWindow[0].showAtLocation(anchor, Gravity.BOTTOM | Gravity.END, 40, 200);
+
+        popupWindow[0].showAtLocation(anchor, Gravity.BOTTOM | Gravity.END, dp(20), dp(90));
     }
 
     private TextView createMenuItem(String text, int iconResId, int color) {
@@ -920,16 +1216,21 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         tv.setText(text);
         tv.setTextColor(color);
         tv.setTextSize(16f);
-        tv.setPadding(40, 30, 40, 30);
+        tv.setPadding(dp(16), dp(12), dp(16), dp(12));
         tv.setGravity(Gravity.CENTER_VERTICAL);
-        tv.setCompoundDrawablePadding(40);
+        tv.setCompoundDrawablePadding(dp(16));
 
         if (iconResId != 0) {
-            tv.setCompoundDrawablesWithIntrinsicBounds(iconResId, 0, 0, 0);
-            Drawable[] drawables = tv.getCompoundDrawables();
-            if (drawables[0] != null) {
-                drawables[0].setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
-                drawables[0].setAlpha(200);
+            Drawable icon = androidx.core.content.ContextCompat.getDrawable(this, iconResId);
+            if (icon != null) {
+                icon = icon.mutate();
+                int iconSize = dp(24);
+                icon.setBounds(0, 0, iconSize, iconSize);
+
+                icon.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
+                icon.setAlpha(200);
+
+                tv.setCompoundDrawables(icon, null, null, null);
             }
         }
         return tv;
@@ -967,16 +1268,16 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             dateHeader.setText(sdf.format(new Date(file.lastModified())));
             dateHeader.setTextColor(primaryText);
             dateHeader.setTypeface(null, android.graphics.Typeface.BOLD);
-            dateHeader.setPadding(0, 30, 0, 10);
+            dateHeader.setPadding(0, dp(12), 0, dp(4));
             downloadsList.addView(dateHeader);
 
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setPadding(0, 16, 0, 16);
+            row.setPadding(0, dp(8), 0, dp(8));
             row.setGravity(Gravity.CENTER_VERTICAL);
 
             ImageView thumb = new ImageView(this);
-            thumb.setLayoutParams(new LinearLayout.LayoutParams(120, 120));
+            thumb.setLayoutParams(new LinearLayout.LayoutParams(dp(48), dp(48)));
             thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
             String name = file.getName().toLowerCase();
 
@@ -993,7 +1294,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
             LinearLayout details = new LinearLayout(this);
             details.setOrientation(LinearLayout.VERTICAL);
-            details.setPadding(24, 0, 0, 0);
+            details.setPadding(dp(12), 0, 0, 0);
             details.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
             TextView title = new TextView(this);
@@ -1015,7 +1316,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             menu.setText("⋮");
             menu.setTextColor(primaryText);
             menu.setTextSize(24f);
-            menu.setPadding(20, 0, 20, 0);
+            menu.setPadding(dp(12), 0, dp(12), 0);
             menu.setOnClickListener(v -> showFileActionDialog(file));
 
             row.setOnClickListener(v -> openFileDirectly(file));
@@ -1252,10 +1553,13 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 if (view == getCurrentWeb()) {
-                    if (newProgress == 100) progressBar.setVisibility(View.GONE);
-                    else {
+                    if (newProgress == 100) {
+                        progressBar.setVisibility(View.GONE);
+                        pageLoadIndicator.setVisibility(View.GONE); // Stop inner ring when done
+                    } else {
                         progressBar.setVisibility(View.VISIBLE);
                         progressBar.setProgress(newProgress);
+                        pageLoadIndicator.setVisibility(View.VISIBLE); // Show inner ring loading
                     }
                 }
             }
@@ -1271,6 +1575,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
+                if (view == getCurrentWeb()) {
+                    pageLoadIndicator.setVisibility(View.VISIBLE); // Start ring when page starts
+                }
                 if (view == getCurrentWeb() && !isFullscreen) {
                     if (url == null || url.equals("about:blank") || url.startsWith("http://startpage") || url.isEmpty()) {
                         etSearchUrl.setText("");
@@ -1285,6 +1592,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                if (view == getCurrentWeb()) {
+                    pageLoadIndicator.setVisibility(View.GONE); // Ensure ring stops if stuck
+                }
                 Boolean isDesktop = (Boolean) view.getTag();
                 if (isDesktop != null && isDesktop) {
                     view.evaluateJavascript("try { var meta = document.querySelector('meta[name=\"viewport\"]'); if (meta) { meta.setAttribute('content', 'width=1024'); } else { var m = document.createElement('meta'); m.name = 'viewport'; m.content = 'width=1024'; document.head.appendChild(m); } } catch(e) {}", null);
@@ -1306,17 +1616,18 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     }
 
     private void applyTheme() {
-        int bgColor, textColor, hintColor, buttonBgColor, accentBgColor, accentTextColor, capsuleGlassColor, overlayGlassColor;
+        int bgColor, textColor, hintColor, buttonBgColor, accentBgColor, accentTextColor, capsuleGlassColor, overlayGlassColor, urlInnerColor;
 
         if (themeState == 0) { // Light Mode
-            bgColor = Color.parseColor("#F2F2F7");
+            bgColor = Color.parseColor("#FFFFFF");
             textColor = Color.parseColor("#333333");
             hintColor = Color.parseColor("#A0A0A0");
             buttonBgColor = Color.WHITE;
             accentBgColor = Color.parseColor("#6750A4");
             accentTextColor = Color.WHITE;
             capsuleGlassColor = Color.parseColor("#D9FFFFFF");
-            overlayGlassColor = Color.parseColor("#80F2F2F7");
+            overlayGlassColor = Color.parseColor("#80FFFFFF");
+            urlInnerColor = Color.parseColor("#E5E5EA"); // Distinct subtle grey pill
         } else if (themeState == 1) { // Standard Dark Mode
             bgColor = Color.parseColor("#1C1C1E");
             textColor = Color.WHITE;
@@ -1326,25 +1637,38 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             accentTextColor = Color.parseColor("#000000");
             capsuleGlassColor = Color.parseColor("#D92C2C2E");
             overlayGlassColor = Color.parseColor("#801C1C1E");
+            urlInnerColor = Color.parseColor("#141415"); // Deep dark pill
         } else { // Star Mode (AMOLED Pure Black)
-            bgColor = Color.parseColor("#000000"); // Infinite Pure Black Canvas
+            bgColor = Color.parseColor("#000000");
             textColor = Color.WHITE;
             hintColor = Color.parseColor("#888888");
-            buttonBgColor = Color.parseColor("#1C1C1E"); // Dark grey floating cards
+            buttonBgColor = Color.parseColor("#1C1C1E");
             accentBgColor = Color.parseColor("#FFB59F");
             accentTextColor = Color.parseColor("#000000");
-            capsuleGlassColor = Color.parseColor("#D91C1C1E"); // Translucent Dark Grey Capsule
-            overlayGlassColor = Color.parseColor("#B3000000"); // Very dark overlay for pure black
+            capsuleGlassColor = Color.parseColor("#D91C1C1E");
+            overlayGlassColor = Color.parseColor("#B3000000");
+            urlInnerColor = Color.parseColor("#0A0A0A"); // Pure dark pill
         }
 
         getWindow().setStatusBarColor(bgColor);
         findViewById(R.id.browserRoot).setBackgroundColor(bgColor);
 
+        // Theme Main Capsule
         GradientDrawable gd = new GradientDrawable();
         gd.setColor(capsuleGlassColor);
-        gd.setCornerRadius(100f);
+        gd.setCornerRadius(dp(100)); // Default pill state
         searchCapsule.setBackground(gd);
         searchCapsule.setClipToOutline(true);
+
+        // Theme Inner URL Pill
+        if (urlInputContainer != null) {
+            GradientDrawable urlGd = new GradientDrawable();
+            urlGd.setColor(urlInnerColor);
+            urlGd.setCornerRadius(dp(100));
+            urlInputContainer.setBackground(urlGd);
+            urlInputContainer.setClipToOutline(true);
+        }
+
         tabsOverlay.setBackgroundColor(overlayGlassColor);
         downloadsOverlay.setBackgroundColor(overlayGlassColor);
         homeOverlay.setBackgroundColor(bgColor);
@@ -1354,7 +1678,11 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         btnBack.setColorFilter(textColor);
         btnForward.setColorFilter(textColor);
         btnGo.setColorFilter(textColor);
+
         btnMenu.setColorFilter(textColor);
+        ivAutoScrollIcon.setColorFilter(textColor);
+        btnDismissSearch.setColorFilter(textColor); // Apply to Down Arrow
+
         btnFullscreenToggle.setTextColor(textColor);
 
         TextView tvHomeTitle = findViewById(R.id.tvHomeTitle);
@@ -1377,6 +1705,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        stopAutoActions(); // Safely clear all callbacks
         for (TabInfo t : tabs) {
             if (t.webView != null) {
                 t.webView.clearHistory();

@@ -1,6 +1,6 @@
 package com.abhinav.ownapp;
 
-import android.app.Dialog; // NEW IMPORT
+import android.app.Dialog;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -8,15 +8,19 @@ import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.widget.CalendarView; // NEW IMPORT
+import android.widget.CalendarView;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
+import android.widget.TextClock;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.activity.EdgeToEdge;
@@ -27,11 +31,6 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
-
 @SuppressWarnings("all")
 public class MainActivity extends AppCompatActivity {
 
@@ -39,11 +38,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
 
-        // --- 3-STATE THEME LOGIC ---
-        // 0 = Light, 1 = Dark, 2 = AMOLED Black (Star)
         int themeState = prefs.getInt("app_theme_state", -1);
         if (themeState == -1) {
-            // Migrate legacy boolean users to the new int-based state
             boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
             themeState = oldDark ? 1 : 0;
             prefs.edit().putInt("app_theme_state", themeState).apply();
@@ -57,7 +53,6 @@ public class MainActivity extends AppCompatActivity {
         WindowCompat.setDecorFitsSystemWindows(window, true);
         setContentView(R.layout.activity_main);
 
-        // --- Navigation Bar Clipping Fix ---
         View gridScrollView = findViewById(R.id.grid_scroll_view);
         if (gridScrollView != null) {
             ViewCompat.setOnApplyWindowInsetsListener(gridScrollView, (v, insets) -> {
@@ -71,21 +66,20 @@ public class MainActivity extends AppCompatActivity {
                 return insets;
             });
         }
-        // -----------------------------------
 
-        // Dashboard requires a boolean. Both state 1 and 2 are considered "Dark" for the stats dashboard.
         boolean isDarkTheme = (themeState != 0);
         DeviceStatsHelper.setupDashboard(this, isDarkTheme);
 
-        // Header Elements
         ImageButton themeToggleBtn = findViewById(R.id.btn_app_theme_toggle);
-        TextView tvGreeting = findViewById(R.id.tvGreeting);
-        TextView tvWelcome = findViewById(R.id.tvWelcome);
-        TextView tvDate = findViewById(R.id.tvDate);
-        LinearLayout datePill = findViewById(R.id.date_pill);
-        ImageView ivCalendar = findViewById(R.id.ivCalendar);
+        LinearLayout topCapsule = findViewById(R.id.top_capsule);
 
-        // 25 General Rotating Two-Word Greetings Logic
+        FrameLayout themeTogglePill = findViewById(R.id.theme_toggle_pill);
+        LinearLayout timePill = findViewById(R.id.time_pill);
+        LinearLayout datePill = findViewById(R.id.date_pill);
+
+        TextClock tvTime = findViewById(R.id.tvTime);
+        TextClock tvDate = findViewById(R.id.tvDate);
+
         String[] dynamicGreetings = {
                 "Welcome!", "Hello again!", "Hey there!", "Think Twice", "Wanna Play?",
                 "Chill Out!", "Let's go!", "Don't Panic!", "Stay Strong!", "Enjoy Life",
@@ -94,44 +88,25 @@ public class MainActivity extends AppCompatActivity {
                 "All good?", "Think Differently", "Just Imagine", "Hey Mate!", "Howdy Partner"
         };
         int greetingIndex = prefs.getInt("greeting_index", 0);
-        tvWelcome.setText(dynamicGreetings[greetingIndex]);
         int nextIndex = (greetingIndex + 1) % dynamicGreetings.length;
         prefs.edit().putInt("greeting_index", nextIndex).apply();
 
-        // Apply Theme Toggle Icon based on Current State
         if (themeState == 0) {
             themeToggleBtn.setImageResource(R.drawable.ic_sun);
-            themeToggleBtn.setColorFilter(Color.BLACK);
+            themeToggleBtn.setColorFilter(Color.BLACK, PorterDuff.Mode.SRC_IN);
         } else if (themeState == 1) {
             themeToggleBtn.setImageResource(R.drawable.ic_moon);
-            themeToggleBtn.setColorFilter(Color.WHITE);
+            themeToggleBtn.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
         } else {
-            // Using Android's default built-in star.
             themeToggleBtn.setImageResource(android.R.drawable.star_on);
-            themeToggleBtn.setColorFilter(Color.WHITE);
-        }
-
-        // Set Dynamic Date
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
-        tvDate.setText(sdf.format(new Date()));
-
-        // Set Dynamic Greeting based on time
-        Calendar c = Calendar.getInstance();
-        int timeOfDay = c.get(Calendar.HOUR_OF_DAY);
-        if(timeOfDay >= 0 && timeOfDay < 12){
-            tvGreeting.setText("Good Morning");
-        } else if(timeOfDay >= 12 && timeOfDay < 16){
-            tvGreeting.setText("Good Afternoon");
-        } else {
-            tvGreeting.setText("Good Evening");
+            themeToggleBtn.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
         }
 
         themeToggleBtn.setOnClickListener(v -> {
             int currentState = prefs.getInt("app_theme_state", 1);
-            int nextState = (currentState + 1) % 3; // Cycles: 0 -> 1 -> 2 -> 0
+            int nextState = (currentState + 1) % 3;
 
             prefs.edit().putInt("app_theme_state", nextState).apply();
-            // Preserve legacy boolean mapping for widgets/other activities dependent on it
             prefs.edit().putBoolean(SnakeWidget.PREF_IS_DARK, nextState != 0).apply();
 
             updateAllWidgets();
@@ -140,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         });
 
-        // Grid Elements
         LinearLayout btnPlaceWidget = findViewById(R.id.btnPlaceWidget);
         LinearLayout btnGames = findViewById(R.id.btnGames);
         LinearLayout btnTools = findViewById(R.id.btnTools);
@@ -156,42 +130,83 @@ public class MainActivity extends AppCompatActivity {
         TextView tvToolsSub = findViewById(R.id.tvToolsSub);
         TextView tvUtilitiesSub = findViewById(R.id.tvUtilitiesSub);
 
+        RelativeLayout ramCardBg = findViewById(R.id.ramCardBg);
+        LinearLayout storageCardBg = findViewById(R.id.storageCardBg);
+        LinearLayout batteryCardBg = findViewById(R.id.batteryCardBg);
+
+        TextView tvRamTitle = findViewById(R.id.tvRamTitle);
+        TextView tvRamUsed = findViewById(R.id.tvRamUsed);
+        TextView tvRamTotal = findViewById(R.id.tvRamTotal);
+        TextView tvRamFree = findViewById(R.id.tvRamFree);
+        TextView tvStorageTitle = findViewById(R.id.tvStorageTitle);
+        TextView tvBatteryTitle = findViewById(R.id.tvBatteryTitle);
+
+        RamGraphView ramGraphView = findViewById(R.id.ramGraphView);
+
         if (btnPlaceWidget != null && btnGames != null && btnTools != null && btnUtilities != null) {
             ColorStateList themeBg;
+            ColorStateList innerBg;
+            ColorStateList dashCardBg;
             int themeText;
             int secondaryText;
             int rootBg;
-            int accentColor = Color.parseColor("#5A9AF4");
 
-            // --- 3-STATE THEME COLOR INJECTION ---
             if (themeState == 0) { // Light Mode
                 rootBg = Color.WHITE;
                 themeBg = ColorStateList.valueOf(Color.parseColor("#F2F2F7"));
+                innerBg = ColorStateList.valueOf(Color.parseColor("#FFFFFF"));
+                dashCardBg = ColorStateList.valueOf(Color.parseColor("#F2F2F7"));
                 themeText = Color.parseColor("#333333");
                 secondaryText = Color.parseColor("#666666");
             } else if (themeState == 1) { // Standard Dark Mode
                 rootBg = Color.parseColor("#1C1C1E");
                 themeBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E"));
+                innerBg = ColorStateList.valueOf(Color.parseColor("#1C1C1E"));
+                dashCardBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E"));
                 themeText = Color.WHITE;
                 secondaryText = Color.parseColor("#BBBBBB");
             } else { // Star Mode (AMOLED PURE BLACK)
-                rootBg = Color.parseColor("#000000"); // Infinite Pure Black Canvas
-                themeBg = ColorStateList.valueOf(Color.parseColor("#1C1C1E")); // Deep grey floating cards
+                rootBg = Color.parseColor("#000000");
+                themeBg = ColorStateList.valueOf(Color.parseColor("#1C1C1E"));
+                innerBg = ColorStateList.valueOf(Color.parseColor("#000000"));
+                dashCardBg = ColorStateList.valueOf(Color.parseColor("#1C1C1E"));
                 themeText = Color.WHITE;
                 secondaryText = Color.parseColor("#BBBBBB");
             }
 
-            // Apply the Background dynamically
             findViewById(R.id.main_root).setBackgroundColor(rootBg);
 
-            // Apply Theme to Top Header
-            tvWelcome.setTextColor(themeText);
-            tvGreeting.setTextColor(secondaryText);
-            datePill.setBackgroundTintList(themeBg);
-            tvDate.setTextColor(accentColor);
-            ivCalendar.setColorFilter(accentColor);
+            GradientDrawable outerCapsuleGd = new GradientDrawable();
+            outerCapsuleGd.setColor(themeBg.getDefaultColor());
+            outerCapsuleGd.setCornerRadius(90f);
+            topCapsule.setBackground(outerCapsuleGd);
+            topCapsule.setElevation(0f);
+            topCapsule.setClipToOutline(true);
 
-            // Apply Theme to Grid Cards
+            GradientDrawable innerCircleGd = new GradientDrawable();
+            innerCircleGd.setShape(GradientDrawable.OVAL);
+            innerCircleGd.setColor(innerBg.getDefaultColor());
+            themeTogglePill.setBackground(innerCircleGd);
+            themeTogglePill.setElevation(0f);
+            themeTogglePill.setClipToOutline(true);
+
+            GradientDrawable timePillGd = new GradientDrawable();
+            timePillGd.setCornerRadius(200f);
+            timePillGd.setColor(innerBg.getDefaultColor());
+            timePill.setBackground(timePillGd);
+            timePill.setElevation(0f);
+            timePill.setClipToOutline(true);
+
+            GradientDrawable datePillGd = new GradientDrawable();
+            datePillGd.setCornerRadius(200f);
+            datePillGd.setColor(innerBg.getDefaultColor());
+            datePill.setBackground(datePillGd);
+            datePill.setElevation(0f);
+            datePill.setClipToOutline(true);
+
+            tvTime.setTextColor(themeText);
+            tvDate.setTextColor(secondaryText);
+
             btnPlaceWidget.setBackgroundTintList(themeBg);
             btnGames.setBackgroundTintList(themeBg);
             btnTools.setBackgroundTintList(themeBg);
@@ -207,8 +222,22 @@ public class MainActivity extends AppCompatActivity {
             tvToolsSub.setTextColor(secondaryText);
             tvUtilitiesSub.setTextColor(secondaryText);
 
-            // --- NEW: CALENDAR POPUP LOGIC ---
-            final int finalThemeState = themeState; // FIX: Make a final copy for the lambda
+            if (ramCardBg != null) ramCardBg.setBackgroundTintList(dashCardBg);
+            if (storageCardBg != null) storageCardBg.setBackgroundTintList(dashCardBg);
+            if (batteryCardBg != null) batteryCardBg.setBackgroundTintList(dashCardBg);
+
+            if (tvRamTitle != null) tvRamTitle.setTextColor(themeText);
+            if (tvRamUsed != null) tvRamUsed.setTextColor(themeText);
+            if (tvStorageTitle != null) tvStorageTitle.setTextColor(themeText);
+            if (tvBatteryTitle != null) tvBatteryTitle.setTextColor(themeText);
+
+            if (tvRamTotal != null) tvRamTotal.setTextColor(secondaryText);
+            if (tvRamFree != null) tvRamFree.setTextColor(secondaryText);
+
+            // Passes the 3-state int securely to our updated RamGraphView
+            if (ramGraphView != null) ramGraphView.setThemeState(themeState);
+
+            final int finalThemeState = themeState;
 
             datePill.setOnClickListener(v -> {
                 Dialog dialog = new Dialog(MainActivity.this);
@@ -219,17 +248,16 @@ public class MainActivity extends AppCompatActivity {
                 int pad = (int) (16 * getResources().getDisplayMetrics().density);
                 layout.setPadding(pad, pad, pad, pad);
 
-                android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
-                gd.setCornerRadius(60f); // Gives it that modern, rounded UI look
+                GradientDrawable gd = new GradientDrawable();
+                gd.setCornerRadius(60f);
 
-                // Applies the semi-transparent theme background matching your 3 states
                 int popupBg;
                 if (finalThemeState == 0) {
-                    popupBg = Color.parseColor("#E6FFFFFF"); // Light
+                    popupBg = Color.parseColor("#E6FFFFFF");
                 } else if (finalThemeState == 1) {
-                    popupBg = Color.parseColor("#E62C2C2E"); // Dark
+                    popupBg = Color.parseColor("#E62C2C2E");
                 } else {
-                    popupBg = Color.parseColor("#E61C1C1E"); // Star
+                    popupBg = Color.parseColor("#E61C1C1E");
                 }
                 gd.setColor(popupBg);
                 layout.setBackground(gd);
@@ -244,15 +272,11 @@ public class MainActivity extends AppCompatActivity {
                 layout.addView(titleView);
 
                 CalendarView calendarView = new CalendarView(MainActivity.this);
-                // The native CalendarView automatically adapts its text colors based on the AppCompat NightMode!
                 layout.addView(calendarView);
 
                 dialog.setContentView(layout);
                 if (dialog.getWindow() != null) {
-                    // Essential to make the window background transparent so the rounded corners are visible
                     dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
-
-                    // Force the dialog to take up a nice central block of the screen
                     dialog.getWindow().setLayout(
                             (int) (getResources().getDisplayMetrics().widthPixels * 0.9),
                             ViewGroup.LayoutParams.WRAP_CONTENT
@@ -261,11 +285,6 @@ public class MainActivity extends AppCompatActivity {
                 dialog.show();
             });
 
-            // ---------------------------------
-
-            // Listeners
-
-            // --- Calculate click coordinates and launch Circular Reveal for Widgets ---
             btnPlaceWidget.setOnClickListener(v -> {
                 int[] location = new int[2];
                 btnPlaceWidget.getLocationOnScreen(location);
@@ -280,7 +299,6 @@ public class MainActivity extends AppCompatActivity {
                 overridePendingTransition(0, 0);
             });
 
-            // --- Calculate click coordinates and launch Circular Reveal for Games ---
             btnGames.setOnClickListener(v -> {
                 int[] location = new int[2];
                 btnGames.getLocationOnScreen(location);
@@ -295,7 +313,6 @@ public class MainActivity extends AppCompatActivity {
                 overridePendingTransition(0, 0);
             });
 
-            // --- Calculate click coordinates and launch Circular Reveal for Tools ---
             btnTools.setOnClickListener(v -> {
                 int[] location = new int[2];
                 btnTools.getLocationOnScreen(location);
@@ -310,7 +327,6 @@ public class MainActivity extends AppCompatActivity {
                 overridePendingTransition(0, 0);
             });
 
-            // --- Calculate click coordinates and launch Circular Reveal for Utilities ---
             btnUtilities.setOnClickListener(v -> {
                 int[] location = new int[2];
                 btnUtilities.getLocationOnScreen(location);
