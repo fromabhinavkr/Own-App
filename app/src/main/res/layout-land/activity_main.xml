@@ -1,0 +1,589 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingHorizontal="24dp"
+    android:paddingVertical="12dp"
+    android:fitsSystemWindows="true">
+
+    <!-- TOP ROW: Storage (Left), Header (Center), Battery (Right) -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:clipChildren="false">
+
+        <!-- STORAGE CARD (Left, above RAM) -->
+        <LinearLayout
+            android:id="@+id/storageCardBg"
+            android:layout_width="150dp"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:background="@drawable/bg_storage_card">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:baselineAligned="true">
+                <TextView
+                    android:id="@+id/tvStorageValueLarge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0.0"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+                <TextView
+                    android:id="@+id/tvStorageUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="GB"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="4dp"
+                    android:includeFontPadding="false" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvStorageTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Storage Level"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/tvStorageStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Optimal Space"
+                android:textStyle="bold"
+                android:textSize="11sp"
+                android:layout_marginTop="8dp" />
+
+            <FrameLayout
+                android:id="@+id/storageSegmentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="6dp"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- HEADER PILLS (Center) -->
+        <LinearLayout
+            android:id="@+id/header_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:gravity="center">
+
+            <!-- Outer Capsule -->
+            <LinearLayout
+                android:id="@+id/top_capsule"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/modern_button"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:gravity="center_vertical"
+                android:elevation="0dp">
+
+                <FrameLayout
+                    android:id="@+id/theme_toggle_pill"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:elevation="0dp">
+                    <ImageButton
+                        android:id="@+id/btn_app_theme_toggle"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:src="@drawable/ic_moon"
+                        android:scaleType="fitCenter"
+                        android:padding="8dp" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp"
+                    android:gravity="center">
+
+                    <LinearLayout
+                        android:id="@+id/time_pill"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="2dp"
+                        android:gravity="center"
+                        android:elevation="0dp">
+                        <TextClock
+                            android:id="@+id/tvTime"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:format12Hour="hh:mm a"
+                            android:format24Hour="HH:mm"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:includeFontPadding="false" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/date_pill"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="2dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?android:attr/selectableItemBackground"
+                        android:gravity="center"
+                        android:elevation="0dp">
+                        <TextClock
+                            android:id="@+id/tvDate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:format12Hour="EEE, MMM dd"
+                            android:format24Hour="EEE, MMM dd"
+                            android:textSize="10sp"
+                            android:textStyle="bold"
+                            android:includeFontPadding="false" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- BATTERY CARD (Right, above Icons) -->
+        <LinearLayout
+            android:id="@+id/batteryCardBg"
+            android:layout_width="150dp"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:background="@drawable/bg_storage_card">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:baselineAligned="true">
+                <TextView
+                    android:id="@+id/tvBatteryValueLarge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+                <TextView
+                    android:id="@+id/tvBatteryUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="%"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="2dp"
+                    android:includeFontPadding="false" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvBatteryTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Battery Level"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/tvBatteryStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Checking..."
+                android:textStyle="bold"
+                android:textSize="11sp"
+                android:layout_marginTop="8dp" />
+
+            <FrameLayout
+                android:id="@+id/batterySegmentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="6dp"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- BOTTOM ROW: RAM (Left) and Grid (Right) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:baselineAligned="false"
+        android:weightSum="2">
+
+        <!-- LEFT SIDE: Adaptive RAM Card -->
+        <RelativeLayout
+            android:id="@+id/ramCardBg"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_ram_card"
+            android:padding="12dp">
+
+            <LinearLayout
+                android:id="@+id/ramTextStack"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_alignParentStart="true"
+                android:orientation="vertical"
+                android:minWidth="110dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:baselineAligned="true">
+                    <TextView
+                        android:id="@+id/tvRamPercentLarge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="32sp"
+                        android:textStyle="bold"
+                        android:includeFontPadding="false" />
+                    <TextView
+                        android:id="@+id/tvRamPercentUnit"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="%"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginStart="2dp"
+                        android:includeFontPadding="false" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvRamTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="RAM Usage"
+                    android:textSize="11sp"
+                    android:layout_marginTop="0dp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <LinearLayout
+                    android:id="@+id/ramDetailsBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="8dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <TextView
+                            android:id="@+id/tvRamUsedLbl"
+                            android:layout_width="40dp"
+                            android:layout_height="wrap_content"
+                            android:text="Used"
+                            android:textSize="10sp" />
+                        <TextView
+                            android:id="@+id/tvRamUsed"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0 MB"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:orientation="horizontal">
+                        <TextView
+                            android:id="@+id/tvRamFreeLbl"
+                            android:layout_width="40dp"
+                            android:layout_height="wrap_content"
+                            android:text="Free"
+                            android:textSize="10sp" />
+                        <TextView
+                            android:id="@+id/tvRamFree"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0 MB"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:orientation="horizontal">
+                        <TextView
+                            android:id="@+id/tvRamTotalLbl"
+                            android:layout_width="40dp"
+                            android:layout_height="wrap_content"
+                            android:text="Total"
+                            android:textSize="10sp" />
+                        <TextView
+                            android:id="@+id/tvRamTotal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0 MB"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_toEndOf="@id/ramTextStack"
+                android:layout_marginStart="8dp">
+
+                <com.abhinav.ownapp.RamGraphView
+                    android:id="@+id/ramGraphView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+            </FrameLayout>
+        </RelativeLayout>
+
+        <!-- RIGHT SIDE: Navigation Grid -->
+        <ScrollView
+            android:id="@+id/grid_scroll_view"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:fillViewport="true">
+
+            <GridLayout
+                android:id="@+id/tabsGrid"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:columnCount="2"
+                android:rowCount="2"
+                android:alignmentMode="alignMargins">
+
+                <!-- CARD 1: Widgets -->
+                <LinearLayout
+                    android:id="@+id/btnPlaceWidget"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_rowWeight="1"
+                    android:layout_gravity="fill"
+                    android:orientation="vertical"
+                    android:background="@drawable/modern_button"
+                    android:layout_margin="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:id="@+id/ivWidgetIcon"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:scaleType="fitCenter"
+                        android:padding="4dp"
+                        android:layout_marginBottom="4dp"
+                        android:src="@drawable/icon_main_widgets" />
+
+                    <TextView
+                        android:id="@+id/tvWidgetText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Widgets"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="10sp"
+                        app:autoSizeMaxTextSize="14sp" />
+                    <TextView
+                        android:id="@+id/tvWidgetSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Customize your home"
+                        android:textSize="10sp"
+                        android:gravity="center"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="1" />
+                </LinearLayout>
+
+                <!-- CARD 2: Games -->
+                <LinearLayout
+                    android:id="@+id/btnGames"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_rowWeight="1"
+                    android:layout_gravity="fill"
+                    android:orientation="vertical"
+                    android:background="@drawable/modern_button"
+                    android:layout_margin="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    android:gravity="center"
+                    android:transitionName="shared_games_container">
+
+                    <ImageView
+                        android:id="@+id/ivGamesIcon"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:scaleType="fitCenter"
+                        android:padding="4dp"
+                        android:layout_marginBottom="4dp"
+                        android:src="@drawable/icon_main_games" />
+
+                    <TextView
+                        android:id="@+id/tvGamesText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Games"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="10sp"
+                        app:autoSizeMaxTextSize="14sp" />
+                    <TextView
+                        android:id="@+id/tvGamesSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Play and enjoy"
+                        android:textSize="10sp"
+                        android:gravity="center"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="1" />
+                </LinearLayout>
+
+                <!-- CARD 3: Tools -->
+                <LinearLayout
+                    android:id="@+id/btnTools"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_rowWeight="1"
+                    android:layout_gravity="fill"
+                    android:orientation="vertical"
+                    android:background="@drawable/modern_button"
+                    android:layout_margin="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:id="@+id/ivToolsIcon"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:scaleType="fitCenter"
+                        android:padding="4dp"
+                        android:layout_marginBottom="4dp"
+                        android:src="@drawable/icon_main_tools" />
+
+                    <TextView
+                        android:id="@+id/tvToolsText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Tools"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="10sp"
+                        app:autoSizeMaxTextSize="14sp" />
+                    <TextView
+                        android:id="@+id/tvToolsSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Handy tools for you"
+                        android:textSize="10sp"
+                        android:gravity="center"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="1" />
+                </LinearLayout>
+
+                <!-- CARD 4: Utilities -->
+                <LinearLayout
+                    android:id="@+id/btnUtilities"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_columnWeight="1"
+                    android:layout_rowWeight="1"
+                    android:layout_gravity="fill"
+                    android:orientation="vertical"
+                    android:background="@drawable/modern_button"
+                    android:layout_margin="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:id="@+id/ivUtilitiesIcon"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:scaleType="fitCenter"
+                        android:padding="4dp"
+                        android:layout_marginBottom="4dp"
+                        android:src="@drawable/icon_main_utilities" />
+
+                    <TextView
+                        android:id="@+id/tvUtilitiesText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Utilities"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="10sp"
+                        app:autoSizeMaxTextSize="14sp" />
+                    <TextView
+                        android:id="@+id/tvUtilitiesSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Essential utilities"
+                        android:textSize="10sp"
+                        android:gravity="center"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="1" />
+                </LinearLayout>
+            </GridLayout>
+        </ScrollView>
+    </LinearLayout>
+</LinearLayout>

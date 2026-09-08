@@ -66,10 +66,10 @@
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="document_scanner" />
 
+        <!-- FIX APPLIED HERE: Removed configChanges so Android can auto-load layout-land -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

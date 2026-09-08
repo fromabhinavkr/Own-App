@@ -1,18 +1,24 @@
 package com.abhinav.ownapp;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.app.Dialog;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
-import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.widget.CalendarView;
 import android.widget.FrameLayout;
@@ -22,7 +28,6 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextClock;
 import android.widget.TextView;
-import androidx.annotation.NonNull;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
@@ -34,16 +39,25 @@ import androidx.core.view.WindowInsetsCompat;
 @SuppressWarnings("all")
 public class MainActivity extends AppCompatActivity {
 
+    public static Bitmap sThemeSnapshot = null;
+    public static int sRevealX = -1;
+    public static int sRevealY = -1;
+    public static int sPillX = -1;
+    public static int sPillY = -1;
+    public static int sPillWidth = -1;
+    public static int sPillHeight = -1;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
 
-        int themeState = prefs.getInt("app_theme_state", -1);
-        if (themeState == -1) {
+        int tempThemeState = prefs.getInt("app_theme_state", -1);
+        if (tempThemeState == -1) {
             boolean oldDark = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
-            themeState = oldDark ? 1 : 0;
-            prefs.edit().putInt("app_theme_state", themeState).apply();
+            tempThemeState = oldDark ? 1 : 0;
+            prefs.edit().putInt("app_theme_state", tempThemeState).apply();
         }
+        final int themeState = tempThemeState;
 
         AppCompatDelegate.setDefaultNightMode(themeState == 0 ? AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES);
 
@@ -103,16 +117,33 @@ public class MainActivity extends AppCompatActivity {
         }
 
         themeToggleBtn.setOnClickListener(v -> {
+            if (sThemeSnapshot != null) return;
+            themeToggleBtn.setEnabled(false);
+
+            int[] location = new int[2];
+            themeTogglePill.getLocationInWindow(location);
+            sPillX = location[0];
+            sPillY = location[1];
+            sPillWidth = themeTogglePill.getWidth();
+            sPillHeight = themeTogglePill.getHeight();
+            sRevealX = sPillX + (sPillWidth / 2);
+            sRevealY = sPillY + (sPillHeight / 2);
+
+            ViewGroup root = findViewById(android.R.id.content);
+            sThemeSnapshot = Bitmap.createBitmap(root.getWidth(), root.getHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(sThemeSnapshot);
+            root.draw(canvas);
+
             int currentState = prefs.getInt("app_theme_state", 1);
             int nextState = (currentState + 1) % 3;
-
             prefs.edit().putInt("app_theme_state", nextState).apply();
             prefs.edit().putBoolean(SnakeWidget.PREF_IS_DARK, nextState != 0).apply();
 
             updateAllWidgets();
+
             AppCompatDelegate.setDefaultNightMode(nextState == 0 ? AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES);
             recreate();
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            overridePendingTransition(0, 0);
         });
 
         LinearLayout btnPlaceWidget = findViewById(R.id.btnPlaceWidget);
@@ -151,21 +182,21 @@ public class MainActivity extends AppCompatActivity {
             int secondaryText;
             int rootBg;
 
-            if (themeState == 0) { // Light Mode
+            if (themeState == 0) {
                 rootBg = Color.WHITE;
                 themeBg = ColorStateList.valueOf(Color.parseColor("#F2F2F7"));
                 innerBg = ColorStateList.valueOf(Color.parseColor("#FFFFFF"));
                 dashCardBg = ColorStateList.valueOf(Color.parseColor("#F2F2F7"));
                 themeText = Color.parseColor("#333333");
                 secondaryText = Color.parseColor("#666666");
-            } else if (themeState == 1) { // Standard Dark Mode
+            } else if (themeState == 1) {
                 rootBg = Color.parseColor("#1C1C1E");
                 themeBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E"));
                 innerBg = ColorStateList.valueOf(Color.parseColor("#1C1C1E"));
                 dashCardBg = ColorStateList.valueOf(Color.parseColor("#2C2C2E"));
                 themeText = Color.WHITE;
                 secondaryText = Color.parseColor("#BBBBBB");
-            } else { // Star Mode (AMOLED PURE BLACK)
+            } else {
                 rootBg = Color.parseColor("#000000");
                 themeBg = ColorStateList.valueOf(Color.parseColor("#1C1C1E"));
                 innerBg = ColorStateList.valueOf(Color.parseColor("#000000"));
@@ -234,10 +265,128 @@ public class MainActivity extends AppCompatActivity {
             if (tvRamTotal != null) tvRamTotal.setTextColor(secondaryText);
             if (tvRamFree != null) tvRamFree.setTextColor(secondaryText);
 
-            // Passes the 3-state int securely to our updated RamGraphView
             if (ramGraphView != null) ramGraphView.setThemeState(themeState);
 
-            final int finalThemeState = themeState;
+            // ==============================================================================
+            // ============ THE MAGIC: EXECUTING THE REVEAL & MORPH ANIMATION ===============
+            // ==============================================================================
+            if (sThemeSnapshot != null) {
+                ViewGroup content = findViewById(android.R.id.content);
+                View newLayout = findViewById(R.id.main_root);
+
+                ImageView oldUiImage = new ImageView(this);
+                oldUiImage.setImageBitmap(sThemeSnapshot);
+                oldUiImage.setScaleType(ImageView.ScaleType.FIT_XY);
+                content.addView(oldUiImage, 0, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+                final int prevState = (themeState + 2) % 3;
+                FrameLayout clonePill = new FrameLayout(this);
+                GradientDrawable cloneGd = new GradientDrawable();
+                cloneGd.setShape(GradientDrawable.OVAL);
+
+                if (prevState == 0) cloneGd.setColor(Color.parseColor("#FFFFFF"));
+                else if (prevState == 1) cloneGd.setColor(Color.parseColor("#1C1C1E"));
+                else cloneGd.setColor(Color.parseColor("#000000"));
+                clonePill.setBackground(cloneGd);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    clonePill.setElevation(10000f);
+                    newLayout.setElevation(10f);
+                }
+
+                ImageButton cloneIcon = new ImageButton(this);
+                cloneIcon.setBackgroundResource(0);
+                cloneIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                cloneIcon.setPadding(themeToggleBtn.getPaddingLeft(), themeToggleBtn.getPaddingTop(), themeToggleBtn.getPaddingRight(), themeToggleBtn.getPaddingBottom());
+
+                if (prevState == 0) {
+                    cloneIcon.setImageResource(R.drawable.ic_sun);
+                    cloneIcon.setColorFilter(Color.BLACK, PorterDuff.Mode.SRC_IN);
+                } else if (prevState == 1) {
+                    cloneIcon.setImageResource(R.drawable.ic_moon);
+                    cloneIcon.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
+                } else {
+                    cloneIcon.setImageResource(android.R.drawable.star_on);
+                    cloneIcon.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
+                }
+
+                clonePill.addView(cloneIcon, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+                FrameLayout.LayoutParams cloneParams = new FrameLayout.LayoutParams(sPillWidth, sPillHeight);
+                cloneParams.leftMargin = sPillX;
+                cloneParams.topMargin = sPillY;
+                content.addView(clonePill, cloneParams);
+
+                newLayout.setVisibility(View.INVISIBLE);
+                themeTogglePill.setVisibility(View.INVISIBLE);
+
+                newLayout.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+                    @Override
+                    public boolean onPreDraw() {
+                        newLayout.getViewTreeObserver().removeOnPreDrawListener(this);
+                        newLayout.setVisibility(View.VISIBLE);
+
+                        float finalRadius = (float) Math.hypot(Math.max(sRevealX, newLayout.getWidth() - sRevealX), Math.max(sRevealY, newLayout.getHeight() - sRevealY));
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+
+                            Animator anim = ViewAnimationUtils.createCircularReveal(newLayout, sRevealX, sRevealY, 0f, finalRadius);
+                            anim.setDuration(600);
+                            anim.addListener(new AnimatorListenerAdapter() {
+                                @Override
+                                public void onAnimationEnd(Animator animation) {
+                                    content.removeView(oldUiImage);
+                                    content.removeView(clonePill);
+                                    sThemeSnapshot = null;
+                                    themeTogglePill.setVisibility(View.VISIBLE);
+                                }
+                            });
+                            anim.start();
+
+                            // --- PILL SHRINK/SPIN ANIMATION FIX ---
+                            // We now animate clonePill (the outer circle background) instead of cloneIcon
+                            clonePill.animate()
+                                    .rotation(180f)
+                                    .scaleX(0f)
+                                    .scaleY(0f)
+                                    .setDuration(300)
+                                    .withEndAction(() -> {
+                                        // Swap colors and icons while the pill is invisible
+                                        if (themeState == 0) {
+                                            cloneIcon.setImageResource(R.drawable.ic_sun);
+                                            cloneIcon.setColorFilter(Color.BLACK, PorterDuff.Mode.SRC_IN);
+                                            cloneGd.setColor(Color.parseColor("#FFFFFF"));
+                                        } else if (themeState == 1) {
+                                            cloneIcon.setImageResource(R.drawable.ic_moon);
+                                            cloneIcon.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
+                                            cloneGd.setColor(Color.parseColor("#1C1C1E"));
+                                        } else {
+                                            cloneIcon.setImageResource(android.R.drawable.star_on);
+                                            cloneIcon.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
+                                            cloneGd.setColor(Color.parseColor("#000000"));
+                                        }
+                                        clonePill.setBackground(cloneGd);
+
+                                        clonePill.setRotation(-180f);
+                                        clonePill.animate()
+                                                .rotation(0f)
+                                                .scaleX(1f)
+                                                .scaleY(1f)
+                                                .setDuration(300)
+                                                .start();
+                                    })
+                                    .start();
+                        } else {
+                            content.removeView(oldUiImage);
+                            content.removeView(clonePill);
+                            sThemeSnapshot = null;
+                            themeTogglePill.setVisibility(View.VISIBLE);
+                        }
+                        return true;
+                    }
+                });
+            }
+            // ==============================================================================
 
             datePill.setOnClickListener(v -> {
                 Dialog dialog = new Dialog(MainActivity.this);
@@ -252,9 +401,9 @@ public class MainActivity extends AppCompatActivity {
                 gd.setCornerRadius(60f);
 
                 int popupBg;
-                if (finalThemeState == 0) {
+                if (themeState == 0) {
                     popupBg = Color.parseColor("#E6FFFFFF");
-                } else if (finalThemeState == 1) {
+                } else if (themeState == 1) {
                     popupBg = Color.parseColor("#E62C2C2E");
                 } else {
                     popupBg = Color.parseColor("#E61C1C1E");
@@ -286,101 +435,57 @@ public class MainActivity extends AppCompatActivity {
             });
 
             btnPlaceWidget.setOnClickListener(v -> {
-                int[] location = new int[2];
-                btnPlaceWidget.getLocationOnScreen(location);
-                int cx = location[0] + (btnPlaceWidget.getWidth() / 2);
-                int cy = location[1] + (btnPlaceWidget.getHeight() / 2);
+                int[] loc = new int[2];
+                btnPlaceWidget.getLocationOnScreen(loc);
+                int cx = loc[0] + (btnPlaceWidget.getWidth() / 2);
+                int cy = loc[1] + (btnPlaceWidget.getHeight() / 2);
 
                 Intent intent = new Intent(MainActivity.this, WidgetGalleryActivity.class);
                 intent.putExtra("REVEAL_X", cx);
                 intent.putExtra("REVEAL_Y", cy);
                 startActivity(intent);
-
                 overridePendingTransition(0, 0);
             });
 
             btnGames.setOnClickListener(v -> {
-                int[] location = new int[2];
-                btnGames.getLocationOnScreen(location);
-                int cx = location[0] + (btnGames.getWidth() / 2);
-                int cy = location[1] + (btnGames.getHeight() / 2);
+                int[] loc = new int[2];
+                btnGames.getLocationOnScreen(loc);
+                int cx = loc[0] + (btnGames.getWidth() / 2);
+                int cy = loc[1] + (btnGames.getHeight() / 2);
 
                 Intent intent = new Intent(MainActivity.this, GamesGalleryActivity.class);
                 intent.putExtra("REVEAL_X", cx);
                 intent.putExtra("REVEAL_Y", cy);
                 startActivity(intent);
-
                 overridePendingTransition(0, 0);
             });
 
             btnTools.setOnClickListener(v -> {
-                int[] location = new int[2];
-                btnTools.getLocationOnScreen(location);
-                int cx = location[0] + (btnTools.getWidth() / 2);
-                int cy = location[1] + (btnTools.getHeight() / 2);
+                int[] loc = new int[2];
+                btnTools.getLocationOnScreen(loc);
+                int cx = loc[0] + (btnTools.getWidth() / 2);
+                int cy = loc[1] + (btnTools.getHeight() / 2);
 
                 Intent intent = new Intent(MainActivity.this, ToolsGalleryActivity.class);
                 intent.putExtra("REVEAL_X", cx);
                 intent.putExtra("REVEAL_Y", cy);
                 startActivity(intent);
-
                 overridePendingTransition(0, 0);
             });
 
             btnUtilities.setOnClickListener(v -> {
-                int[] location = new int[2];
-                btnUtilities.getLocationOnScreen(location);
-                int cx = location[0] + (btnUtilities.getWidth() / 2);
-                int cy = location[1] + (btnUtilities.getHeight() / 2);
+                int[] loc = new int[2];
+                btnUtilities.getLocationOnScreen(loc);
+                int cx = loc[0] + (btnUtilities.getWidth() / 2);
+                int cy = loc[1] + (btnUtilities.getHeight() / 2);
 
                 Intent intent = new Intent(MainActivity.this, UtilitiesGalleryActivity.class);
                 intent.putExtra("REVEAL_X", cx);
                 intent.putExtra("REVEAL_Y", cy);
                 startActivity(intent);
-
                 overridePendingTransition(0, 0);
             });
         }
-        applyOrientationLayout(getResources().getConfiguration().orientation);
-    }
-
-    @Override
-    public void onConfigurationChanged(@NonNull Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        applyOrientationLayout(newConfig.orientation);
-    }
-
-    private void applyOrientationLayout(int orientation) {
-        View gridScrollView = findViewById(R.id.grid_scroll_view);
-        View dashboardContainer = findViewById(R.id.dashboard_container);
-        if (gridScrollView == null || dashboardContainer == null) return;
-
-        RelativeLayout.LayoutParams gridParams = (RelativeLayout.LayoutParams) gridScrollView.getLayoutParams();
-        RelativeLayout.LayoutParams dashParams = (RelativeLayout.LayoutParams) dashboardContainer.getLayoutParams();
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-
-        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            gridParams.width = (int) (screenWidth * 0.5f);
-            gridParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
-            gridParams.removeRule(RelativeLayout.BELOW);
-            gridParams.addRule(RelativeLayout.BELOW, R.id.header_layout);
-            gridParams.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
-
-            dashParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            dashParams.removeRule(RelativeLayout.ALIGN_PARENT_LEFT);
-            dashParams.addRule(RelativeLayout.LEFT_OF, R.id.grid_scroll_view);
-        } else {
-            gridParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            gridParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
-            gridParams.removeRule(RelativeLayout.ALIGN_PARENT_RIGHT);
-            gridParams.removeRule(RelativeLayout.BELOW);
-            gridParams.addRule(RelativeLayout.BELOW, R.id.dashboard_container);
-
-            dashParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            dashParams.removeRule(RelativeLayout.LEFT_OF);
-        }
-        gridScrollView.setLayoutParams(gridParams);
-        dashboardContainer.setLayoutParams(dashParams);
     }
 
     private void updateAllWidgets() {

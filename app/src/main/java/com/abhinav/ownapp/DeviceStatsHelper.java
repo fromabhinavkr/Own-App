@@ -1,176 +1,297 @@
 package com.abhinav.ownapp;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.res.ColorStateList;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.GradientDrawable;
 import android.os.BatteryManager;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.StatFs;
-import android.view.Gravity;
+import android.util.Log;
 import android.view.View;
-import android.widget.ProgressBar;
+import android.widget.FrameLayout;
 import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.core.view.ViewCompat;
 import java.io.File;
 import java.util.Locale;
 
+@SuppressLint("SetTextI18n")
 public class DeviceStatsHelper {
 
+    private static Handler statsHandler;
+    private static Runnable statsRunnable;
+
     public static void setupDashboard(Activity activity, boolean isDarkTheme) {
-        // --- 1. LINK VIEWS ---
-        View ramCardBg = activity.findViewById(R.id.ramCardBg);
-        View storageCardBg = activity.findViewById(R.id.storageCardBg);
-        View batteryCardBg = activity.findViewById(R.id.batteryCardBg);
+        if (activity == null || activity.isFinishing()) return;
 
-        RamGraphView ramGraphView = activity.findViewById(R.id.ramGraphView);
-        TextView tvRamTotal = activity.findViewById(R.id.tvRamTotal);
-        TextView tvRamUsed = activity.findViewById(R.id.tvRamUsed);
-        TextView tvRamFree = activity.findViewById(R.id.tvRamFree);
+        try {
+            // --- 1. LINK VIEWS ---
+            View ramCardBg = activity.findViewById(R.id.ramCardBg);
+            View storageCardBg = activity.findViewById(R.id.storageCardBg);
+            View batteryCardBg = activity.findViewById(R.id.batteryCardBg);
+            View ramDetailsBox = activity.findViewById(R.id.ramDetailsBox);
 
-        TextView tvStorageTitle = activity.findViewById(R.id.tvStorageTitle);
-        TextView tvStorageVal = activity.findViewById(R.id.tvStorageValue);
-        ProgressBar pbStorage = activity.findViewById(R.id.pbStorage);
+            RamGraphView ramGraphView = activity.findViewById(R.id.ramGraphView);
+            TextView tvRamTitle = activity.findViewById(R.id.tvRamTitle);
+            TextView tvRamPercentLarge = activity.findViewById(R.id.tvRamPercentLarge);
+            TextView tvRamPercentUnit = activity.findViewById(R.id.tvRamPercentUnit);
 
-        TextView tvBatteryTitle = activity.findViewById(R.id.tvBatteryTitle);
-        TextView tvBatteryVal = activity.findViewById(R.id.tvBatteryValue);
-        ProgressBar pbBattery = activity.findViewById(R.id.pbBattery);
+            TextView tvRamUsedLbl = activity.findViewById(R.id.tvRamUsedLbl);
+            TextView tvRamUsed = activity.findViewById(R.id.tvRamUsed);
+            TextView tvRamFreeLbl = activity.findViewById(R.id.tvRamFreeLbl);
+            TextView tvRamFree = activity.findViewById(R.id.tvRamFree);
+            TextView tvRamTotalLbl = activity.findViewById(R.id.tvRamTotalLbl);
+            TextView tvRamTotal = activity.findViewById(R.id.tvRamTotal);
 
-        if (tvStorageTitle == null) return; // Failsafe
+            TextView tvStorageValLarge = activity.findViewById(R.id.tvStorageValueLarge);
+            TextView tvStorageUnit = activity.findViewById(R.id.tvStorageUnit);
+            TextView tvStorageTitle = activity.findViewById(R.id.tvStorageTitle);
+            TextView tvStorageStatus = activity.findViewById(R.id.tvStorageStatus);
+            FrameLayout storageSegmentContainer = activity.findViewById(R.id.storageSegmentContainer);
 
-        // --- 2. APPLY DARK/LIGHT MODE COLORS ---
-        int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#1C1C1E");
-        int subTextColor = isDarkTheme ? Color.parseColor("#B0B0B8") : Color.parseColor("#666666");
+            TextView tvBatteryValLarge = activity.findViewById(R.id.tvBatteryValueLarge);
+            TextView tvBatteryUnit = activity.findViewById(R.id.tvBatteryUnit);
+            TextView tvBatteryTitle = activity.findViewById(R.id.tvBatteryTitle);
+            TextView tvBatteryStatus = activity.findViewById(R.id.tvBatteryStatus);
+            FrameLayout batterySegmentContainer = activity.findViewById(R.id.batterySegmentContainer);
 
-        int cardBgColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#F0F0F5");
+            if (ramCardBg == null || storageSegmentContainer == null || batterySegmentContainer == null) return;
 
-        // Capsule Colors
-        int trackColorInt = isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#E5E5EA");
-        int progressColorInt = Color.parseColor("#4A90E2");
+            // --- 2. APPLY DARK/LIGHT MODE COLORS ---
+            int textColor = isDarkTheme ? Color.WHITE : Color.parseColor("#1C1C1E");
+            int subTextColor = isDarkTheme ? Color.parseColor("#B0B0B8") : Color.parseColor("#8E8E93");
+            int cardBgColor = isDarkTheme ? Color.parseColor("#2C2C2E") : Color.parseColor("#F2F2F7");
 
-        // Safely tint the XML backgrounds to preserve clipToOutline
-        if (ramCardBg != null) {
-            ramCardBg.setBackgroundTintList(ColorStateList.valueOf(cardBgColor));
-        }
-        if (storageCardBg != null) {
-            storageCardBg.setBackgroundTintList(ColorStateList.valueOf(cardBgColor));
-        }
-        if (batteryCardBg != null) {
-            batteryCardBg.setBackgroundTintList(ColorStateList.valueOf(cardBgColor));
-        }
+            int innerBoxBgColor = isDarkTheme ? Color.parseColor("#000000") : Color.parseColor("#FFFFFF");
+            int innerBoxStrokeColor = isDarkTheme ? Color.parseColor("#333333") : Color.parseColor("#E5E5EA");
 
-        // Apply Text Colors
-        tvRamTotal.setTextColor(textColor);
-        tvRamUsed.setTextColor(textColor);
-        tvRamFree.setTextColor(subTextColor);
+            int activeAccentColor = isDarkTheme ? Color.parseColor("#5AC8FA") : Color.parseColor("#007AFF");
+            int storageCriticalColor = isDarkTheme ? Color.parseColor("#FF453A") : Color.parseColor("#FF3B30");
+            int barInactiveColor = isDarkTheme ? Color.parseColor("#3A3A3C") : Color.parseColor("#D1D1D6");
 
-        TextView[] titles = {tvStorageTitle, tvBatteryTitle};
-        TextView[] values = {tvStorageVal, tvBatteryVal};
-        ProgressBar[] bars = {pbStorage, pbBattery};
+            int batteryChargingColor = isDarkTheme ? Color.parseColor("#32D74B") : Color.parseColor("#34C759");
+            int batteryDischargingColor = isDarkTheme ? Color.parseColor("#5AC8FA") : Color.parseColor("#007AFF");
 
-        for (TextView t : titles) t.setTextColor(textColor);
+            ViewCompat.setBackgroundTintList(ramCardBg, ColorStateList.valueOf(cardBgColor));
+            ramCardBg.setClipToOutline(true);
 
-        // --- COMPACT CAPSULE PROGRAMMATIC STYLING ---
-        for (ProgressBar b : bars) {
-            GradientDrawable track = new GradientDrawable();
-            track.setColor(trackColorInt);
-            track.setCornerRadius(100f);
+            if (storageCardBg != null) {
+                ViewCompat.setBackgroundTintList(storageCardBg, ColorStateList.valueOf(cardBgColor));
+                storageCardBg.setClipToOutline(true);
+            }
+            if (batteryCardBg != null) {
+                ViewCompat.setBackgroundTintList(batteryCardBg, ColorStateList.valueOf(cardBgColor));
+                batteryCardBg.setClipToOutline(true);
+            }
 
-            GradientDrawable prog = new GradientDrawable();
-            prog.setColor(progressColorInt);
-            prog.setCornerRadius(100f);
+            if (ramDetailsBox != null) {
+                GradientDrawable boxShape = new GradientDrawable();
+                boxShape.setColor(innerBoxBgColor);
+                boxShape.setCornerRadius(activity.getResources().getDisplayMetrics().density * 10f);
+                boxShape.setStroke(2, innerBoxStrokeColor);
+                ramDetailsBox.setBackground(boxShape);
+            }
 
-            android.graphics.drawable.ClipDrawable clipProg = new android.graphics.drawable.ClipDrawable(prog, Gravity.LEFT, android.graphics.drawable.ClipDrawable.HORIZONTAL);
+            if (tvRamPercentLarge != null) tvRamPercentLarge.setTextColor(textColor);
+            if (tvRamPercentUnit != null) tvRamPercentUnit.setTextColor(textColor);
+            if (tvRamTitle != null) tvRamTitle.setTextColor(subTextColor);
 
-            android.graphics.drawable.LayerDrawable layerDrawable = new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{track, clipProg});
-            layerDrawable.setId(0, android.R.id.background);
-            layerDrawable.setId(1, android.R.id.progress);
+            if (tvRamUsedLbl != null) tvRamUsedLbl.setTextColor(subTextColor);
+            if (tvRamUsed != null) tvRamUsed.setTextColor(subTextColor);
+            if (tvRamFreeLbl != null) tvRamFreeLbl.setTextColor(subTextColor);
+            if (tvRamFree != null) tvRamFree.setTextColor(subTextColor);
+            if (tvRamTotalLbl != null) tvRamTotalLbl.setTextColor(subTextColor);
+            if (tvRamTotal != null) tvRamTotal.setTextColor(subTextColor);
 
-            b.setProgressDrawable(layerDrawable);
-        }
+            if (tvStorageValLarge != null) tvStorageValLarge.setTextColor(textColor);
+            if (tvStorageUnit != null) tvStorageUnit.setTextColor(textColor);
+            if (tvStorageTitle != null) tvStorageTitle.setTextColor(subTextColor);
 
-        // Apply White text with a sleek drop shadow so it pops perfectly over BOTH the dark blue progress and the grey track
-        for (TextView v : values) {
-            v.setTextColor(Color.WHITE);
-            v.setShadowLayer(4f, 0f, 2f, Color.parseColor("#80000000"));
-        }
+            if (tvBatteryValLarge != null) tvBatteryValLarge.setTextColor(textColor);
+            if (tvBatteryUnit != null) tvBatteryUnit.setTextColor(textColor);
+            if (tvBatteryTitle != null) tvBatteryTitle.setTextColor(subTextColor);
 
-        if (ramGraphView != null) ramGraphView.setTheme(isDarkTheme);
+            if (ramGraphView != null) ramGraphView.setTheme(isDarkTheme);
 
-        // --- 3. REAL-TIME RAM LOGIC ---
-        ActivityManager actManager = (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
-        ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
+            storageSegmentContainer.removeAllViews();
+            SegmentedProgressView storageProgressView = new SegmentedProgressView(activity);
+            storageSegmentContainer.addView(storageProgressView);
 
-        Handler handler = new Handler(Looper.getMainLooper());
-        Runnable ramUpdater = new Runnable() {
-            @Override
-            public void run() {
-                // FIX: Stop the loop safely only if the activity is actually closed or destroyed.
-                if (activity.isFinishing() || activity.isDestroyed()) return;
+            batterySegmentContainer.removeAllViews();
+            SegmentedProgressView batteryProgressView = new SegmentedProgressView(activity);
+            batterySegmentContainer.addView(batteryProgressView);
 
-                // Ensure the view exists and is ready to be drawn on
-                if (ramGraphView != null && ramGraphView.isAttachedToWindow()) {
-                    actManager.getMemoryInfo(memInfo);
-                    long totalRamMB = memInfo.totalMem / 1048576L;
-                    long availRamMB = memInfo.availMem / 1048576L;
-                    long usedRamMB = totalRamMB - availRamMB;
-                    float percentUsed = ((float) usedRamMB / totalRamMB) * 100f;
+            // --- 3. STORAGE LOGIC ---
+            try {
+                File path = Environment.getDataDirectory();
+                StatFs stat = new StatFs(path.getPath());
+                long blockSize = stat.getBlockSizeLong();
+                long availableBlocks = stat.getAvailableBlocksLong();
+                long totalBlocks = stat.getBlockCountLong();
 
-                    tvRamTotal.setText(String.format(Locale.US, "%d MB Total", totalRamMB));
-                    tvRamUsed.setText(String.format(Locale.US, "%d MB Used", usedRamMB));
-                    tvRamFree.setText(String.format(Locale.US, "%d MB Free", availRamMB));
+                double rawAvailStorageGb = (availableBlocks * blockSize) / (1024.0 * 1024.0 * 1024.0);
+                double rawTotalStorageGb = (totalBlocks * blockSize) / (1024.0 * 1024.0 * 1024.0);
 
-                    ramGraphView.addRamData(percentUsed);
+                int advertisedStorageGb = 8;
+                int[] storageTiers = {8, 16, 32, 64, 128, 256, 512, 1024};
+                for (int tier : storageTiers) {
+                    if (rawTotalStorageGb <= tier) {
+                        advertisedStorageGb = tier;
+                        break;
+                    }
                 }
+                double usedStorageGb = advertisedStorageGb - rawAvailStorageGb;
+                float storagePct = (float) (usedStorageGb / advertisedStorageGb) * 100f;
 
-                // Keep the loop running every 1 second
-                handler.postDelayed(this, 1000);
+                if (tvStorageValLarge != null) tvStorageValLarge.setText(String.format(Locale.US, "%.1f", usedStorageGb));
+
+                if (tvStorageStatus != null) {
+                    if (storagePct >= 90f) {
+                        tvStorageStatus.setText("Low Space");
+                        tvStorageStatus.setTextColor(storageCriticalColor);
+                        storageProgressView.setColors(storageCriticalColor, barInactiveColor);
+                    } else {
+                        tvStorageStatus.setText("Optimal Space");
+                        tvStorageStatus.setTextColor(activeAccentColor);
+                        storageProgressView.setColors(activeAccentColor, barInactiveColor);
+                    }
+                }
+                storageProgressView.setProgress(storagePct);
+            } catch (Exception e) {
+                Log.e("DeviceStats", "Storage read failed", e);
             }
-        };
-        handler.post(ramUpdater);
 
-        // --- 4. STORAGE LOGIC ---
-        File path = Environment.getDataDirectory();
-        StatFs stat = new StatFs(path.getPath());
-        long blockSize = stat.getBlockSizeLong();
-        long availableBlocks = stat.getAvailableBlocksLong();
-        long totalBlocks = stat.getBlockCountLong();
+            // --- 4. REAL-TIME RAM & BATTERY LOGIC (USING BATTERY MANAGER) ---
+            ActivityManager actManager = (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
+            BatteryManager batteryManager = (BatteryManager) activity.getSystemService(Context.BATTERY_SERVICE);
 
-        double rawAvailStorageGb = (availableBlocks * blockSize) / (1024.0 * 1024.0 * 1024.0);
-        double rawTotalStorageGb = (totalBlocks * blockSize) / (1024.0 * 1024.0 * 1024.0);
+            SegmentedProgressView finalBatteryProgressView = batteryProgressView;
 
-        int advertisedStorageGb = 8;
-        int[] storageTiers = {8, 16, 32, 64, 128, 256, 512, 1024};
-        for (int tier : storageTiers) {
-            if (rawTotalStorageGb <= tier) {
-                advertisedStorageGb = tier;
-                break;
+            if (statsHandler != null && statsRunnable != null) {
+                statsHandler.removeCallbacks(statsRunnable);
+            }
+
+            statsHandler = new Handler(Looper.getMainLooper());
+            statsRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    if (activity.isFinishing() || activity.isDestroyed() || !ramCardBg.isAttachedToWindow()) {
+                        return;
+                    }
+
+                    // RAM Updates
+                    if (ramGraphView != null && actManager != null) {
+                        actManager.getMemoryInfo(memInfo);
+                        long totalRamMB = memInfo.totalMem / 1048576L;
+                        long availRamMB = memInfo.availMem / 1048576L;
+                        long usedRamMB = totalRamMB - availRamMB;
+
+                        if (totalRamMB > 0) {
+                            float percentUsed = ((float) usedRamMB / totalRamMB) * 100f;
+
+                            if (tvRamPercentLarge != null) tvRamPercentLarge.setText(String.valueOf((int) percentUsed));
+                            if (tvRamUsed != null) tvRamUsed.setText(String.format(Locale.US, "%d MB", usedRamMB));
+                            if (tvRamFree != null) tvRamFree.setText(String.format(Locale.US, "%d MB", availRamMB));
+                            if (tvRamTotal != null) tvRamTotal.setText(String.format(Locale.US, "%d MB", totalRamMB));
+
+                            ramGraphView.addRamData(percentUsed);
+                        }
+                    }
+
+                    // Battery Updates via BatteryManager (Crash-free on all Android versions)
+                    if (batteryManager != null) {
+                        try {
+                            int batteryPct = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+                            boolean isCharging = batteryManager.isCharging();
+
+                            if (batteryPct >= 0 && batteryPct <= 100) {
+                                if (tvBatteryValLarge != null) tvBatteryValLarge.setText(String.valueOf(batteryPct));
+
+                                if (tvBatteryStatus != null) {
+                                    if (isCharging) {
+                                        tvBatteryStatus.setText("Charging");
+                                        tvBatteryStatus.setTextColor(batteryChargingColor);
+                                        finalBatteryProgressView.setColors(batteryChargingColor, barInactiveColor);
+                                    } else {
+                                        tvBatteryStatus.setText("Discharging");
+                                        tvBatteryStatus.setTextColor(batteryDischargingColor);
+                                        finalBatteryProgressView.setColors(batteryDischargingColor, barInactiveColor);
+                                    }
+                                }
+                                finalBatteryProgressView.setProgress(batteryPct);
+                            }
+                        } catch (Exception e) {
+                            Log.e("DeviceStats", "Battery manager read error", e);
+                        }
+                    }
+
+                    statsHandler.postDelayed(this, 1000);
+                }
+            };
+
+            statsHandler.post(statsRunnable);
+
+        } catch (Exception e) {
+            Log.e("DeviceStats", "Dashboard setup fatal error", e);
+        }
+    }
+
+    public static class SegmentedProgressView extends View {
+        private static final int SEGMENTS = 10;
+        private float progress = 0;
+        private final Paint paintActive = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint paintInactive = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        public SegmentedProgressView(Context context) {
+            super(context);
+        }
+
+        public void setColors(int active, int inactive) {
+            paintActive.setColor(active);
+            paintInactive.setColor(inactive);
+            invalidate();
+        }
+
+        public void setProgress(float progress) {
+            this.progress = progress;
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(@NonNull Canvas canvas) {
+            super.onDraw(canvas);
+            float w = getWidth();
+            float h = getHeight();
+
+            if (w <= 0 || h <= 0) return;
+
+            float gap = getContext().getResources().getDisplayMetrics().density * 4f;
+            float segmentWidth = (w - (gap * (SEGMENTS - 1))) / SEGMENTS;
+
+            if (segmentWidth <= 0) return;
+
+            int activeSegments = Math.round((progress / 100f) * SEGMENTS);
+
+            for (int i = 0; i < SEGMENTS; i++) {
+                float left = i * (segmentWidth + gap);
+                float right = left + segmentWidth;
+                float corner = h / 3.5f;
+
+                if (i < activeSegments) {
+                    canvas.drawRoundRect(left, 0, right, h, corner, corner, paintActive);
+                } else {
+                    canvas.drawRoundRect(left, 0, right, h, corner, corner, paintInactive);
+                }
             }
         }
-        double usedStorageGb = advertisedStorageGb - rawAvailStorageGb;
-
-        tvStorageVal.setText(String.format(Locale.US, "%.1f GB", usedStorageGb));
-        pbStorage.setMax(advertisedStorageGb * 10);
-        pbStorage.setProgress((int) (usedStorageGb * 10));
-
-        // --- 5. BATTERY LOGIC ---
-        BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-                int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-                float batteryPct = level * 100 / (float) scale;
-                tvBatteryVal.setText((int) batteryPct + "%");
-                pbBattery.setProgress((int) batteryPct);
-            }
-        };
-        IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        activity.registerReceiver(batteryReceiver, filter);
     }
 }

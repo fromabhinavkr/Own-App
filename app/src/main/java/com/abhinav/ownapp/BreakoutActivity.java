@@ -275,11 +275,9 @@ public class BreakoutActivity extends AppCompatActivity {
 
             @Override
             public void onGameStarted() {
-                // --- BUTTERY SMOOTH LETTER-BY-LETTER TYPING ANIMATION ---
                 if (tvTapToStart != null && tvTapToStart.getVisibility() == View.VISIBLE) {
                     final int startWidth = btnPause.getWidth();
 
-                    // Measure target width based on fully populated texts
                     tvTapToStart.setVisibility(View.GONE);
                     scoreContainer.setVisibility(View.VISIBLE);
 
@@ -289,7 +287,6 @@ public class BreakoutActivity extends AppCompatActivity {
                     );
                     final int targetWidth = btnPause.getMeasuredWidth();
 
-                    // Revert to start state to begin animation
                     tvTapToStart.setVisibility(View.VISIBLE);
                     scoreContainer.setVisibility(View.GONE);
                     scoreContainer.setAlpha(1f);
@@ -298,7 +295,6 @@ public class BreakoutActivity extends AppCompatActivity {
                     String curScoreStr = "Score: 0";
                     String bestScoreStr = tvBestScore.getText().toString();
 
-                    // Animator 1: Smoothly adjust background pill width
                     ValueAnimator widthAnimator = ValueAnimator.ofInt(startWidth, targetWidth);
                     widthAnimator.addUpdateListener(animation -> {
                         ViewGroup.LayoutParams lp = btnPause.getLayoutParams();
@@ -316,14 +312,13 @@ public class BreakoutActivity extends AppCompatActivity {
                     widthAnimator.setDuration(400);
                     widthAnimator.setInterpolator(new DecelerateInterpolator());
 
-                    // Animator 2: Typing effect (Erases Tap to Launch, then Types Score)
                     ValueAnimator textAnimator = ValueAnimator.ofFloat(0f, 1f);
                     textAnimator.addUpdateListener(anim -> {
                         float fraction = anim.getAnimatedFraction();
-                        if (fraction < 0.4f) { // First 40%: Erase "Tap to Launch"
+                        if (fraction < 0.4f) {
                             float eraseFraction = 1f - (fraction / 0.4f);
                             tvTapToStart.setText(tapStr.substring(0, (int)(tapStr.length() * eraseFraction)));
-                        } else { // Remaining 60%: Type in the Scores
+                        } else {
                             if (tvTapToStart.getVisibility() == View.VISIBLE) {
                                 tvTapToStart.setVisibility(View.GONE);
                                 scoreContainer.setVisibility(View.VISIBLE);
@@ -343,7 +338,6 @@ public class BreakoutActivity extends AppCompatActivity {
                     });
                     textAnimator.setDuration(400);
 
-                    // Launch them perfectly synced
                     widthAnimator.start();
                     textAnimator.start();
                 }
@@ -373,7 +367,6 @@ public class BreakoutActivity extends AppCompatActivity {
                 hideOverlaySmoothly(gameOverOverlay);
                 tvNewHighScoreBanner.setVisibility(View.GONE);
 
-                // --- REVERSE LETTER-BY-LETTER TYPING ANIMATION ---
                 if (scoreContainer != null && scoreContainer.getVisibility() == View.VISIBLE) {
                     final int startWidth = btnPause.getWidth();
 
@@ -414,11 +407,11 @@ public class BreakoutActivity extends AppCompatActivity {
                     ValueAnimator textAnimator = ValueAnimator.ofFloat(0f, 1f);
                     textAnimator.addUpdateListener(anim -> {
                         float fraction = anim.getAnimatedFraction();
-                        if (fraction < 0.4f) { // Erase Scores
+                        if (fraction < 0.4f) {
                             float eraseFraction = 1f - (fraction / 0.4f);
                             tvScore.setText(curScoreStr.substring(0, (int)(curScoreStr.length() * eraseFraction)));
                             tvBestScore.setText(bestScoreStr.substring(0, (int)(bestScoreStr.length() * eraseFraction)));
-                        } else { // Type "Tap to Launch"
+                        } else {
                             if (scoreContainer.getVisibility() == View.VISIBLE) {
                                 scoreContainer.setVisibility(View.GONE);
                                 tvTapToStart.setVisibility(View.VISIBLE);
@@ -430,7 +423,7 @@ public class BreakoutActivity extends AppCompatActivity {
                     textAnimator.addListener(new AnimatorListenerAdapter() {
                         @Override
                         public void onAnimationEnd(Animator animation) {
-                            tvScore.setText("Score: 0"); // Final hard reset
+                            tvScore.setText("Score: 0");
                             tvBestScore.setText(bestScoreStr);
                             tvTapToStart.setText(tapStr);
                         }
@@ -440,7 +433,6 @@ public class BreakoutActivity extends AppCompatActivity {
                     widthAnimator.start();
                     textAnimator.start();
                 } else {
-                    // Fallback
                     if (scoreContainer != null) scoreContainer.setVisibility(View.GONE);
                     if (tvTapToStart != null) {
                         tvTapToStart.setText(R.string.tap_to_launch);
@@ -928,7 +920,14 @@ public class BreakoutActivity extends AppCompatActivity {
                 ballDX = (float) Math.sin(bounceAngle) * currentBallSpeed;
                 ballDY = -(float) Math.cos(bounceAngle) * currentBallSpeed;
                 ballY = paddleY - ballRadius;
-                triggerVibration(10);
+
+                if (musicEnabled && toneGenerator != null && audioExecutor != null) {
+                    audioExecutor.execute(() -> {
+                        try { toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP2, 35); }
+                        catch (Exception ignored) {}
+                    });
+                }
+                triggerVibration(15);
             }
 
             boolean hitBrick = false;

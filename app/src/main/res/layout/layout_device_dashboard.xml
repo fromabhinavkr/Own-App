@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -15,92 +14,136 @@
         android:layout_height="200dp"
         android:layout_marginBottom="16dp"
         android:background="@drawable/bg_ram_card"
-        android:clipToOutline="true">
+        android:padding="16dp">
 
-        <com.abhinav.ownapp.RamGraphView
-            android:id="@+id/ramGraphView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginTop="40dp" />
-
-        <!-- TOP LEFT: RAM Icon and Total Text Stack -->
+        <!-- LEFT SIDE: Clean Vertical Text Stack -->
         <LinearLayout
-            android:id="@+id/ramHeaderLeft"
+            android:id="@+id/ramTextStack"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_alignParentStart="true"
-            android:layout_alignParentTop="true"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <ImageView
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="@drawable/bg_circle_blue"
-                android:backgroundTint="#4842FF"
-                android:src="@drawable/ic_ram"
-                android:padding="5dp"
-                android:layout_marginEnd="8dp" />
+            android:orientation="vertical"
+            android:minWidth="130dp">
+            <!-- Removed center_vertical gravity to allow perfect top/bottom alignment -->
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center_vertical">
-
+                android:orientation="horizontal"
+                android:baselineAligned="true">
                 <TextView
-                    android:id="@+id/tvRamTitle"
+                    android:id="@+id/tvRamPercentLarge"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="RAM"
-                    android:textSize="14sp"
+                    android:text="0"
+                    android:textSize="40sp"
                     android:textStyle="bold"
-                    android:textColor="?android:attr/textColorPrimary" />
-
+                    android:includeFontPadding="false" />
                 <TextView
-                    android:id="@+id/tvRamTotal"
+                    android:id="@+id/tvRamPercentUnit"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Calculating..."
-                    android:textSize="11sp"
-                    android:layout_marginTop="1dp"
-                    android:singleLine="true"
-                    android:textColor="?android:attr/textColorSecondary" />
+                    android:text="%"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="2dp"
+                    android:includeFontPadding="false" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvRamTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="RAM Usage"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+
+            <!-- ADDED: Invisible spacer that pushes the details box exactly to the bottom -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:id="@+id/ramDetailsBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:id="@+id/tvRamUsedLbl"
+                        android:layout_width="45dp"
+                        android:layout_height="wrap_content"
+                        android:text="Used"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/tvRamUsed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 MB"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:id="@+id/tvRamFreeLbl"
+                        android:layout_width="45dp"
+                        android:layout_height="wrap_content"
+                        android:text="Free"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/tvRamFree"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 MB"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:id="@+id/tvRamTotalLbl"
+                        android:layout_width="45dp"
+                        android:layout_height="wrap_content"
+                        android:text="Total"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/tvRamTotal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 MB"
+                        android:textSize="11sp" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- TOP RIGHT: Used and Free RAM Stack -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignTop="@id/ramHeaderLeft"
-            android:layout_alignBottom="@id/ramHeaderLeft"
-            android:layout_marginEnd="16dp"
-            android:orientation="vertical"
-            android:gravity="center_vertical|end">
+        <!-- RIGHT SIDE: Graph View -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_toEndOf="@id/ramTextStack"
+            android:layout_toRightOf="@id/ramTextStack"
+            android:layout_marginStart="8dp">
 
-            <TextView
-                android:id="@+id/tvRamUsed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Used"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="?android:attr/textColorPrimary" />
+            <com.abhinav.ownapp.RamGraphView
+                android:id="@+id/ramGraphView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </FrameLayout>
 
-            <TextView
-                android:id="@+id/tvRamFree"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Free"
-                android:textSize="11sp"
-                android:layout_marginTop="1dp"
-                android:singleLine="true"
-                android:textColor="?android:attr/textColorSecondary" />
-        </LinearLayout>
     </RelativeLayout>
 
     <!-- BOTTOM SECTION: STORAGE & BATTERY SEPARATED CARDS -->
@@ -111,138 +154,122 @@
         android:baselineAligned="false"
         android:weightSum="2">
 
-        <!-- STORAGE CARD (Standalone Shape) -->
+        <!-- STORAGE CARD -->
         <LinearLayout
             android:id="@+id/storageCardBg"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="12dp"
+            android:orientation="vertical"
+            android:padding="16dp"
             android:background="@drawable/bg_storage_card"
-            android:clipToOutline="true"
             android:layout_marginEnd="6dp">
 
-            <ImageView
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="@drawable/bg_circle_blue"
-                android:backgroundTint="#4842FF"
-                android:src="@drawable/ic_storage"
-                android:padding="8dp"
-                android:layout_marginEnd="8dp" />
-
             <LinearLayout
-                android:layout_width="80dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
+                android:orientation="horizontal"
+                android:baselineAligned="true">
                 <TextView
-                    android:id="@+id/tvStorageTitle"
+                    android:id="@+id/tvStorageValueLarge"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:text="Storage"
-                    android:textColor="?android:attr/textColorPrimary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <FrameLayout
-                    android:layout_width="75dp"
-                    android:layout_height="26dp"
-                    android:layout_marginTop="6dp">
-
-                    <ProgressBar
-                        android:id="@+id/pbStorage"
-                        style="?android:attr/progressBarStyleHorizontal"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent" />
-
-                    <TextView
-                        android:id="@+id/tvStorageValue"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:includeFontPadding="false"
-                        android:text="Calc..."
-                        android:textColor="#FFFFFF"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        app:autoSizeMaxTextSize="12sp"
-                        app:autoSizeMinTextSize="8sp"
-                        app:autoSizeTextType="uniform" />
-                </FrameLayout>
+                    android:text="0.0"
+                    android:textSize="32sp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+                <TextView
+                    android:id="@+id/tvStorageUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="GB"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="4dp"
+                    android:includeFontPadding="false" />
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvStorageTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Storage Level"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/tvStorageStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Optimal Space"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:layout_marginTop="18dp" />
+
+            <FrameLayout
+                android:id="@+id/storageSegmentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="12dp"
+                android:layout_marginTop="6dp" />
         </LinearLayout>
 
-        <!-- BATTERY CARD (Standalone Shape) -->
+        <!-- BATTERY CARD -->
         <LinearLayout
             android:id="@+id/batteryCardBg"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="12dp"
+            android:orientation="vertical"
+            android:padding="16dp"
             android:background="@drawable/bg_storage_card"
-            android:clipToOutline="true"
             android:layout_marginStart="6dp">
 
-            <ImageView
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="@drawable/bg_circle_blue"
-                android:backgroundTint="#4842FF"
-                android:src="@drawable/ic_battery"
-                android:padding="8dp"
-                android:layout_marginEnd="8dp" />
-
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
+                android:orientation="horizontal"
+                android:baselineAligned="true">
                 <TextView
-                    android:id="@+id/tvBatteryTitle"
+                    android:id="@+id/tvBatteryValueLarge"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Battery"
+                    android:text="0"
+                    android:textSize="32sp"
                     android:textStyle="bold"
-                    android:textSize="14sp"
-                    android:maxLines="1"
-                    android:ellipsize="end"
-                    android:textColor="?android:attr/textColorPrimary" />
-
-                <FrameLayout
-                    android:layout_width="75dp"
-                    android:layout_height="26dp"
-                    android:layout_marginTop="6dp">
-
-                    <ProgressBar
-                        android:id="@+id/pbBattery"
-                        style="?android:attr/progressBarStyleHorizontal"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:max="100"/>
-
-                    <TextView
-                        android:id="@+id/tvBatteryValue"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:includeFontPadding="false"
-                        android:text="Check..."
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:textColor="#FFFFFF"
-                        app:autoSizeTextType="uniform"
-                        app:autoSizeMinTextSize="8sp"
-                        app:autoSizeMaxTextSize="12sp" />
-                </FrameLayout>
+                    android:includeFontPadding="false" />
+                <TextView
+                    android:id="@+id/tvBatteryUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="%"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="2dp"
+                    android:includeFontPadding="false" />
             </LinearLayout>
-        </LinearLayout>
 
+            <TextView
+                android:id="@+id/tvBatteryTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Battery Level"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/tvBatteryStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Checking..."
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:layout_marginTop="18dp" />
+
+            <FrameLayout
+                android:id="@+id/batterySegmentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="12dp"
+                android:layout_marginTop="6dp" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>
