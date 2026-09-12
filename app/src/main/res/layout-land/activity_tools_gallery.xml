@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/toolsGalleryRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingHorizontal="32dp"
+    android:paddingVertical="16dp"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    tools:ignore="HardcodedText">
+
+    <TextView
+        android:id="@+id/tvToolsTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/tools_gallery_title"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="4dp"/>
+
+    <TextView
+        android:id="@+id/tvToolsSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/tools_gallery_subtitle"
+        android:textSize="14sp"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Landscape uses 3 columns instead of 2 for optimal horizontal space -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="none"
+        android:clipToPadding="false">
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="3"
+            android:alignmentMode="alignMargins"
+            android:clipToPadding="false"
+            android:clipChildren="false">
+
+            <!-- 1. Image Editor Card -->
+            <LinearLayout
+                android:id="@+id/cardImageEditor"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:orientation="vertical"
+                android:layout_margin="10dp">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="100dp">
+                    <ImageView
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/imagestudio_preview" />
+                </FrameLayout>
+
+                <View
+                    android:id="@+id/divImageEditor"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp" />
+
+                <TextView
+                    android:id="@+id/textImageEditor"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Image Studio"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:padding="12dp" />
+            </LinearLayout>
+
+            <!-- 2. Collage Studio Card -->
+            <LinearLayout
+                android:id="@+id/cardCollageStudio"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:orientation="vertical"
+                android:layout_margin="10dp">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="100dp">
+                    <ImageView
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/collagestudio_preview" />
+                </FrameLayout>
+
+                <View
+                    android:id="@+id/divCollageStudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp" />
+
+                <TextView
+                    android:id="@+id/textCollageStudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Collage Studio"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:padding="12dp" />
+            </LinearLayout>
+
+            <!-- 3. PDF Studio Card -->
+            <LinearLayout
+                android:id="@+id/cardPdfStudio"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:orientation="vertical"
+                android:layout_margin="10dp">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="100dp">
+                    <ImageView
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/pdfstudio_preview" />
+                </FrameLayout>
+
+                <View
+                    android:id="@+id/divPdfStudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp" />
+
+                <TextView
+                    android:id="@+id/textPdfStudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="PDF Studio"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:padding="12dp" />
+            </LinearLayout>
+
+            <!-- 4. Sticker Maker Card -->
+            <LinearLayout
+                android:id="@+id/cardStickerMaker"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:orientation="vertical"
+                android:layout_margin="10dp">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="100dp">
+                    <ImageView
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/stickermaker_preview" />
+                </FrameLayout>
+
+                <View
+                    android:id="@+id/divStickerMaker"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp" />
+
+                <TextView
+                    android:id="@+id/textStickerMaker"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/whatsapp_sticker_title"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:padding="12dp" />
+            </LinearLayout>
+
+            <!-- 5. Audio Studio Card -->
+            <LinearLayout
+                android:id="@+id/cardAudioStudio"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:orientation="vertical"
+                android:layout_margin="10dp">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="100dp">
+                    <ImageView
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/audiostudio_preview" />
+                </FrameLayout>
+
+                <View
+                    android:id="@+id/divAudioStudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp" />
+
+                <TextView
+                    android:id="@+id/textAudioStudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Audio Studio"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:padding="12dp" />
+            </LinearLayout>
+
+        </GridLayout>
+    </ScrollView>
+</LinearLayout>

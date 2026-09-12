@@ -41,11 +41,6 @@
         tools:ignore="ForegroundServicePermission" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
-    <!-- DEVICE STATS DASHBOARD NOTE:
-         No additional permissions (like BATTERY_STATS or READ_EXTERNAL_STORAGE) are needed
-         for the DeviceStatsHelper. Android allows querying basic RAM, internal storage,
-         and battery broadcasts by default! -->
-
     <!-- Hardware Accelerated & Large Heap enabled for smooth WebP compiling and A4 PDF rendering -->
     <application
         android:name=".MainApplication"
@@ -66,7 +61,6 @@
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="document_scanner" />
 
-        <!-- FIX APPLIED HERE: Removed configChanges so Android can auto-load layout-land -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -96,16 +90,16 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
+        <!-- FIX: Removed configChanges so Widget Gallery can auto-load landscape XML -->
         <activity
             android:name=".WidgetGalleryActivity"
             android:theme="@style/Theme.OwnPhotoONWall.Translucent"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
+        <!-- FIX: Removed configChanges so Games Gallery can auto-load landscape XML -->
         <activity
             android:name=".GamesGalleryActivity"
             android:theme="@style/Theme.OwnPhotoONWall.Translucent"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
         <!-- Unlocked Screen Orientation & Added Seamless Rotation -->
@@ -114,62 +108,52 @@
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
-        <!-- Flappy Bird Game Activity -->
         <activity
             android:name=".FlappyBirdActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:theme="@style/Theme.OwnPhotoONWall" />
 
-        <!-- Tetris Game Activity -->
         <activity
             android:name=".TetrisActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:theme="@style/Theme.OwnPhotoONWall" />
 
-        <!-- Breakout Game Activity -->
         <activity
             android:name=".BreakoutActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:theme="@style/Theme.OwnPhotoONWall" />
 
-        <!-- Maze Ball Game Activity -->
         <activity
             android:name=".MazeBallActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
-        <!-- Rotating Globe Game Activity -->
         <activity
             android:name=".GlobeGameActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
+        <!-- THE MAIN FIX: Removed configChanges so Tools Gallery dynamically loads layout-land -->
         <activity
             android:name=".ToolsGalleryActivity"
             android:theme="@style/Theme.OwnPhotoONWall.Translucent"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
-        <!-- Audio Editor Studio (Exported to accept external sharing) -->
         <activity
             android:name=".AudioEditorActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:screenOrientation="portrait">
-
-            <!-- Intercept shared audio files to use as Base Track -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="audio/*" />
             </intent-filter>
-
-            <!-- Specifically target WhatsApp Opus files -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -177,42 +161,45 @@
             </intent-filter>
         </activity>
 
-        <!-- Audio Gallery Activity -->
         <activity
             android:name=".AudioGalleryActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:screenOrientation="portrait" />
 
-        <!-- Utilities Gallery -->
+        <!-- FIX: Removed configChanges so Utilities Gallery can auto-load landscape XML -->
         <activity
             android:name=".UtilitiesGalleryActivity"
             android:theme="@style/Theme.OwnPhotoONWall.Translucent"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
-        <!-- High-Performance Slate Utility Tool -->
         <activity
             android:name=".SlateActivity"
             android:exported="true"
             android:screenOrientation="fullSensor"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
-        <!-- NEW: Text Pad IDE Utility -->
         <activity
             android:name=".TextPadActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
-        <!-- Hyper-Secure Private Browser Activity -->
         <activity
             android:name=".PrivateBrowserActivity"
-            android:exported="false"
+            android:exported="true"
+            android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+            </intent-filter>
+        </activity>
 
-        <!-- UPGRADED: OWN Doc Reader with Universal System-Wide "Open With..." Support -->
         <activity
             android:name=".DocReaderActivity"
             android:exported="true"
@@ -221,19 +208,13 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-
-                <!-- Explicit Schemes required so WhatsApp, Gmail & Google Files route files here! -->
                 <data android:scheme="content" />
                 <data android:scheme="file" />
-
-                <!-- Standard Office & Text MIME Types -->
                 <data android:mimeType="application/msword" />
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
                 <data android:mimeType="text/plain" />
                 <data android:mimeType="application/rtf" />
             </intent-filter>
-
-            <!-- Fallback Filter: Catches mislabeled .docx files from third-party file managers -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -255,7 +236,6 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
-        <!-- NEW: Added Intent Filter to catch shared images directly into the Editor -->
         <activity
             android:name=".ImageEditorActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
@@ -268,31 +248,26 @@
             </intent-filter>
         </activity>
 
-        <!-- Image Studio Mega Gallery -->
         <activity
             android:name=".ImageStudioMegaGal"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
-        <!-- Advanced Canvas Studio -->
         <activity
             android:name=".AdvancedCanvasActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
-        <!-- Clone Tool Studio -->
         <activity
             android:name=".CloneActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
-        <!-- Collage Studio Activity -->
         <activity
             android:name=".CollageStudioActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
 
-        <!-- PDF Studio Activities -->
         <activity
             android:name=".PdfStudioActivity"
             android:exported="false"

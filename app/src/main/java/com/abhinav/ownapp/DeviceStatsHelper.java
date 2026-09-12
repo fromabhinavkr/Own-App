@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -169,10 +171,9 @@ public class DeviceStatsHelper {
                 Log.e("DeviceStats", "Storage read failed", e);
             }
 
-            // --- 4. REAL-TIME RAM & BATTERY LOGIC (USING BATTERY MANAGER) ---
+            // --- 4. REAL-TIME RAM & BATTERY LOGIC ---
             ActivityManager actManager = (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
             ActivityManager.MemoryInfo memInfo = new ActivityManager.MemoryInfo();
-            BatteryManager batteryManager = (BatteryManager) activity.getSystemService(Context.BATTERY_SERVICE);
 
             SegmentedProgressView finalBatteryProgressView = batteryProgressView;
 
@@ -184,7 +185,13 @@ public class DeviceStatsHelper {
             statsRunnable = new Runnable() {
                 @Override
                 public void run() {
-                    if (activity.isFinishing() || activity.isDestroyed() || !ramCardBg.isAttachedToWindow()) {
+                    if (activity.isFinishing() || activity.isDestroyed()) {
+                        return; // Safely exit if activity is dead
+                    }
+
+                    // BUG FIX: If the view isn't attached yet, wait and try again instead of killing the loop.
+                    if (!ramCardBg.isAttachedToWindow()) {
+                        statsHandler.postDelayed(this, 500);
                         return;
                     }
 
@@ -207,11 +214,20 @@ public class DeviceStatsHelper {
                         }
                     }
 
-                    // Battery Updates via BatteryManager (Crash-free on all Android versions)
-                    if (batteryManager != null) {
-                        try {
-                            int batteryPct = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-                            boolean isCharging = batteryManager.isCharging();
+                    // BUG FIX: Battery Updates via Sticky Intent (Works securely on MIUI/ColorOS/HyperOS)
+                    try {
+                        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                        Intent batteryStatusIntent = activity.registerReceiver(null, ifilter);
+
+                        if (batteryStatusIntent != null) {
+                            int level = batteryStatusIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                            int scale = batteryStatusIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                            int status = batteryStatusIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+
+                            boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                    status == BatteryManager.BATTERY_STATUS_FULL;
+
+                            int batteryPct = (int) ((level / (float) scale) * 100);
 
                             if (batteryPct >= 0 && batteryPct <= 100) {
                                 if (tvBatteryValLarge != null) tvBatteryValLarge.setText(String.valueOf(batteryPct));
@@ -229,9 +245,9 @@ public class DeviceStatsHelper {
                                 }
                                 finalBatteryProgressView.setProgress(batteryPct);
                             }
-                        } catch (Exception e) {
-                            Log.e("DeviceStats", "Battery manager read error", e);
                         }
+                    } catch (Exception e) {
+                        Log.e("DeviceStats", "Battery intent read error", e);
                     }
 
                     statsHandler.postDelayed(this, 1000);

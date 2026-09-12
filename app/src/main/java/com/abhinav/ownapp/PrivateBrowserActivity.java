@@ -15,11 +15,14 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -200,6 +203,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         homeShortcutList = findViewById(R.id.homeShortcutList);
 
         injectAnimatedFanHeader();
+        setupScrollingLandscape();
 
         findViewById(R.id.btnCloseTabsOverlay).setOnClickListener(v -> { tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); });
         findViewById(R.id.btnAddNewTab).setOnClickListener(v -> { tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); createNewTab(null, false, true); });
@@ -254,9 +258,42 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
         etSearchUrl.setOnEditorActionListener((v, actionId, event) -> { if (actionId == EditorInfo.IME_ACTION_GO || (event != null && event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) { loadUrlOrSearch(); return true; } return false; });
 
-        // IMPORTANT FIX: Explicitly add one unpinned, blank tab if the user tries to start the browser fresh
-        // If they had pinned tabs before, they will load alongside it.
         restoreSession();
+
+        Intent intent = getIntent();
+        if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
+            String externalUrl = intent.getData().toString();
+            createNewTab(externalUrl, false, true);
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
+            String externalUrl = intent.getData().toString();
+            createNewTab(externalUrl, false, true);
+        }
+    }
+
+    // MEMORY MANAGEMENT: Clear unused RAM aggressively when Android needs it (Does NOT clear persistent data/cookies)
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        for (TabInfo t : tabs) {
+            if (t.webView != null) t.webView.clearCache(false);
+        }
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= TRIM_MEMORY_MODERATE) {
+            for (TabInfo t : tabs) {
+                if (t.webView != null) t.webView.clearCache(false);
+            }
+        }
     }
 
     private void saveSession() {
@@ -292,7 +329,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             }
         } catch (Exception e) {}
 
-        // This ensures the browser doesn't open fully empty, while preserving the pinned tabs.
         if (!loadedPinnedTab) { createNewTab(null, false, true); }
         else { switchTab(tabs.size() - 1); }
     }
@@ -308,8 +344,24 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         ViewGroup parent = (ViewGroup) oldTitle.getParent(); int index = parent.indexOfChild(oldTitle); parent.removeView(oldTitle);
         int fanColor = themeState == 0 ? Color.parseColor("#333333") : (themeState == 1 ? Color.parseColor("#E0E0E0") : Color.parseColor("#FFFFFF"));
         FanView fanView = new FanView(this, fanColor);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(44), dp(44)); params.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP; params.setMargins(0, dp(16), 0, dp(16)); fanView.setLayoutParams(params);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(44), dp(44)); params.gravity = Gravity.CENTER_VERTICAL; params.setMargins(0, 0, 0, 0); fanView.setLayoutParams(params);
         parent.addView(fanView, index);
+    }
+
+    private void setupScrollingLandscape() {
+        FrameLayout container = findViewById(R.id.scrollingLandscapeContainer);
+        if (container != null) {
+            ScrollingLandscapeView landscapeView = new ScrollingLandscapeView(this);
+            landscapeView.setTheme(themeState);
+            container.addView(landscapeView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+            GradientDrawable gd = new GradientDrawable();
+            gd.setCornerRadius(dp(100)); // Fully rounded capsule shape
+            int strokeColor = (themeState == 0) ? Color.parseColor("#E5E5EA") : ((themeState == 1) ? Color.parseColor("#3A3A3C") : Color.parseColor("#333333"));
+            gd.setStroke(dp(2), strokeColor);
+            container.setBackground(gd);
+            container.setClipToOutline(true);
+        }
     }
 
     private static class FanView extends View {
@@ -369,6 +421,149 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             canvas.drawRoundRect(cx - s, cy - s, cx + s, cy + s * 0.2f, s * 0.4f, s * 0.4f, paint);
             canvas.drawRect(cx - s * 0.5f, cy + s * 0.2f, cx + s * 0.5f, cy + s * 0.5f, paint);
             canvas.drawLine(cx, cy + s * 0.5f, cx, cy + s * 1.5f, paint);
+            canvas.restore();
+        }
+    }
+
+    public static class ScrollingLandscapeView extends View {
+        private Paint skyPaint, backMountainPaint, frontMountainPaint, celestialPaint;
+        private Path backPath, frontPath;
+        private float scrollOffset = 0f;
+        private int themeState = 1;
+        private final Handler animHandler = new Handler(Looper.getMainLooper());
+        private final Runnable animRunnable = new Runnable() {
+            @Override
+            public void run() {
+                scrollOffset += 1.5f;
+                if (scrollOffset > 12000f) scrollOffset -= 12000f;
+                invalidate();
+                animHandler.postDelayed(this, 16);
+            }
+        };
+
+        public ScrollingLandscapeView(Context context) {
+            super(context);
+            init();
+        }
+
+        private void init() {
+            skyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            backMountainPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            frontMountainPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            celestialPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            backPath = new Path();
+            frontPath = new Path();
+        }
+
+        public void setTheme(int themeState) {
+            this.themeState = themeState;
+            int backColor, frontColor, celestialColor;
+            if (themeState == 0) { // Light
+                backColor = Color.parseColor("#90CAF9");
+                frontColor = Color.parseColor("#42A5F5");
+                celestialColor = Color.parseColor("#FFD54F"); // Yellow Sun
+            } else if (themeState == 1) { // Dark
+                backColor = Color.parseColor("#3949AB");
+                frontColor = Color.parseColor("#283593");
+                celestialColor = Color.parseColor("#F48FB1"); // Pinkish Moon
+            } else { // Star Mode
+                backColor = Color.parseColor("#2C2C2E");
+                frontColor = Color.parseColor("#1C1C1E");
+                celestialColor = Color.parseColor("#E5E5EA"); // Bright White Moon
+            }
+            backMountainPaint.setColor(backColor);
+            frontMountainPaint.setColor(frontColor);
+            celestialPaint.setColor(celestialColor);
+            invalidate();
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            super.onSizeChanged(w, h, oldw, oldh);
+            if (w <= 0 || h <= 0) return;
+            int skyStart, skyEnd;
+            if (themeState == 0) { skyStart = Color.parseColor("#4DA8DA"); skyEnd = Color.parseColor("#EEF5FF"); }
+            else if (themeState == 1) { skyStart = Color.parseColor("#1A237E"); skyEnd = Color.parseColor("#1C1C1E"); }
+            else { skyStart = Color.parseColor("#000000"); skyEnd = Color.parseColor("#0B0C10"); }
+            skyPaint.setShader(new LinearGradient(0, 0, 0, h, skyStart, skyEnd, Shader.TileMode.CLAMP));
+
+            float chunkW = 1200f;
+            int resolution = 120; // High resolution rendering for flawless curves
+
+            // Background Layer Peaks (Slower)
+            backPath.reset();
+            backPath.moveTo(0, h);
+            for(int i = 0; i <= resolution; i++) {
+                float x = i * (chunkW / resolution);
+                float rad = (float) (x * 2.0 * Math.PI / chunkW);
+                float y = h * 0.45f + (float)Math.sin(rad) * (h * 0.15f) + (float)Math.sin(rad * 2.0f) * (h * 0.1f);
+                backPath.lineTo(x, y);
+            }
+            backPath.lineTo(chunkW, h);
+            backPath.close();
+
+            // Foreground Layer Peaks (Faster)
+            frontPath.reset();
+            frontPath.moveTo(0, h);
+            for(int i = 0; i <= resolution; i++) {
+                float x = i * (chunkW / resolution);
+                float rad = (float) (x * 2.0 * Math.PI / chunkW);
+                float y = h * 0.70f + (float)Math.cos(rad) * (h * 0.12f) + (float)Math.sin(rad * 3.0f) * (h * 0.08f);
+                frontPath.lineTo(x, y);
+            }
+            frontPath.lineTo(chunkW, h);
+            frontPath.close();
+        }
+
+        @Override
+        protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            animHandler.post(animRunnable);
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            super.onDetachedFromWindow();
+            animHandler.removeCallbacks(animRunnable);
+        }
+
+        @Override
+        protected void onDraw(@NonNull Canvas canvas) {
+            super.onDraw(canvas);
+            int w = getWidth();
+            int h = getHeight();
+            if (w <= 0 || h <= 0) return;
+
+            // Paint Sky
+            canvas.drawRect(0, 0, w, h, skyPaint);
+
+            // Paint Celestial Body (Moon / Sun) fixed at the right
+            float celestialX = w * 0.8f;
+            float celestialY = h * 0.35f;
+            canvas.drawCircle(celestialX, celestialY, h * 0.2f, celestialPaint);
+
+            float chunkW = 1200f;
+
+            // Draw Parallax Layer 1 (Back Mountains) - Scrolls 50% Speed
+            float backOffset = (scrollOffset * 0.5f) % chunkW;
+            canvas.save();
+            canvas.translate(-backOffset, 0);
+            canvas.drawPath(backPath, backMountainPaint);
+            canvas.translate(chunkW, 0);
+            canvas.drawPath(backPath, backMountainPaint);
+            canvas.translate(chunkW, 0);
+            canvas.drawPath(backPath, backMountainPaint);
+            canvas.restore();
+
+            // Draw Parallax Layer 2 (Front Mountains) - Scrolls 100% Speed
+            float frontOffset = scrollOffset % chunkW;
+            canvas.save();
+            canvas.translate(-frontOffset, 0);
+            canvas.drawPath(frontPath, frontMountainPaint);
+            canvas.translate(chunkW, 0);
+            canvas.drawPath(frontPath, frontMountainPaint);
+            canvas.translate(chunkW, 0);
+            canvas.drawPath(frontPath, frontMountainPaint);
             canvas.restore();
         }
     }
@@ -485,8 +680,14 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     }
 
     private void closeTab(int index) {
-        TabInfo closing = tabs.get(index); webViewContainer.removeView(closing.webView);
-        closing.webView.clearHistory(); closing.webView.clearCache(true); closing.webView.clearFormData(); closing.webView.loadUrl("about:blank"); closing.webView.destroy();
+        TabInfo closing = tabs.get(index);
+        webViewContainer.removeView(closing.webView);
+
+        // Removed clearCache(true) and clearFormData() so data persists until "Del Data" is pressed.
+        closing.webView.clearHistory();
+        closing.webView.loadUrl("about:blank");
+        closing.webView.destroy();
+
         if (closing.preview != null) closing.preview.recycle(); tabs.remove(index);
         updateTabIconCount();
         saveSession();
@@ -515,10 +716,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         for (int i = 0; i < tabs.size(); i++) {
             final int index = i; TabInfo info = tabs.get(i);
 
-            // --- THE FIX: DYNAMIC COLOR THEME FOR SELECTED TAB ---
             int outerSelectedBg;
-            if (themeState == 0) { outerSelectedBg = Color.parseColor("#FFB59F"); } // Light mode uses coral accent
-            else { outerSelectedBg = Color.parseColor("#6750A4"); } // Dark/Star modes use Violet accent
+            if (themeState == 0) { outerSelectedBg = Color.parseColor("#FFB59F"); }
+            else { outerSelectedBg = Color.parseColor("#6750A4"); }
 
             LinearLayout outerCard = new LinearLayout(this); outerCard.setOrientation(LinearLayout.VERTICAL);
             GridLayout.LayoutParams params = new GridLayout.LayoutParams(); params.width = 0; params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f); params.setMargins(dp(8), dp(8), dp(8), dp(8)); outerCard.setLayoutParams(params);
@@ -686,8 +886,10 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void toggleDesktopMode(WebView webView) {
         boolean isDesktop = false; if (webView.getTag() != null) isDesktop = (boolean) webView.getTag(); WebSettings settings = webView.getSettings(); if (defaultUserAgent == null) defaultUserAgent = settings.getUserAgentString();
+
+        // Removed clearCache(true) so toggling desktop mode doesn't sign you out.
         if (isDesktop) { settings.setUserAgentString(defaultUserAgent); settings.setUseWideViewPort(false); settings.setLoadWithOverviewMode(false); webView.setInitialScale(0); webView.setTag(false); Toast.makeText(this, "Mobile View...", Toast.LENGTH_SHORT).show(); } else { settings.setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"); settings.setUseWideViewPort(true); settings.setLoadWithOverviewMode(true); webView.setInitialScale(1); webView.setTag(true); Toast.makeText(this, "Desktop View...", Toast.LENGTH_SHORT).show(); }
-        webView.clearCache(true); webView.reload();
+        webView.reload();
     }
 
     private class JavascriptBridge {
@@ -702,6 +904,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     @android.annotation.SuppressLint("SetJavaScriptEnabled")
     private void setupSuperSecureWebView(WebView web) {
+        // PERFORMANCE BOOST: Hardware Acceleration enabled for this WebView specifically
+        web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);
 
@@ -709,22 +914,36 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setSaveFormData(false);
-        settings.setDatabaseEnabled(false);
-        settings.setDomStorageEnabled(true);
-        settings.setMediaPlaybackRequiresUserGesture(true);
 
-        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        // PERFORMANCE FIX: Instagram/React apps NEED databases enabled to store local state.
+        // False = crashing on infinite scrolls.
+        settings.setDatabaseEnabled(true);
+        settings.setDomStorageEnabled(true);
+
+        // PERFORMANCE FIX: Allow videos to play smoothly without forcing user gestures first
+        settings.setMediaPlaybackRequiresUserGesture(false);
+
+        // PERFORMANCE FIX: Cache enabled for smooth scrolling. Data is preserved until "Del Data" is clicked.
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
         settings.setSupportZoom(true);
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
+
+        // Allow mixed content so parts of the site don't randomly fail to load
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+        }
+
         if (defaultUserAgent == null) defaultUserAgent = settings.getUserAgentString();
 
-        // --- THE FIX: SPOOFING MOBILE USER AGENT TO HIDE DEVICE NAME ---
         String safeMobileAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
         settings.setUserAgentString(safeMobileAgent);
 
         CookieManager.getInstance().setAcceptCookie(true);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
+
+        // Changed to TRUE so cross-site logins work properly before manually deleting data
+        CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
 
         web.addJavascriptInterface(new JavascriptBridge(), "OwnBrowser");
         web.addJavascriptInterface(new JavascriptBridge(), "control");
@@ -776,9 +995,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         TextView btnAddNewTab = findViewById(R.id.btnAddNewTab); ImageView btnCloseTabsOverlay = findViewById(R.id.btnCloseTabsOverlay); TextView tvDownloadsTitle = findViewById(R.id.tvDownloadsTitle); ImageView btnCloseDownloadsOverlay = findViewById(R.id.btnCloseDownloadsOverlay); TextView btnAllDownloads = findViewById(R.id.btnAllDownloads);
         btnAddNewTab.setTextColor(accentTextColor); btnAddNewTab.setBackgroundTintList(ColorStateList.valueOf(accentBgColor)); btnCloseTabsOverlay.setColorFilter(textColor); tvDownloadsTitle.setTextColor(textColor); btnCloseDownloadsOverlay.setColorFilter(textColor); btnAllDownloads.setTextColor(textColor); btnAllDownloads.setBackgroundTintList(ColorStateList.valueOf(buttonBgColor));
     }
-
-    private GradientDrawable createPillShape(int color) { GradientDrawable shape = new GradientDrawable(); shape.setColor(color); shape.setCornerRadius(1000f); return shape; }
-    private GradientDrawable createBoxShape(int color) { GradientDrawable shape = new GradientDrawable(); shape.setColor(color); shape.setCornerRadius(30f); return shape; }
 
     @Override
     protected void onDestroy() {

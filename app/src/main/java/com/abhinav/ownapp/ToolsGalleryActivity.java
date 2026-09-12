@@ -37,7 +37,7 @@ public class ToolsGalleryActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // FIX: Keep the underlying window PERMANENTLY transparent to avoid animation glitching
+        // Keep the underlying window PERMANENTLY transparent to avoid animation glitching
         getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
@@ -91,33 +91,43 @@ public class ToolsGalleryActivity extends AppCompatActivity {
         // Apply Status Bar Icons immediately
         enforceStatusBarIcons();
 
-        // --- Handle Circular Reveal Entry Animation ---
+        // Retrieve Coordinates from Intent
         Intent intent = getIntent();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            root.setVisibility(View.INVISIBLE);
+        revealX = intent.getIntExtra("REVEAL_X", 0);
+        revealY = intent.getIntExtra("REVEAL_Y", 0);
 
-            ViewTreeObserver viewTreeObserver = root.getViewTreeObserver();
-            if (viewTreeObserver.isAlive()) {
-                viewTreeObserver.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-                    @Override
-                    public void onGlobalLayout() {
-                        root.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+        // --- THE BUG FIX: Only run Entry Animation if this is a fresh launch! ---
+        if (savedInstanceState == null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                root.setVisibility(View.INVISIBLE);
 
-                        revealX = intent.getIntExtra("REVEAL_X", root.getWidth() / 2);
-                        revealY = intent.getIntExtra("REVEAL_Y", root.getHeight() / 2);
+                ViewTreeObserver viewTreeObserver = root.getViewTreeObserver();
+                if (viewTreeObserver.isAlive()) {
+                    viewTreeObserver.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                        @Override
+                        public void onGlobalLayout() {
+                            root.getViewTreeObserver().removeOnGlobalLayoutListener(this);
 
-                        // Use hypotenuse to ensure the circle covers the entire screen perfectly
-                        float finalRadius = (float) Math.hypot(root.getWidth(), root.getHeight());
+                            if (revealX == 0 && revealY == 0) {
+                                revealX = root.getWidth() / 2;
+                                revealY = root.getHeight() / 2;
+                            }
 
-                        Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, 0, finalRadius);
-                        circularReveal.setDuration(350);
-                        circularReveal.setInterpolator(new DecelerateInterpolator());
+                            float finalRadius = (float) Math.hypot(root.getWidth(), root.getHeight());
 
-                        root.setVisibility(View.VISIBLE);
-                        circularReveal.start();
-                    }
-                });
+                            Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, 0, finalRadius);
+                            circularReveal.setDuration(350);
+                            circularReveal.setInterpolator(new DecelerateInterpolator());
+
+                            root.setVisibility(View.VISIBLE);
+                            circularReveal.start();
+                        }
+                    });
+                }
             }
+        } else {
+            // If the activity is recreating due to screen rotation, just show it immediately!
+            root.setVisibility(View.VISIBLE);
         }
 
         // --- Handle Circular Reveal Exit Animation ---
@@ -126,8 +136,12 @@ public class ToolsGalleryActivity extends AppCompatActivity {
             public void handleOnBackPressed() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && root.isAttachedToWindow()) {
 
+                    // If rotated, it's safer to exit from the center of the screen
+                    int exitX = (revealX != 0) ? revealX : root.getWidth() / 2;
+                    int exitY = (revealY != 0) ? revealY : root.getHeight() / 2;
+
                     float startRadius = (float) Math.hypot(root.getWidth(), root.getHeight());
-                    Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, revealX, revealY, startRadius, 0);
+                    Animator circularReveal = ViewAnimationUtils.createCircularReveal(root, exitX, exitY, startRadius, 0);
                     circularReveal.setDuration(350);
                     circularReveal.setInterpolator(new DecelerateInterpolator());
 
@@ -216,15 +230,13 @@ public class ToolsGalleryActivity extends AppCompatActivity {
     private void applyModernCardStyle(View card, int bgColor) {
         GradientDrawable gd = new GradientDrawable();
         gd.setColor(bgColor);
-        gd.setCornerRadius(50f); // Keeps the smooth rounded corners
+        gd.setCornerRadius(50f);
         card.setBackground(gd);
     }
 
-    // --- Smart Lifecycle Interceptors ---
     @Override
     protected void onResume() {
         super.onResume();
-        // Force the window to remain transparent to override any MainApplication callbacks seamlessly
         getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         enforceStatusBarIcons();
     }
@@ -237,21 +249,19 @@ public class ToolsGalleryActivity extends AppCompatActivity {
         }
     }
 
-    // Method to forcibly correct the icons for Light/Dark/Star mode safely
     private void enforceStatusBarIcons() {
-        // Only target the status bar color, leaving the window background transparent
         getWindow().setStatusBarColor(bgColor);
 
         View decor = getWindow().getDecorView();
         WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), decor);
 
-        if (themeState == 0) { // Light Mode -> Icons MUST be Dark
+        if (themeState == 0) {
             controller.setAppearanceLightStatusBars(true);
             controller.setAppearanceLightNavigationBars(true);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 getWindow().setNavigationBarColor(bgColor);
             }
-        } else { // Dark or Star Mode -> Icons MUST be White
+        } else {
             controller.setAppearanceLightStatusBars(false);
             controller.setAppearanceLightNavigationBars(false);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
