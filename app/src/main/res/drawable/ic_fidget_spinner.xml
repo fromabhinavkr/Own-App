@@ -1,0 +1,84 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Central Body Hub -->
+    <path
+        android:fillColor="#FFB59F"
+        android:pathData="M 50,32 A 18,18 0 1,1 50,68 A 18,18 0 1,1 50,32 Z" />
+
+    <!-- Lobe 1 (Top - 0 degrees) -->
+    <group android:pivotX="50" android:pivotY="50" android:rotation="0">
+        <!-- Thick Arm connecting center to top pod -->
+        <path
+            android:fillColor="#FFB59F"
+            android:pathData="M 38,20 L 62,20 L 62,50 L 38,50 Z" />
+        <!-- Outer Pod Circle -->
+        <path
+            android:fillColor="#FFB59F"
+            android:pathData="M 50,4 A 16,16 0 1,1 50,36 A 16,16 0 1,1 50,4 Z" />
+        <!-- Outer Bearing Ring -->
+        <path
+            android:fillColor="#332D2B"
+            android:pathData="M 50,9 A 11,11 0 1,1 50,31 A 11,11 0 1,1 50,9 Z" />
+        <!-- Bearing Ball / Inner Cap -->
+        <path
+            android:fillColor="#52525B"
+            android:pathData="M 50,13 A 7,7 0 1,1 50,27 A 7,7 0 1,1 50,13 Z" />
+        <path
+            android:fillColor="#1C1C1E"
+            android:pathData="M 50,17 A 3,3 0 1,1 50,23 A 3,3 0 1,1 50,17 Z" />
+    </group>
+
+    <!-- Lobe 2 (Bottom Right - 120 degrees) -->
+    <group android:pivotX="50" android:pivotY="50" android:rotation="120">
+        <path
+            android:fillColor="#FFB59F"
+            android:pathData="M 38,20 L 62,20 L 62,50 L 38,50 Z" />
+        <path
+            android:fillColor="#FFB59F"
+            android:pathData="M 50,4 A 16,16 0 1,1 50,36 A 16,16 0 1,1 50,4 Z" />
+        <path
+            android:fillColor="#332D2B"
+            android:pathData="M 50,9 A 11,11 0 1,1 50,31 A 11,11 0 1,1 50,9 Z" />
+        <path
+            android:fillColor="#52525B"
+            android:pathData="M 50,13 A 7,7 0 1,1 50,27 A 7,7 0 1,1 50,13 Z" />
+        <path
+            android:fillColor="#1C1C1E"
+            android:pathData="M 50,17 A 3,3 0 1,1 50,23 A 3,3 0 1,1 50,17 Z" />
+    </group>
+
+    <!-- Lobe 3 (Bottom Left - 240 degrees) -->
+    <group android:pivotX="50" android:pivotY="50" android:rotation="240">
+        <path
+            android:fillColor="#FFB59F"
+            android:pathData="M 38,20 L 62,20 L 62,50 L 38,50 Z" />
+        <path
+            android:fillColor="#FFB59F"
+            android:pathData="M 50,4 A 16,16 0 1,1 50,36 A 16,16 0 1,1 50,4 Z" />
+        <path
+            android:fillColor="#332D2B"
+            android:pathData="M 50,9 A 11,11 0 1,1 50,31 A 11,11 0 1,1 50,9 Z" />
+        <path
+            android:fillColor="#52525B"
+            android:pathData="M 50,13 A 7,7 0 1,1 50,27 A 7,7 0 1,1 50,13 Z" />
+        <path
+            android:fillColor="#1C1C1E"
+            android:pathData="M 50,17 A 3,3 0 1,1 50,23 A 3,3 0 1,1 50,17 Z" />
+    </group>
+
+    <!-- === CENTER CAP === -->
+    <path
+        android:fillColor="#332D2B"
+        android:pathData="M 50,36 A 14,14 0 1,1 50,64 A 14,14 0 1,1 50,36 Z" />
+    <path
+        android:fillColor="#E4E4E7"
+        android:pathData="M 50,40 A 10,10 0 1,1 50,60 A 10,10 0 1,1 50,40 Z" />
+    <path
+        android:fillColor="#1C1C1E"
+        android:pathData="M 50,45 A 5,5 0 1,1 50,55 A 5,5 0 1,1 50,45 Z" />
+
+</vector>

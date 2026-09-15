@@ -50,6 +50,14 @@
         <item name="android:windowContentOverlay">@null</item>
     </style>
 
+    <style name="TranslucentSpinnerTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+    </style>
     <!-- Breakout Game Strings -->
     <string name="score_0">Score: 0</string>
     <string name="best_0">Best: 0</string>

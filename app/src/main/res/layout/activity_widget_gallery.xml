@@ -44,7 +44,7 @@
                 <TextView android:id="@+id/textDrawing" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Drawing" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
             </LinearLayout>
 
-            <!-- 2. Photo Card (Moved here) -->
+            <!-- 2. Photo Card -->
             <LinearLayout android:id="@+id/cardPhoto" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
                 <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
                     <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" android:src="@drawable/earth_map" />
@@ -105,6 +105,15 @@
                 </FrameLayout>
                 <View android:id="@+id/divHourglass" android:layout_width="match_parent" android:layout_height="1dp" />
                 <TextView android:id="@+id/textHourglass" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hourglass" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
+            </LinearLayout>
+
+            <!-- 9. Fidget Spinner Card -->
+            <LinearLayout android:id="@+id/cardSpinner" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:background="@drawable/bg_gallery_card" android:clipToOutline="true" android:layout_margin="8dp" android:elevation="2dp">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="140dp">
+                    <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerInside" android:src="@drawable/ic_fidget_spinner" />
+                </FrameLayout>
+                <View android:id="@+id/divSpinner" android:layout_width="match_parent" android:layout_height="1dp" />
+                <TextView android:id="@+id/textSpinner" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Fidget Spinner" android:textSize="16sp" android:textStyle="bold" android:gravity="center" android:padding="16dp" />
             </LinearLayout>
 
         </GridLayout>

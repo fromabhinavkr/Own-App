@@ -159,6 +159,7 @@ public class WidgetGalleryActivity extends AppCompatActivity {
         LinearLayout cardGear = findViewById(R.id.cardGear);
         LinearLayout cardCoin = findViewById(R.id.cardCoin);
         LinearLayout cardHourglass = findViewById(R.id.cardHourglass);
+        LinearLayout cardSpinner = findViewById(R.id.cardSpinner);
 
         // Link the text inside the cards
         TextView textDrawing = findViewById(R.id.textDrawing);
@@ -169,6 +170,7 @@ public class WidgetGalleryActivity extends AppCompatActivity {
         TextView textGear = findViewById(R.id.textGear);
         TextView textCoin = findViewById(R.id.textCoin);
         TextView textHourglass = findViewById(R.id.textHourglass);
+        TextView textSpinner = findViewById(R.id.textSpinner);
 
         // Link the horizontal dividers inside the cards
         View divDrawing = findViewById(R.id.divDrawing);
@@ -179,11 +181,12 @@ public class WidgetGalleryActivity extends AppCompatActivity {
         View divGear = findViewById(R.id.divGear);
         View divCoin = findViewById(R.id.divCoin);
         View divHourglass = findViewById(R.id.divHourglass);
+        View divSpinner = findViewById(R.id.divSpinner);
 
         // Arrays to loop through and apply the modern theme colors
-        LinearLayout[] cards = {cardDrawing, cardPhoto, cardMaze, cardSnake, cardWater, cardGear, cardCoin, cardHourglass};
-        TextView[] textViews = {textDrawing, textPhoto, textMaze, textSnake, textWater, textGear, textCoin, textHourglass};
-        View[] dividers = {divDrawing, divPhoto, divMaze, divSnake, divWater, divGear, divCoin, divHourglass};
+        LinearLayout[] cards = {cardDrawing, cardPhoto, cardMaze, cardSnake, cardWater, cardGear, cardCoin, cardHourglass, cardSpinner};
+        TextView[] textViews = {textDrawing, textPhoto, textMaze, textSnake, textWater, textGear, textCoin, textHourglass, textSpinner};
+        View[] dividers = {divDrawing, divPhoto, divMaze, divSnake, divWater, divGear, divCoin, divHourglass, divSpinner};
 
         // Apply theme to every card, text, and divider
         for (int i = 0; i < cards.length; i++) {
@@ -201,6 +204,7 @@ public class WidgetGalleryActivity extends AppCompatActivity {
         if (cardGear != null) cardGear.setOnClickListener(v -> requestToPinWidget(GearWidgetProvider.class));
         if (cardCoin != null) cardCoin.setOnClickListener(v -> requestToPinWidget(CoinWidget.class));
         if (cardHourglass != null) cardHourglass.setOnClickListener(v -> requestToPinWidget(HourglassWidget.class));
+        if (cardSpinner != null) cardSpinner.setOnClickListener(v -> requestToPinWidget(FidgetSpinnerWidget.class));
     }
 
     private void requestToPinWidget(Class<?> widgetProviderClass) {
