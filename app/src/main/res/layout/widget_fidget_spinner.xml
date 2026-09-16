@@ -3,8 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/modern_button"
-    android:backgroundTint="#1C1C1E"
-    android:padding="16dp">
+    android:backgroundTint="@android:color/transparent"
+    android:padding="1dp">
 
     <ImageView
         android:id="@+id/imgFidgetSpinner"

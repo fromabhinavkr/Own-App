@@ -13,10 +13,10 @@ import android.os.VibratorManager;
 import android.view.Choreographer;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
-import android.view.VelocityTracker;
 import android.view.View;
 import android.widget.ImageView;
 import android.graphics.PixelFormat;
+
 public class SpinnerClickActivity extends Activity {
 
     private ImageView imgSpinner;
@@ -24,13 +24,23 @@ public class SpinnerClickActivity extends Activity {
     private float velocity = 0f;
     private boolean isSpinning = false;
 
-    // Physics tracking
-    private float lastX = 0f;
-    private float lastY = 0f;
-    private long lastTime = 0;
+    // Physics Constants
+    // 60f = 10 revolutions per second (Fastest visual speed without causing the wagon-wheel illusion)
+    private static final float MAX_VELOCITY = 60f;
+    // Tuned so a good swipe maxes it out
+    private static final float VELOCITY_MULTIPLIER = 25f;
+    // Ultra-low friction perfectly adjusted to keep the 6 to 7 minute spin duration
+    private static final float FRICTION = 0.99970f;
 
-    // Smoothed velocity tracking (fixes direction-flip bug)
-    private VelocityTracker velocityTracker = null;
+    // Touch & Momentum tracking
+    private float lastTouchAngle = 0f;
+    private float lastVelocityAngle = 0f;
+    private float spinVelocity = 0f;
+    private long lastVelocityTime = 0;
+
+    // Tap-to-stop tracking
+    private long touchDownTime = 0;
+    private float totalSwipeAngle = 0f;
 
     // Haptic engine variables
     private Vibrator vibrator;
@@ -45,10 +55,13 @@ public class SpinnerClickActivity extends Activity {
             currentRotation += velocity;
             imgSpinner.setRotation(currentRotation);
 
-            processHaptics(Math.abs(velocity));
+            // Haptics now perfectly follow the visual math
+            processHaptics(Math.abs(velocity), Math.abs(velocity));
 
-            velocity *= 0.9995f;
+            // Apply friction
+            velocity *= FRICTION;
 
+            // Stop threshold
             if (Math.abs(velocity) < 0.05f) {
                 isSpinning = false;
                 velocity = 0f;
@@ -63,7 +76,6 @@ public class SpinnerClickActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // FIX: Semi-transparent window so the home screen shows through faintly
         getWindow().setFormat(PixelFormat.TRANSLUCENT);
         getWindow().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#66000000")));
         setContentView(R.layout.activity_spinner_click);
@@ -91,68 +103,88 @@ public class SpinnerClickActivity extends Activity {
             float y = event.getY();
             long currentTime = System.currentTimeMillis();
 
+            // Calculate angle once per event to satisfy IDE warnings
+            float currentTouchAngle = (float) Math.toDegrees(Math.atan2(y - cy, x - cx));
+
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+                    // Pause free-spin loop while finger is on the spinner
                     isSpinning = false;
-                    velocity = 0f;
-                    lastX = x;
-                    lastY = y;
-                    lastTime = currentTime;
+                    Choreographer.getInstance().removeFrameCallback(frameCallback);
 
-                    if (velocityTracker == null) {
-                        velocityTracker = VelocityTracker.obtain();
-                    } else {
-                        velocityTracker.clear();
-                    }
-                    velocityTracker.addMovement(event);
+                    spinVelocity = 0f;
+                    totalSwipeAngle = 0f;
+                    touchDownTime = currentTime;
+
+                    lastTouchAngle = currentTouchAngle;
+                    lastVelocityAngle = currentTouchAngle;
+                    lastVelocityTime = currentTime;
                     return true;
 
                 case MotionEvent.ACTION_MOVE:
-                    if (velocityTracker != null) {
-                        velocityTracker.addMovement(event);
-                    }
+                    // 1. Live visual drag
+                    float deltaAngle = currentTouchAngle - lastTouchAngle;
+                    if (deltaAngle > 180f) deltaAngle -= 360f;
+                    else if (deltaAngle < -180f) deltaAngle += 360f;
 
-                    float dx = x - lastX;
-                    float dy = y - lastY;
-
-                    float rx = x - cx;
-                    float ry = y - cy;
-
-                    float crossProduct = (rx * dy) - (ry * dx);
-                    float distanceSq = (rx * rx) + (ry * ry);
-                    float deltaAngle = 0f;
-
-                    if (distanceSq > 0) {
-                        deltaAngle = (float) ((crossProduct / distanceSq) * (180f / Math.PI));
-                    }
-
+                    totalSwipeAngle += Math.abs(deltaAngle);
                     currentRotation += deltaAngle;
                     imgSpinner.setRotation(currentRotation);
 
-                    processHaptics(Math.abs(deltaAngle));
+                    // Passing deltaAngle ensures perfect drag vibrations
+                    processHaptics(Math.abs(deltaAngle), Math.abs(deltaAngle));
 
-                    lastX = x;
-                    lastY = y;
-                    lastTime = currentTime;
+                    lastTouchAngle = currentTouchAngle;
+
+                    // 2. Velocity sampling (avoiding end-of-swipe jitter)
+                    long timeDelta = currentTime - lastVelocityTime;
+                    if (timeDelta > 15) {
+                        float velDeltaAngle = currentTouchAngle - lastVelocityAngle;
+                        if (velDeltaAngle > 180f) velDeltaAngle -= 360f;
+                        else if (velDeltaAngle < -180f) velDeltaAngle += 360f;
+
+                        float instantVelocity = velDeltaAngle / timeDelta; // deg/ms
+                        spinVelocity = (spinVelocity * 0.6f) + (instantVelocity * 0.4f);
+
+                        lastVelocityAngle = currentTouchAngle;
+                        lastVelocityTime = currentTime;
+                    }
                     return true;
 
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
                     v.performClick();
 
-                    velocity = computeReleaseAngularVelocity(event, cx, cy);
+                    long touchDuration = currentTime - touchDownTime;
+                    long timeSinceLastMove = currentTime - lastVelocityTime;
 
-                    if (velocity > 350f) velocity = 350f;
-                    if (velocity < -350f) velocity = -350f;
+                    // TAP / CLICK DETECTION:
+                    boolean isTap = (totalSwipeAngle < 8f && touchDuration < 250);
+                    boolean isHoldStill = (timeSinceLastMove > 80 && Math.abs(spinVelocity) < 0.05f);
 
-                    if (velocityTracker != null) {
-                        velocityTracker.recycle();
-                        velocityTracker = null;
+                    if (isTap || isHoldStill) {
+                        // Stop the spinner completely on click
+                        velocity = 0f;
+                        isSpinning = false;
+                        spinVelocity = 0f;
+                        triggerHapticTick(30f); // Light tactile click confirming stop
+                        return true;
                     }
 
-                    if (Math.abs(velocity) > 1f) {
+                    // SWIPE LOGIC
+                    velocity = spinVelocity * VELOCITY_MULTIPLIER;
+
+                    // Cap maximum release velocity based on the new visual limit
+                    if (velocity > MAX_VELOCITY) velocity = MAX_VELOCITY;
+                    if (velocity < -MAX_VELOCITY) velocity = -MAX_VELOCITY;
+
+                    // Start spinning if speed is above minimum threshold
+                    if (Math.abs(velocity) > 0.5f) {
                         isSpinning = true;
                         Choreographer.getInstance().postFrameCallback(frameCallback);
+                    } else {
+                        velocity = 0f;
+                        isSpinning = false;
                     }
                     return true;
             }
@@ -160,38 +192,12 @@ public class SpinnerClickActivity extends Activity {
         });
     }
 
-    // Converts the smoothed linear finger velocity (from VelocityTracker) into
-    // angular velocity around the spinner's pivot, using the SAME sign convention
-    // as the live drag rotation above, so the direction always matches the gesture.
-    private float computeReleaseAngularVelocity(MotionEvent event, float cx, float cy) {
-        if (velocityTracker == null) return 0f;
-
-        velocityTracker.addMovement(event);
-        // 1000 = compute in pixels/second
-        velocityTracker.computeCurrentVelocity(1000);
-
-        float vx = velocityTracker.getXVelocity();
-        float vy = velocityTracker.getYVelocity();
-
-        float rx = lastX - cx;
-        float ry = lastY - cy;
-        float distanceSq = (rx * rx) + (ry * ry);
-
-        if (distanceSq <= 0) return 0f;
-
-        float crossProduct = (rx * vy) - (ry * vx);
-        float angularVelocityDegPerSec = (float) ((crossProduct / distanceSq) * (180f / Math.PI));
-
-        // Convert deg/sec -> deg/frame (~16ms) to match the units used elsewhere
-        return angularVelocityDegPerSec * (16f / 1000f);
-    }
-
-    private void processHaptics(float degreesMoved) {
+    private void processHaptics(float degreesMoved, float currentSpeed) {
         hapticAccumulator += degreesMoved;
 
-        if (hapticAccumulator >= 60f) {
-            hapticAccumulator %= 60f;
-            triggerHapticTick(Math.abs(velocity));
+        if (hapticAccumulator >= 45f) {
+            hapticAccumulator %= 45f;
+            triggerHapticTick(currentSpeed);
         }
     }
 
@@ -199,12 +205,18 @@ public class SpinnerClickActivity extends Activity {
         if (vibrator == null || !vibrator.hasVibrator()) return;
 
         long now = System.currentTimeMillis();
-        if (now - lastHapticTime < 20) return;
+        if (now - lastHapticTime < 15) return;
         lastHapticTime = now;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            int strength = (currentSpeed > 15f) ? 120 : 60;
-            long duration = 15;
+            // Scales smoothly from 10 to 140 strength based on the new visual max speed
+            int strength = (int) (10 + (currentSpeed / MAX_VELOCITY) * 130);
+
+            // Hard safety cap at 140
+            if (strength > 140) strength = 140;
+            if (strength < 10) strength = 10;
+
+            long duration = 10;
             vibrator.vibrate(VibrationEffect.createOneShot(duration, strength));
         } else {
             imgSpinner.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
@@ -216,9 +228,5 @@ public class SpinnerClickActivity extends Activity {
         super.onPause();
         isSpinning = false;
         Choreographer.getInstance().removeFrameCallback(frameCallback);
-        if (velocityTracker != null) {
-            velocityTracker.recycle();
-            velocityTracker = null;
-        }
     }
 }
