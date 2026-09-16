@@ -19,6 +19,7 @@
 * **Maze Widget:** A fully playable, tilt-sensitive physics labyrinth.
 * **Fidget Gear Widget:** Interactive rotating mechanical gears.
 * **Coin Toss Widget:** A quick 50/50 decision maker.
+* **Fidget Spinner Widget:** Opens a fidget spinner that spins.
 
 ### Game Collection
 * **Snake Game:** The classic arcade survival game.
