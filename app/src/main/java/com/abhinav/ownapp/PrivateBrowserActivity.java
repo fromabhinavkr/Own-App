@@ -70,7 +70,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -96,6 +98,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private int themeState;
 
     private ImageView btnFront, btnGo, btnMenu, ivAutoScrollIcon, btnDismissSearch;
+    private ImageView btnVideoPlayPause, btnVideoHide, btnVideoMute;
     private FrameLayout btnAutoScroll;
     private ProgressBar autoActionIndicator;
     private TextView btnFullscreenToggle;
@@ -105,6 +108,12 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private TextView tvTabCount;
 
     private boolean isFullscreen = false;
+    private boolean isVideoMode = false;
+    private boolean isVideoCapsuleHidden = false;
+
+    private boolean isVideoCurrentlyPlaying = false;
+    private boolean isVideoCurrentlyMuted = false;
+
     private LinearLayout tabsOverlay;
     private GridLayout tabsGrid;
     private LinearLayout downloadsOverlay, downloadsList;
@@ -163,22 +172,19 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         rootLayout.setAlpha(0f);
         rootLayout.animate().alpha(1f).setDuration(400).setInterpolator(new AccelerateDecelerateInterpolator()).start();
 
-        ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, windowInsets) -> {
-            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
-            return WindowInsetsCompat.CONSUMED;
-        });
-
         try { StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder().build()); } catch (Exception ignored) {}
 
-        prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, MODE_PRIVATE);
+        prefs = getSharedPreferences("SnakeWidgetPrefs", MODE_PRIVATE);
         browserPrefs = getSharedPreferences(BROWSER_PREFS, MODE_PRIVATE);
         themeState = prefs.getInt("app_theme_state", -1);
-        if (themeState == -1) themeState = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true) ? 1 : 0;
+        if (themeState == -1) themeState = prefs.getBoolean("is_dark_theme", true) ? 1 : 0;
         isDarkTheme = (themeState != 0);
 
         webViewContainer = findViewById(R.id.webViewContainer);
         searchCapsule = findViewById(R.id.searchCapsule);
+
+        searchCapsule.setLayoutTransition(null);
+
         urlInputContainer = findViewById(R.id.urlInputContainer);
         etSearchUrl = findViewById(R.id.etSearchUrl);
         progressBar = findViewById(R.id.browserProgressBar);
@@ -192,6 +198,10 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         autoActionIndicator = findViewById(R.id.autoActionIndicator);
         btnFullscreenToggle = findViewById(R.id.btnFullscreenToggle);
         btnDismissSearch = findViewById(R.id.btnDismissSearch);
+
+        btnVideoPlayPause = findViewById(R.id.btnVideoPlayPause);
+        btnVideoHide = findViewById(R.id.btnVideoHide);
+        btnVideoMute = findViewById(R.id.btnVideoMute);
 
         btnManageTabs = findViewById(R.id.btnManageTabs);
         tabBoxOutline = findViewById(R.id.tabBoxOutline);
@@ -217,8 +227,10 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         setupModernBackGesture();
 
         etSearchUrl.setOnFocusChangeListener((v, hasFocus) -> {
-            android.transition.TransitionSet transition = new android.transition.TransitionSet();
-            transition.addTransition(new android.transition.ChangeBounds()); transition.addTransition(new android.transition.Fade()); transition.setDuration(300); transition.setInterpolator(new AccelerateDecelerateInterpolator()); TransitionManager.beginDelayedTransition((ViewGroup) rootLayout, transition);
+            if(isVideoMode) return;
+
+            searchCapsule.animate().translationX(0f).setDuration(350).setInterpolator(new AccelerateDecelerateInterpolator()).start();
+            beginSmoothTransition();
 
             RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams();
             int margin24dp = dp(24); GradientDrawable gd = (GradientDrawable) searchCapsule.getBackground(); GradientDrawable urlGd = (GradientDrawable) urlInputContainer.getBackground();
@@ -244,10 +256,14 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         btnManageTabs.setOnClickListener(v -> openVisualTabSwitcher());
         btnFullscreenToggle.setOnClickListener(v -> toggleFullscreenCapsule());
 
+        btnVideoPlayPause.setOnClickListener(v -> { WebView w = getCurrentWeb(); if(w != null) w.evaluateJavascript("if(window.activeVideo) { if(window.activeVideo.paused) window.activeVideo.play(); else window.activeVideo.pause(); }", null); });
+        btnVideoMute.setOnClickListener(v -> { WebView w = getCurrentWeb(); if(w != null) w.evaluateJavascript("if(window.activeVideo) window.activeVideo.muted = !window.activeVideo.muted;", null); });
+        btnVideoHide.setOnClickListener(v -> { searchCapsule.animate().alpha(0f).setDuration(200).withEndAction(() -> { searchCapsule.setVisibility(View.GONE); isVideoCapsuleHidden = true; }).start(); });
+
         btnFullscreenToggle.setOnTouchListener(new View.OnTouchListener() {
             private float dX; private float startX; private boolean isDragging = false;
             @Override public boolean onTouch(View view, MotionEvent event) {
-                if (!isFullscreen) return false;
+                if (!isFullscreen || isVideoMode) return false;
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN: dX = searchCapsule.getX() - event.getRawX(); startX = event.getRawX(); isDragging = false; return true;
                     case MotionEvent.ACTION_MOVE: float newX = event.getRawX() + dX; int screenWidth = getResources().getDisplayMetrics().widthPixels; int margin = dp(16); if (newX < margin) newX = margin; if (newX > screenWidth - searchCapsule.getWidth() - margin) newX = screenWidth - searchCapsule.getWidth() - margin; searchCapsule.setX(newX); if (Math.abs(event.getRawX() - startX) > 10) isDragging = true; return true;
@@ -257,326 +273,243 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         });
 
         etSearchUrl.setOnEditorActionListener((v, actionId, event) -> { if (actionId == EditorInfo.IME_ACTION_GO || (event != null && event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) { loadUrlOrSearch(); return true; } return false; });
-
         restoreSession();
 
         Intent intent = getIntent();
         if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
-            String externalUrl = intent.getData().toString();
-            createNewTab(externalUrl, false, true);
+            String externalUrl = intent.getData().toString(); createNewTab(externalUrl, false, true);
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        View decorView = getWindow().getDecorView();
+        ViewCompat.setOnApplyWindowInsetsListener(decorView, (v, windowInsets) -> {
+            Insets systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+
+            ViewGroup contentView = findViewById(android.R.id.content);
+            View rootLayout = findViewById(R.id.browserRoot);
+
+            if (mCustomView != null) {
+                if (contentView != null) contentView.setPadding(0, 0, 0, 0);
+                if (rootLayout != null) rootLayout.setPadding(0, 0, 0, 0);
+            } else {
+                if (contentView != null) contentView.setPadding(0, 0, 0, 0);
+                if (rootLayout != null) rootLayout.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            }
+            return WindowInsetsCompat.CONSUMED;
+        });
+        ViewCompat.requestApplyInsets(decorView);
+    }
+
+    private void beginSmoothTransition() {
+        android.transition.TransitionSet transition = new android.transition.TransitionSet();
+        transition.setOrdering(android.transition.TransitionSet.ORDERING_TOGETHER);
+        transition.addTransition(new android.transition.ChangeBounds());
+        transition.addTransition(new android.transition.ChangeTransform());
+        transition.addTransition(new android.transition.Fade());
+        transition.setDuration(350);
+        transition.setInterpolator(new AccelerateDecelerateInterpolator());
+        ViewGroup parent = findViewById(R.id.browserRoot);
+        if (parent != null) TransitionManager.beginDelayedTransition(parent, transition);
+    }
+
+    private void updateVideoCapsuleOrientation(int orientation) {
+        if (!isVideoMode) return;
+        beginSmoothTransition();
+
+        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams();
+        params.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+
+        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            searchCapsule.setOrientation(LinearLayout.VERTICAL);
+            params.removeRule(RelativeLayout.CENTER_HORIZONTAL);
+            params.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+            params.addRule(RelativeLayout.ALIGN_PARENT_END);
+            params.addRule(RelativeLayout.CENTER_VERTICAL);
+            btnFullscreenToggle.setVisibility(View.GONE);
+        } else {
+            searchCapsule.setOrientation(LinearLayout.HORIZONTAL);
+            params.removeRule(RelativeLayout.CENTER_VERTICAL);
+            params.removeRule(RelativeLayout.ALIGN_PARENT_END);
+            params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+            params.addRule(RelativeLayout.CENTER_HORIZONTAL);
+            btnFullscreenToggle.setVisibility(View.VISIBLE);
+        }
+        searchCapsule.setLayoutParams(params);
+    }
+
+    private void enableVideoMode(boolean isPlaying, boolean isMuted) {
+        if(!isFullscreen) return;
+
+        if(!isVideoMode) {
+            beginSmoothTransition();
+            searchCapsule.setTranslationX(0f);
+            isVideoMode = true;
+            btnFront.setVisibility(View.GONE); urlInputContainer.setVisibility(View.GONE); btnMenu.setVisibility(View.GONE); btnAutoScroll.setVisibility(View.GONE); btnManageTabs.setVisibility(View.GONE); btnDismissSearch.setVisibility(View.GONE);
+            btnVideoPlayPause.setVisibility(View.VISIBLE); btnVideoHide.setVisibility(View.VISIBLE); btnVideoMute.setVisibility(View.VISIBLE);
+
+            // FIX: explicitly lock the icon text when entering video mode
+            btnFullscreenToggle.setText("<>");
+
+            updateVideoCapsuleOrientation(getResources().getConfiguration().orientation);
+        }
+        btnVideoPlayPause.setImageResource(isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
+        btnVideoMute.setImageResource(isMuted ? android.R.drawable.ic_lock_silent_mode : android.R.drawable.ic_lock_silent_mode_off);
+        if(!isVideoCapsuleHidden) { searchCapsule.setVisibility(View.VISIBLE); searchCapsule.setAlpha(1f); }
+    }
+
+    private void disableVideoMode() {
+        if(!isVideoMode) return;
+
+        searchCapsule.animate().translationX(0f).setDuration(350).setInterpolator(new AccelerateDecelerateInterpolator()).start();
+
+        beginSmoothTransition();
+        isVideoMode = false; isVideoCapsuleHidden = false; searchCapsule.setVisibility(View.VISIBLE); searchCapsule.setAlpha(1f);
+
+        btnVideoPlayPause.setVisibility(View.GONE); btnVideoHide.setVisibility(View.GONE); btnVideoMute.setVisibility(View.GONE);
+        btnFront.setVisibility(View.GONE); urlInputContainer.setVisibility(View.GONE); btnMenu.setVisibility(View.GONE); btnAutoScroll.setVisibility(View.GONE); btnManageTabs.setVisibility(View.GONE);
+        btnFullscreenToggle.setVisibility(View.VISIBLE);
+        btnFullscreenToggle.setText("<>");
+
+        searchCapsule.setOrientation(LinearLayout.HORIZONTAL);
+        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams();
+        params.removeRule(RelativeLayout.CENTER_HORIZONTAL);
+        params.removeRule(RelativeLayout.CENTER_VERTICAL);
+        params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        params.addRule(RelativeLayout.ALIGN_PARENT_END);
+        params.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+
+        searchCapsule.setLayoutParams(params);
+    }
+
+    private void toggleFullscreenCapsule() {
+        etSearchUrl.clearFocus();
+
+        boolean expanding = isFullscreen || isVideoMode;
+        if (expanding) {
+            searchCapsule.animate().translationX(0f).setDuration(350).setInterpolator(new AccelerateDecelerateInterpolator()).start();
+        }
+
+        beginSmoothTransition();
+
+        if (isVideoMode) {
+            isVideoMode = false;
+            isVideoCapsuleHidden = false;
+            isFullscreen = false;
+        } else {
+            isFullscreen = !isFullscreen;
+        }
+
+        if (isFullscreen && isVideoCurrentlyPlaying) {
+            // FIX: explicitly lock the icon text immediately before jumping over to video mode
+            btnFullscreenToggle.setText("<>");
+            enableVideoMode(true, isVideoCurrentlyMuted);
+            return;
+        }
+
+        int visibility = isFullscreen ? View.GONE : View.VISIBLE;
+        btnFront.setVisibility(visibility); urlInputContainer.setVisibility(visibility); btnMenu.setVisibility(visibility); btnAutoScroll.setVisibility(visibility); btnManageTabs.setVisibility(visibility);
+        btnVideoPlayPause.setVisibility(View.GONE); btnVideoHide.setVisibility(View.GONE); btnVideoMute.setVisibility(View.GONE);
+        btnFullscreenToggle.setVisibility(View.VISIBLE);
+
+        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams();
+        searchCapsule.setOrientation(LinearLayout.HORIZONTAL);
+        params.removeRule(RelativeLayout.CENTER_HORIZONTAL);
+        params.removeRule(RelativeLayout.CENTER_VERTICAL);
+        params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+
+        if (isFullscreen) {
+            btnFullscreenToggle.setText("<>");
+            params.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+            params.addRule(RelativeLayout.ALIGN_PARENT_END);
+        } else {
+            btnFullscreenToggle.setText("><");
+            params.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            params.removeRule(RelativeLayout.ALIGN_PARENT_END);
+        }
+        searchCapsule.setLayoutParams(params);
+        searchCapsule.setAlpha(1f);
+        searchCapsule.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (isVideoMode) {
+            beginSmoothTransition();
+            updateVideoCapsuleOrientation(newConfig.orientation);
         }
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
-        if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
-            String externalUrl = intent.getData().toString();
-            createNewTab(externalUrl, false, true);
-        }
+        super.onNewIntent(intent); setIntent(intent);
+        if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) { String externalUrl = intent.getData().toString(); createNewTab(externalUrl, false, true); }
     }
 
-    // MEMORY MANAGEMENT: Clear unused RAM aggressively when Android needs it (Does NOT clear persistent data/cookies)
-    @Override
-    public void onLowMemory() {
-        super.onLowMemory();
-        for (TabInfo t : tabs) {
-            if (t.webView != null) t.webView.clearCache(false);
-        }
-    }
-
-    @Override
-    public void onTrimMemory(int level) {
-        super.onTrimMemory(level);
-        if (level >= TRIM_MEMORY_MODERATE) {
-            for (TabInfo t : tabs) {
-                if (t.webView != null) t.webView.clearCache(false);
-            }
-        }
-    }
+    @Override public void onLowMemory() { super.onLowMemory(); for (TabInfo t : tabs) { if (t.webView != null) t.webView.clearCache(false); } }
+    @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (level >= TRIM_MEMORY_MODERATE) { for (TabInfo t : tabs) { if (t.webView != null) t.webView.clearCache(false); } } }
 
     private void saveSession() {
-        try {
-            JSONArray arr = new JSONArray();
-            for (TabInfo t : tabs) {
-                if (t.isPinned && t.webView != null) {
-                    String url = t.webView.getUrl();
-                    if (url == null || url.trim().isEmpty()) url = "about:blank";
-                    JSONObject obj = new JSONObject();
-                    obj.put("url", url);
-                    obj.put("isPinned", t.isPinned);
-                    arr.put(obj);
-                }
-            }
-            browserPrefs.edit().putString(PREF_SAVED_SESSION, arr.toString()).apply();
-        } catch (Exception e) {}
+        try { JSONArray arr = new JSONArray(); for (TabInfo t : tabs) { if (t.isPinned && t.webView != null) { String url = t.webView.getUrl(); if (url == null || url.trim().isEmpty()) url = "about:blank"; JSONObject obj = new JSONObject(); obj.put("url", url); obj.put("isPinned", t.isPinned); arr.put(obj); } } browserPrefs.edit().putString(PREF_SAVED_SESSION, arr.toString()).apply(); } catch (Exception e) {}
     }
 
     private void restoreSession() {
         boolean loadedPinnedTab = false;
-        try {
-            String sessionData = browserPrefs.getString(PREF_SAVED_SESSION, "[]");
-            JSONArray arr = new JSONArray(sessionData);
-            for (int i = 0; i < arr.length(); i++) {
-                JSONObject obj = arr.getJSONObject(i);
-                String url = obj.optString("url", "about:blank");
-                boolean isPinned = obj.optBoolean("isPinned", false);
-                if (isPinned) {
-                    createNewTab(url, true, false);
-                    loadedPinnedTab = true;
-                }
-            }
-        } catch (Exception e) {}
-
-        if (!loadedPinnedTab) { createNewTab(null, false, true); }
-        else { switchTab(tabs.size() - 1); }
+        try { String sessionData = browserPrefs.getString(PREF_SAVED_SESSION, "[]"); JSONArray arr = new JSONArray(sessionData); for (int i = 0; i < arr.length(); i++) { JSONObject obj = arr.getJSONObject(i); String url = obj.optString("url", "about:blank"); boolean isPinned = obj.optBoolean("isPinned", false); if (isPinned) { createNewTab(url, true, false); loadedPinnedTab = true; } } } catch (Exception e) {}
+        if (!loadedPinnedTab) { createNewTab(null, false, true); } else { switchTab(tabs.size() - 1); }
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        saveSession();
-    }
+    @Override protected void onPause() { super.onPause(); saveSession(); }
 
     private void injectAnimatedFanHeader() {
         TextView oldTitle = findViewById(R.id.tvHomeTitle); if (oldTitle == null) return;
         ViewGroup parent = (ViewGroup) oldTitle.getParent(); int index = parent.indexOfChild(oldTitle); parent.removeView(oldTitle);
         int fanColor = themeState == 0 ? Color.parseColor("#333333") : (themeState == 1 ? Color.parseColor("#E0E0E0") : Color.parseColor("#FFFFFF"));
         FanView fanView = new FanView(this, fanColor);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(44), dp(44)); params.gravity = Gravity.CENTER_VERTICAL; params.setMargins(0, 0, 0, 0); fanView.setLayoutParams(params);
-        parent.addView(fanView, index);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(44), dp(44)); params.gravity = Gravity.CENTER_VERTICAL; params.setMargins(0, 0, 0, 0); fanView.setLayoutParams(params); parent.addView(fanView, index);
     }
 
     private void setupScrollingLandscape() {
         FrameLayout container = findViewById(R.id.scrollingLandscapeContainer);
         if (container != null) {
-            ScrollingLandscapeView landscapeView = new ScrollingLandscapeView(this);
-            landscapeView.setTheme(themeState);
-            container.addView(landscapeView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-            GradientDrawable gd = new GradientDrawable();
-            gd.setCornerRadius(dp(100)); // Fully rounded capsule shape
+            ScrollingLandscapeView landscapeView = new ScrollingLandscapeView(this); landscapeView.setTheme(themeState); container.addView(landscapeView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            GradientDrawable gd = new GradientDrawable(); gd.setCornerRadius(dp(100));
             int strokeColor = (themeState == 0) ? Color.parseColor("#E5E5EA") : ((themeState == 1) ? Color.parseColor("#3A3A3C") : Color.parseColor("#333333"));
-            gd.setStroke(dp(2), strokeColor);
-            container.setBackground(gd);
-            container.setClipToOutline(true);
+            gd.setStroke(dp(2), strokeColor); container.setBackground(gd); container.setClipToOutline(true);
         }
     }
 
     private static class FanView extends View {
         private final Paint paint; private final RectF bladeRect; private float rotation = 0f; private final float baseSpeed = 2.5f; private float currentSpeed = 2.5f; private int clickCount = 0; private boolean isBraking = false; private final Handler speedHandler = new Handler(Looper.getMainLooper());
         private final Runnable startBrakingTask = () -> { isBraking = true; };
-        private final Runnable animator = new Runnable() {
-            @Override public void run() {
-                if (isBraking) { currentSpeed *= 0.95f; if (currentSpeed <= baseSpeed) { currentSpeed = baseSpeed; isBraking = false; clickCount = 0; } }
-                rotation += currentSpeed; if (rotation >= 360f) rotation -= 360f; invalidate(); postDelayed(this, 16);
-            }
-        };
-
+        private final Runnable animator = new Runnable() { @Override public void run() { if (isBraking) { currentSpeed *= 0.95f; if (currentSpeed <= baseSpeed) { currentSpeed = baseSpeed; isBraking = false; clickCount = 0; } } rotation += currentSpeed; if (rotation >= 360f) rotation -= 360f; invalidate(); postDelayed(this, 16); } };
         public FanView(Context context, int color) { super(context); paint = new Paint(Paint.ANTI_ALIAS_FLAG); paint.setColor(color); paint.setStyle(Paint.Style.FILL); bladeRect = new RectF(); setClickable(true); setFocusable(true); setOnClickListener(v -> { isBraking = false; if (clickCount < 5) { clickCount++; currentSpeed = baseSpeed + (clickCount * 2.0f); } speedHandler.removeCallbacks(startBrakingTask); speedHandler.postDelayed(startBrakingTask, 5000); }); }
-        @Override protected void onAttachedToWindow() { super.onAttachedToWindow(); post(animator); }
-        @Override protected void onDetachedFromWindow() { super.onDetachedFromWindow(); removeCallbacks(animator); speedHandler.removeCallbacks(startBrakingTask); }
+        @Override protected void onAttachedToWindow() { super.onAttachedToWindow(); post(animator); } @Override protected void onDetachedFromWindow() { super.onDetachedFromWindow(); removeCallbacks(animator); speedHandler.removeCallbacks(startBrakingTask); }
         @Override protected void onDraw(Canvas canvas) { super.onDraw(canvas); float cx = getWidth() / 2f; float cy = getHeight() / 2f; float radius = Math.min(cx, cy) * 0.85f; paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(6f); canvas.drawCircle(cx, cy, radius, paint); paint.setStyle(Paint.Style.FILL); canvas.drawCircle(cx, cy, radius * 0.2f, paint); canvas.save(); canvas.rotate(rotation, cx, cy); for (int i = 0; i < 4; i++) { bladeRect.set(cx - radius * 0.15f, cy - radius * 0.9f, cx + radius * 0.15f, cy - radius * 0.15f); canvas.drawRoundRect(bladeRect, 10f, 10f, paint); canvas.rotate(90f, cx, cy); } canvas.restore(); }
     }
 
     private static class PinView extends View {
-        private boolean isPinned; private int color; private final Paint paint;
-        private float currentRotation = 45f;
-        private int currentAlpha = 120;
-        private ValueAnimator animator;
-
+        private boolean isPinned; private int color; private final Paint paint; private float currentRotation = 45f; private int currentAlpha = 120; private ValueAnimator animator;
         public PinView(Context context) { super(context); paint = new Paint(Paint.ANTI_ALIAS_FLAG); }
-
-        public void setPinnedState(boolean pinned, int col) {
-            this.isPinned = pinned;
-            this.color = col;
-            if (animator != null) animator.cancel();
-
-            float targetRotation = isPinned ? 0f : 45f;
-            int targetAlpha = isPinned ? 255 : 120;
-
-            animator = ValueAnimator.ofFloat(0f, 1f);
-            animator.setDuration(250);
-            animator.setInterpolator(new AccelerateDecelerateInterpolator());
-            float startRotation = currentRotation;
-            int startAlpha = currentAlpha;
-
-            animator.addUpdateListener(a -> {
-                float fraction = a.getAnimatedFraction();
-                currentRotation = startRotation + (targetRotation - startRotation) * fraction;
-                currentAlpha = (int) (startAlpha + (targetAlpha - startAlpha) * fraction);
-                invalidate();
-            });
-            animator.start();
-        }
-
-        @Override protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas); float w = getWidth(), h = getHeight(); float cx = w / 2f, cy = h / 2f; float s = Math.min(w, h) * 0.25f;
-            paint.setColor(color); paint.setStrokeWidth(s * 0.4f); paint.setStrokeCap(Paint.Cap.ROUND); paint.setStrokeJoin(Paint.Join.ROUND);
-            canvas.save();
-            canvas.rotate(currentRotation, cx, cy);
-            paint.setAlpha(currentAlpha);
-            if (isPinned) { paint.setStyle(Paint.Style.FILL_AND_STROKE); } else { paint.setStyle(Paint.Style.STROKE); }
-            canvas.drawRoundRect(cx - s, cy - s, cx + s, cy + s * 0.2f, s * 0.4f, s * 0.4f, paint);
-            canvas.drawRect(cx - s * 0.5f, cy + s * 0.2f, cx + s * 0.5f, cy + s * 0.5f, paint);
-            canvas.drawLine(cx, cy + s * 0.5f, cx, cy + s * 1.5f, paint);
-            canvas.restore();
-        }
+        public void setPinnedState(boolean pinned, int col) { this.isPinned = pinned; this.color = col; if (animator != null) animator.cancel(); float targetRotation = isPinned ? 0f : 45f; int targetAlpha = isPinned ? 255 : 120; animator = ValueAnimator.ofFloat(0f, 1f); animator.setDuration(250); animator.setInterpolator(new AccelerateDecelerateInterpolator()); float startRotation = currentRotation; int startAlpha = currentAlpha; animator.addUpdateListener(a -> { float fraction = a.getAnimatedFraction(); currentRotation = startRotation + (targetRotation - startRotation) * fraction; currentAlpha = (int) (startAlpha + (targetAlpha - startAlpha) * fraction); invalidate(); }); animator.start(); }
+        @Override protected void onDraw(Canvas canvas) { super.onDraw(canvas); float w = getWidth(), h = getHeight(); float cx = w / 2f, cy = h / 2f; float s = Math.min(w, h) * 0.25f; paint.setColor(color); paint.setStrokeWidth(s * 0.4f); paint.setStrokeCap(Paint.Cap.ROUND); paint.setStrokeJoin(Paint.Join.ROUND); canvas.save(); canvas.rotate(currentRotation, cx, cy); paint.setAlpha(currentAlpha); if (isPinned) { paint.setStyle(Paint.Style.FILL_AND_STROKE); } else { paint.setStyle(Paint.Style.STROKE); } canvas.drawRoundRect(cx - s, cy - s, cx + s, cy + s * 0.2f, s * 0.4f, s * 0.4f, paint); canvas.drawRect(cx - s * 0.5f, cy + s * 0.2f, cx + s * 0.5f, cy + s * 0.5f, paint); canvas.drawLine(cx, cy + s * 0.5f, cx, cy + s * 1.5f, paint); canvas.restore(); }
     }
 
     public static class ScrollingLandscapeView extends View {
-        private Paint skyPaint, backMountainPaint, frontMountainPaint, celestialPaint;
-        private Path backPath, frontPath;
-        private float scrollOffset = 0f;
-        private int themeState = 1;
-        private final Handler animHandler = new Handler(Looper.getMainLooper());
-        private final Runnable animRunnable = new Runnable() {
-            @Override
-            public void run() {
-                scrollOffset += 1.5f;
-                if (scrollOffset > 12000f) scrollOffset -= 12000f;
-                invalidate();
-                animHandler.postDelayed(this, 16);
-            }
-        };
-
-        public ScrollingLandscapeView(Context context) {
-            super(context);
-            init();
-        }
-
-        private void init() {
-            skyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            backMountainPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            frontMountainPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            celestialPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            backPath = new Path();
-            frontPath = new Path();
-        }
-
-        public void setTheme(int themeState) {
-            this.themeState = themeState;
-            int backColor, frontColor, celestialColor;
-            if (themeState == 0) { // Light
-                backColor = Color.parseColor("#90CAF9");
-                frontColor = Color.parseColor("#42A5F5");
-                celestialColor = Color.parseColor("#FFD54F"); // Yellow Sun
-            } else if (themeState == 1) { // Dark
-                backColor = Color.parseColor("#3949AB");
-                frontColor = Color.parseColor("#283593");
-                celestialColor = Color.parseColor("#F48FB1"); // Pinkish Moon
-            } else { // Star Mode
-                backColor = Color.parseColor("#2C2C2E");
-                frontColor = Color.parseColor("#1C1C1E");
-                celestialColor = Color.parseColor("#E5E5EA"); // Bright White Moon
-            }
-            backMountainPaint.setColor(backColor);
-            frontMountainPaint.setColor(frontColor);
-            celestialPaint.setColor(celestialColor);
-            invalidate();
-        }
-
-        @Override
-        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-            super.onSizeChanged(w, h, oldw, oldh);
-            if (w <= 0 || h <= 0) return;
-            int skyStart, skyEnd;
-            if (themeState == 0) { skyStart = Color.parseColor("#4DA8DA"); skyEnd = Color.parseColor("#EEF5FF"); }
-            else if (themeState == 1) { skyStart = Color.parseColor("#1A237E"); skyEnd = Color.parseColor("#1C1C1E"); }
-            else { skyStart = Color.parseColor("#000000"); skyEnd = Color.parseColor("#0B0C10"); }
-            skyPaint.setShader(new LinearGradient(0, 0, 0, h, skyStart, skyEnd, Shader.TileMode.CLAMP));
-
-            float chunkW = 1200f;
-            int resolution = 120; // High resolution rendering for flawless curves
-
-            // Background Layer Peaks (Slower)
-            backPath.reset();
-            backPath.moveTo(0, h);
-            for(int i = 0; i <= resolution; i++) {
-                float x = i * (chunkW / resolution);
-                float rad = (float) (x * 2.0 * Math.PI / chunkW);
-                float y = h * 0.45f + (float)Math.sin(rad) * (h * 0.15f) + (float)Math.sin(rad * 2.0f) * (h * 0.1f);
-                backPath.lineTo(x, y);
-            }
-            backPath.lineTo(chunkW, h);
-            backPath.close();
-
-            // Foreground Layer Peaks (Faster)
-            frontPath.reset();
-            frontPath.moveTo(0, h);
-            for(int i = 0; i <= resolution; i++) {
-                float x = i * (chunkW / resolution);
-                float rad = (float) (x * 2.0 * Math.PI / chunkW);
-                float y = h * 0.70f + (float)Math.cos(rad) * (h * 0.12f) + (float)Math.sin(rad * 3.0f) * (h * 0.08f);
-                frontPath.lineTo(x, y);
-            }
-            frontPath.lineTo(chunkW, h);
-            frontPath.close();
-        }
-
-        @Override
-        protected void onAttachedToWindow() {
-            super.onAttachedToWindow();
-            animHandler.post(animRunnable);
-        }
-
-        @Override
-        protected void onDetachedFromWindow() {
-            super.onDetachedFromWindow();
-            animHandler.removeCallbacks(animRunnable);
-        }
-
-        @Override
-        protected void onDraw(@NonNull Canvas canvas) {
-            super.onDraw(canvas);
-            int w = getWidth();
-            int h = getHeight();
-            if (w <= 0 || h <= 0) return;
-
-            // Paint Sky
-            canvas.drawRect(0, 0, w, h, skyPaint);
-
-            // Paint Celestial Body (Moon / Sun) fixed at the right
-            float celestialX = w * 0.8f;
-            float celestialY = h * 0.35f;
-            canvas.drawCircle(celestialX, celestialY, h * 0.2f, celestialPaint);
-
-            float chunkW = 1200f;
-
-            // Draw Parallax Layer 1 (Back Mountains) - Scrolls 50% Speed
-            float backOffset = (scrollOffset * 0.5f) % chunkW;
-            canvas.save();
-            canvas.translate(-backOffset, 0);
-            canvas.drawPath(backPath, backMountainPaint);
-            canvas.translate(chunkW, 0);
-            canvas.drawPath(backPath, backMountainPaint);
-            canvas.translate(chunkW, 0);
-            canvas.drawPath(backPath, backMountainPaint);
-            canvas.restore();
-
-            // Draw Parallax Layer 2 (Front Mountains) - Scrolls 100% Speed
-            float frontOffset = scrollOffset % chunkW;
-            canvas.save();
-            canvas.translate(-frontOffset, 0);
-            canvas.drawPath(frontPath, frontMountainPaint);
-            canvas.translate(chunkW, 0);
-            canvas.drawPath(frontPath, frontMountainPaint);
-            canvas.translate(chunkW, 0);
-            canvas.drawPath(frontPath, frontMountainPaint);
-            canvas.restore();
-        }
+        private Paint skyPaint, backMountainPaint, frontMountainPaint, celestialPaint; private Path backPath, frontPath; private float scrollOffset = 0f; private int themeState = 1; private final Handler animHandler = new Handler(Looper.getMainLooper());
+        private final Runnable animRunnable = new Runnable() { @Override public void run() { scrollOffset += 1.5f; if (scrollOffset > 12000f) scrollOffset -= 12000f; invalidate(); animHandler.postDelayed(this, 16); } };
+        public ScrollingLandscapeView(Context context) { super(context); init(); }
+        private void init() { skyPaint = new Paint(Paint.ANTI_ALIAS_FLAG); backMountainPaint = new Paint(Paint.ANTI_ALIAS_FLAG); frontMountainPaint = new Paint(Paint.ANTI_ALIAS_FLAG); celestialPaint = new Paint(Paint.ANTI_ALIAS_FLAG); backPath = new Path(); frontPath = new Path(); }
+        public void setTheme(int themeState) { this.themeState = themeState; int backColor, frontColor, celestialColor; if (themeState == 0) { backColor = Color.parseColor("#90CAF9"); frontColor = Color.parseColor("#42A5F5"); celestialColor = Color.parseColor("#FFD54F"); } else if (themeState == 1) { backColor = Color.parseColor("#3949AB"); frontColor = Color.parseColor("#283593"); celestialColor = Color.parseColor("#F48FB1"); } else { backColor = Color.parseColor("#2C2C2E"); frontColor = Color.parseColor("#1C1C1E"); celestialColor = Color.parseColor("#E5E5EA"); } backMountainPaint.setColor(backColor); frontMountainPaint.setColor(frontColor); celestialPaint.setColor(celestialColor); invalidate(); }
+        @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) { super.onSizeChanged(w, h, oldw, oldh); if (w <= 0 || h <= 0) return; int skyStart, skyEnd; if (themeState == 0) { skyStart = Color.parseColor("#4DA8DA"); skyEnd = Color.parseColor("#EEF5FF"); } else if (themeState == 1) { skyStart = Color.parseColor("#1A237E"); skyEnd = Color.parseColor("#1C1C1E"); } else { skyStart = Color.parseColor("#000000"); skyEnd = Color.parseColor("#0B0C10"); } skyPaint.setShader(new LinearGradient(0, 0, 0, h, skyStart, skyEnd, Shader.TileMode.CLAMP)); float chunkW = 1200f; int resolution = 120; backPath.reset(); backPath.moveTo(0, h); for(int i = 0; i <= resolution; i++) { float x = i * (chunkW / resolution); float rad = (float) (x * 2.0 * Math.PI / chunkW); float y = h * 0.45f + (float)Math.sin(rad) * (h * 0.15f) + (float)Math.sin(rad * 2.0f) * (h * 0.1f); backPath.lineTo(x, y); } backPath.lineTo(chunkW, h); backPath.close(); frontPath.reset(); frontPath.moveTo(0, h); for(int i = 0; i <= resolution; i++) { float x = i * (chunkW / resolution); float rad = (float) (x * 2.0 * Math.PI / chunkW); float y = h * 0.70f + (float)Math.cos(rad) * (h * 0.12f) + (float)Math.sin(rad * 3.0f) * (h * 0.08f); frontPath.lineTo(x, y); } frontPath.lineTo(chunkW, h); frontPath.close(); }
+        @Override protected void onAttachedToWindow() { super.onAttachedToWindow(); animHandler.post(animRunnable); } @Override protected void onDetachedFromWindow() { super.onDetachedFromWindow(); animHandler.removeCallbacks(animRunnable); }
+        @Override protected void onDraw(@NonNull Canvas canvas) { super.onDraw(canvas); int w = getWidth(); int h = getHeight(); if (w <= 0 || h <= 0) return; canvas.drawRect(0, 0, w, h, skyPaint); float celestialX = w * 0.8f; float celestialY = h * 0.35f; canvas.drawCircle(celestialX, celestialY, h * 0.2f, celestialPaint); float chunkW = 1200f; float backOffset = (scrollOffset * 0.5f) % chunkW; canvas.save(); canvas.translate(-backOffset, 0); canvas.drawPath(backPath, backMountainPaint); canvas.translate(chunkW, 0); canvas.drawPath(backPath, backMountainPaint); canvas.translate(chunkW, 0); canvas.drawPath(backPath, backMountainPaint); canvas.restore(); float frontOffset = scrollOffset % chunkW; canvas.save(); canvas.translate(-frontOffset, 0); canvas.drawPath(frontPath, frontMountainPaint); canvas.translate(chunkW, 0); canvas.drawPath(frontPath, frontMountainPaint); canvas.translate(chunkW, 0); canvas.drawPath(frontPath, frontMountainPaint); canvas.restore(); }
     }
 
     private void updateTabIconCount() { if (tvTabCount != null) tvTabCount.setText(String.valueOf(tabs.size())); }
-
-    private void toggleFullscreenCapsule() {
-        etSearchUrl.clearFocus(); isFullscreen = !isFullscreen; int visibility = isFullscreen ? View.GONE : View.VISIBLE;
-        btnFront.setVisibility(visibility); urlInputContainer.setVisibility(visibility); btnMenu.setVisibility(visibility); btnAutoScroll.setVisibility(visibility); btnManageTabs.setVisibility(visibility);
-        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams();
-        if (isFullscreen) { btnFullscreenToggle.setText("<>"); params.width = ViewGroup.LayoutParams.WRAP_CONTENT; params.addRule(RelativeLayout.ALIGN_PARENT_END); } else { btnFullscreenToggle.setText("><"); params.width = ViewGroup.LayoutParams.MATCH_PARENT; params.removeRule(RelativeLayout.ALIGN_PARENT_END); searchCapsule.setTranslationX(0); }
-        searchCapsule.setLayoutParams(params);
-    }
 
     private void animateCornerRadius(GradientDrawable drawable, float startRadius, float endRadius) { ValueAnimator animator = ValueAnimator.ofFloat(startRadius, endRadius); animator.setDuration(300); animator.addUpdateListener(animation -> drawable.setCornerRadius((float) animation.getAnimatedValue())); animator.start(); }
 
@@ -629,8 +562,27 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private int dp(int value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }
 
     private void updateBackgroundBlur() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { boolean shouldBlur = tabsOverlay.getVisibility() == View.VISIBLE || downloadsOverlay.getVisibility() == View.VISIBLE || isMenuOpen; if (shouldBlur) webViewContainer.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(35f, 35f, android.graphics.Shader.TileMode.CLAMP)); else webViewContainer.setRenderEffect(null); } }
-    @Override public void onConfigurationChanged(@NonNull Configuration newConfig) { super.onConfigurationChanged(newConfig); }
-    @Override public boolean dispatchTouchEvent(MotionEvent event) { if (event.getAction() == MotionEvent.ACTION_DOWN) { View v = getCurrentFocus(); if (v instanceof EditText && searchCapsule != null) { Rect outRect = new Rect(); searchCapsule.getGlobalVisibleRect(outRect); if (!outRect.contains((int) event.getRawX(), (int) event.getRawY())) { v.clearFocus(); InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE); if (imm != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0); } } } return super.dispatchTouchEvent(event); }
+
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            if (isVideoMode && isVideoCapsuleHidden) {
+                isVideoCapsuleHidden = false;
+                searchCapsule.setVisibility(View.VISIBLE);
+                searchCapsule.setAlpha(0f);
+                searchCapsule.animate().alpha(1f).setDuration(200).start();
+            }
+            View v = getCurrentFocus();
+            if (v instanceof EditText && searchCapsule != null && !isVideoMode) {
+                Rect outRect = new Rect(); searchCapsule.getGlobalVisibleRect(outRect);
+                if (!outRect.contains((int) event.getRawX(), (int) event.getRawY())) {
+                    v.clearFocus(); InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+                }
+            }
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
     private void styleDialogButtons(AlertDialog dialog) { int btnColor = isDarkTheme ? Color.parseColor("#FFB59F") : Color.parseColor("#6750A4"); if (dialog.getButton(AlertDialog.BUTTON_POSITIVE) != null) dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(btnColor); if (dialog.getButton(AlertDialog.BUTTON_NEGATIVE) != null) dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(btnColor); if (dialog.getButton(AlertDialog.BUTTON_NEUTRAL) != null) dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(btnColor); }
 
     private void setupModernBackGesture() {
@@ -645,8 +597,59 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         });
     }
 
-    private void enterFullscreenVideo(View view, WebChromeClient.CustomViewCallback callback) { if (mCustomView != null) { callback.onCustomViewHidden(); return; } mOriginalOrientation = getRequestedOrientation(); mOriginalSystemUiVisibility = getWindow().getDecorView().getSystemUiVisibility(); mCustomView = view; mCustomViewCallback = callback; mFullscreenContainer = new FrameLayout(this); mFullscreenContainer.setBackgroundColor(Color.BLACK); mFullscreenContainer.addView(mCustomView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)); FrameLayout decor = (FrameLayout) getWindow().getDecorView(); decor.addView(mFullscreenContainer, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)); getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY); setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE); }
-    private void exitFullscreenVideo() { if (mCustomView == null) return; FrameLayout decor = (FrameLayout) getWindow().getDecorView(); decor.removeView(mFullscreenContainer); mFullscreenContainer = null; mCustomView = null; if (mCustomViewCallback != null) mCustomViewCallback.onCustomViewHidden(); mCustomViewCallback = null; getWindow().getDecorView().setSystemUiVisibility(mOriginalSystemUiVisibility); setRequestedOrientation(mOriginalOrientation); }
+    private void enterFullscreenVideo(View view, WebChromeClient.CustomViewCallback callback) {
+        if (mCustomView != null) { callback.onCustomViewHidden(); return; }
+        mOriginalOrientation = getRequestedOrientation();
+        mOriginalSystemUiVisibility = getWindow().getDecorView().getSystemUiVisibility();
+        mCustomView = view;
+        mCustomViewCallback = callback;
+        mFullscreenContainer = new FrameLayout(this);
+        mFullscreenContainer.setBackgroundColor(Color.BLACK);
+        mFullscreenContainer.addView(mCustomView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        RelativeLayout root = findViewById(R.id.browserRoot);
+        root.addView(mFullscreenContainer, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        if (searchCapsule != null) searchCapsule.bringToFront();
+        if (tabsOverlay != null) tabsOverlay.bringToFront();
+        if (downloadsOverlay != null) downloadsOverlay.bringToFront();
+
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (controller != null) {
+            controller.hide(WindowInsetsCompat.Type.systemBars());
+            controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        }
+
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+
+        ViewCompat.requestApplyInsets(getWindow().getDecorView());
+    }
+
+    private void exitFullscreenVideo() {
+        if (mCustomView == null) return;
+
+        RelativeLayout root = findViewById(R.id.browserRoot);
+        root.removeView(mFullscreenContainer);
+        mFullscreenContainer = null;
+        mCustomView = null;
+
+        if (mCustomViewCallback != null) mCustomViewCallback.onCustomViewHidden();
+        mCustomViewCallback = null;
+
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (controller != null) {
+            controller.show(WindowInsetsCompat.Type.systemBars());
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(mOriginalSystemUiVisibility);
+        }
+
+        setRequestedOrientation(mOriginalOrientation);
+
+        ViewCompat.requestApplyInsets(getWindow().getDecorView());
+    }
+
     private WebView getCurrentWeb() { if (tabs.isEmpty() || currentTabIndex < 0 || currentTabIndex >= tabs.size()) return null; return tabs.get(currentTabIndex).webView; }
 
     private void createNewTab(String url, boolean isPinned, boolean switchImmediately) {
@@ -668,13 +671,14 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void switchTab(int index) {
         if (index < 0 || index >= tabs.size()) return;
-        stopAutoActions(); currentTabIndex = index; etSearchUrl.clearFocus();
+        stopAutoActions(); disableVideoMode(); currentTabIndex = index; etSearchUrl.clearFocus();
         for (int i = 0; i < tabs.size(); i++) tabs.get(i).webView.setVisibility(i == currentTabIndex ? View.VISIBLE : View.GONE);
         WebView current = getCurrentWeb();
         if (current != null) {
             String currentUrl = current.getUrl();
             if (currentUrl == null || currentUrl.isEmpty() || "about:blank".equals(currentUrl)) showHomePage();
             else { etSearchUrl.setText(currentUrl); hideHomePage(); }
+            current.evaluateJavascript("if(window.activeVideo && !window.activeVideo.paused) { OwnBrowser.onVideoPlayState(true, window.activeVideo.muted); }", null);
         }
         tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur();
     }
@@ -683,7 +687,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         TabInfo closing = tabs.get(index);
         webViewContainer.removeView(closing.webView);
 
-        // Removed clearCache(true) and clearFormData() so data persists until "Del Data" is pressed.
         closing.webView.clearHistory();
         closing.webView.loadUrl("about:blank");
         closing.webView.destroy();
@@ -886,8 +889,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void toggleDesktopMode(WebView webView) {
         boolean isDesktop = false; if (webView.getTag() != null) isDesktop = (boolean) webView.getTag(); WebSettings settings = webView.getSettings(); if (defaultUserAgent == null) defaultUserAgent = settings.getUserAgentString();
-
-        // Removed clearCache(true) so toggling desktop mode doesn't sign you out.
         if (isDesktop) { settings.setUserAgentString(defaultUserAgent); settings.setUseWideViewPort(false); settings.setLoadWithOverviewMode(false); webView.setInitialScale(0); webView.setTag(false); Toast.makeText(this, "Mobile View...", Toast.LENGTH_SHORT).show(); } else { settings.setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"); settings.setUseWideViewPort(true); settings.setLoadWithOverviewMode(true); webView.setInitialScale(1); webView.setTag(true); Toast.makeText(this, "Desktop View...", Toast.LENGTH_SHORT).show(); }
         webView.reload();
     }
@@ -895,6 +896,10 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private class JavascriptBridge {
         @JavascriptInterface @SuppressWarnings("unused") public void processLinkText(String text) { runOnUiThread(() -> { ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE); if (clipboard != null) { clipboard.setPrimaryClip(ClipData.newPlainText("Link Text", text)); Toast.makeText(PrivateBrowserActivity.this, "Copied Link Text!", Toast.LENGTH_SHORT).show(); } }); }
         @JavascriptInterface @SuppressWarnings("unused") public void handleVideoLongPress(String videoUrl) { if (videoUrl == null || videoUrl.isEmpty()) return; runOnUiThread(() -> { int dialogStyle = isDarkTheme ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert; AlertDialog.Builder b = new AlertDialog.Builder(PrivateBrowserActivity.this, dialogStyle); b.setTitle("Video Options"); String[] options = {"Copy Video Link", "Download Video (MP4)"}; b.setItems(options, (dialog, which) -> { if (which == 0) { ClipboardManager clip = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE); if (clip != null) { clip.setPrimaryClip(ClipData.newPlainText("Video URL", videoUrl)); Toast.makeText(PrivateBrowserActivity.this, "Video Link Copied!", Toast.LENGTH_SHORT).show(); } } else if (which == 1) { WebView current = getCurrentWeb(); String ua = current != null ? current.getSettings().getUserAgentString() : ""; triggerAskBeforeDownload(videoUrl, ua, null, "video/mp4", 0); } }); b.show(); }); }
+
+        @JavascriptInterface @SuppressWarnings("unused") public void onVideoPlayState(boolean playing, boolean muted) { runOnUiThread(() -> { isVideoCurrentlyPlaying = playing; isVideoCurrentlyMuted = muted; if(playing && isFullscreen) enableVideoMode(true, muted); else if(isVideoMode && !playing) btnVideoPlayPause.setImageResource(android.R.drawable.ic_media_play); }); }
+        @JavascriptInterface @SuppressWarnings("unused") public void onVideoVolumeState(boolean muted) { runOnUiThread(() -> { isVideoCurrentlyMuted = muted; if(btnVideoMute != null) btnVideoMute.setImageResource(muted ? android.R.drawable.ic_lock_silent_mode : android.R.drawable.ic_lock_silent_mode_off); }); }
+        @JavascriptInterface @SuppressWarnings("unused") public void onVideoEnded() { runOnUiThread(() -> { isVideoCurrentlyPlaying = false; disableVideoMode(); }); }
     }
 
     private void handleLongPress(WebView.HitTestResult result) {
@@ -904,45 +909,26 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     @android.annotation.SuppressLint("SetJavaScriptEnabled")
     private void setupSuperSecureWebView(WebView web) {
-        // PERFORMANCE BOOST: Hardware Acceleration enabled for this WebView specifically
         web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);
-
         settings.setGeolocationEnabled(false);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setSaveFormData(false);
-
-        // PERFORMANCE FIX: Instagram/React apps NEED databases enabled to store local state.
-        // False = crashing on infinite scrolls.
         settings.setDatabaseEnabled(true);
         settings.setDomStorageEnabled(true);
-
-        // PERFORMANCE FIX: Allow videos to play smoothly without forcing user gestures first
         settings.setMediaPlaybackRequiresUserGesture(false);
-
-        // PERFORMANCE FIX: Cache enabled for smooth scrolling. Data is preserved until "Del Data" is clicked.
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-
         settings.setSupportZoom(true);
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
 
-        // Allow mixed content so parts of the site don't randomly fail to load
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        }
-
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) { settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE); }
         if (defaultUserAgent == null) defaultUserAgent = settings.getUserAgentString();
-
         String safeMobileAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
         settings.setUserAgentString(safeMobileAgent);
-
         CookieManager.getInstance().setAcceptCookie(true);
-
-        // Changed to TRUE so cross-site logins work properly before manually deleting data
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
 
         web.addJavascriptInterface(new JavascriptBridge(), "OwnBrowser");
@@ -959,8 +945,11 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         });
 
         web.setWebViewClient(new WebViewClient() {
-            @Override public void onPageStarted(WebView view, String url, Bitmap favicon) { super.onPageStarted(view, url, favicon); if (view == getCurrentWeb()) { pageLoadIndicator.setVisibility(View.VISIBLE); } if (view == getCurrentWeb() && !isFullscreen) { if (url == null || url.equals("about:blank") || url.startsWith("http://startpage") || url.isEmpty()) { etSearchUrl.setText(""); showHomePage(); } else { hideHomePage(); etSearchUrl.setText(url); } } }
-            @Override public void onPageFinished(WebView view, String url) { super.onPageFinished(view, url); saveSession(); if (view == getCurrentWeb()) { pageLoadIndicator.setVisibility(View.GONE); } Boolean isDesktop = (Boolean) view.getTag(); if (isDesktop != null && isDesktop) { view.evaluateJavascript("try { var meta = document.querySelector('meta[name=\"viewport\"]'); if (meta) { meta.setAttribute('content', 'width=1024'); } else { var m = document.createElement('meta'); m.name = 'viewport'; m.content = 'width=1024'; document.head.appendChild(m); } } catch(e) {}", null); } view.evaluateJavascript("document.addEventListener('contextmenu', function(e) { if(e.target.tagName === 'VIDEO') { OwnBrowser.handleVideoLongPress(e.target.src || e.target.currentSrc); } });", null); }
+            @Override public void onPageStarted(WebView view, String url, Bitmap favicon) { super.onPageStarted(view, url, favicon); isVideoCurrentlyPlaying = false; disableVideoMode(); if (view == getCurrentWeb()) { pageLoadIndicator.setVisibility(View.VISIBLE); } if (view == getCurrentWeb() && !isFullscreen) { if (url == null || url.equals("about:blank") || url.startsWith("http://startpage") || url.isEmpty()) { etSearchUrl.setText(""); showHomePage(); } else { hideHomePage(); etSearchUrl.setText(url); } } }
+            @Override public void onPageFinished(WebView view, String url) { super.onPageFinished(view, url); saveSession(); if (view == getCurrentWeb()) { pageLoadIndicator.setVisibility(View.GONE); } Boolean isDesktop = (Boolean) view.getTag(); if (isDesktop != null && isDesktop) { view.evaluateJavascript("try { var meta = document.querySelector('meta[name=\"viewport\"]'); if (meta) { meta.setAttribute('content', 'width=1024'); } else { var m = document.createElement('meta'); m.name = 'viewport'; m.content = 'width=1024'; document.head.appendChild(m); } } catch(e) {}", null); } view.evaluateJavascript("document.addEventListener('contextmenu', function(e) { if(e.target.tagName === 'VIDEO') { OwnBrowser.handleVideoLongPress(e.target.src || e.target.currentSrc); } });", null);
+                String videoJs = "document.addEventListener('play', function(e){ if(e.target.tagName==='VIDEO'){ window.activeVideo=e.target; OwnBrowser.onVideoPlayState(true, e.target.muted); } }, true); document.addEventListener('pause', function(e){ if(e.target.tagName==='VIDEO' && window.activeVideo===e.target){ OwnBrowser.onVideoPlayState(false, e.target.muted); } }, true); document.addEventListener('volumechange', function(e){ if(e.target===window.activeVideo){ OwnBrowser.onVideoVolumeState(e.target.muted || e.target.volume === 0); } }, true); document.addEventListener('ended', function(e){ if(e.target.tagName==='VIDEO' && window.activeVideo===e.target){ window.activeVideo=null; OwnBrowser.onVideoEnded(); } }, true);";
+                view.evaluateJavascript(videoJs, null);
+            }
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) { String url = request.getUrl().toString(); for (String domain : blockedDomains) { if (url.contains(domain)) { return new WebResourceResponse("text/plain", "utf-8", new ByteArrayInputStream("".getBytes())); } } return super.shouldInterceptRequest(view, request); }
         });
     }
@@ -982,7 +971,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         tabsOverlay.setBackgroundColor(overlayGlassColor); downloadsOverlay.setBackgroundColor(overlayGlassColor); homeOverlay.setBackgroundColor(bgColor);
 
         etSearchUrl.setTextColor(textColor); etSearchUrl.setHintTextColor(hintColor);
-        btnFront.setColorFilter(textColor); btnGo.setColorFilter(textColor); btnMenu.setColorFilter(textColor); ivAutoScrollIcon.setColorFilter(textColor); btnDismissSearch.setColorFilter(textColor); btnFullscreenToggle.setTextColor(textColor);
+        btnFront.setColorFilter(textColor); btnGo.setColorFilter(textColor); btnMenu.setColorFilter(textColor); ivAutoScrollIcon.setColorFilter(textColor); btnDismissSearch.setColorFilter(textColor);
+        btnFullscreenToggle.setTextColor(textColor);
+        btnVideoPlayPause.setColorFilter(textColor); btnVideoHide.setColorFilter(textColor); btnVideoMute.setColorFilter(textColor);
 
         tvTabCount.setTextColor(textColor);
         GradientDrawable boxGd = new GradientDrawable();

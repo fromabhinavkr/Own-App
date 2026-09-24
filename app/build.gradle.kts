@@ -13,7 +13,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 4
-        versionName = "8.0.0"
+        versionName = "9.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -52,4 +52,6 @@ dependencies {
 
     // Google ML Kit Document Scanner (Scan to PDF Engine)
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
+
+
 }
