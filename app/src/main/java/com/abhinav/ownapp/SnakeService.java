@@ -14,20 +14,23 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.RectF;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.view.View;
 import android.widget.RemoteViews;
 
 public class SnakeService extends Service {
 
-    private static SnakeEngine engine = new SnakeEngine();
+    private static final SnakeEngine engine = new SnakeEngine();
     private static boolean isRunning = false;
-    private Handler handler = new Handler();
-    private final int UPDATE_RATE = 500;
 
-    private Runnable gameLoop = new Runnable() {
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private static final int UPDATE_RATE = 500;
+
+    private final Runnable gameLoop = new Runnable() {
         @Override
         public void run() {
             if (isRunning) {
@@ -63,7 +66,16 @@ public class SnakeService extends Service {
             if (manager != null) manager.createNotificationChannel(channel);
         }
 
-        Notification notification = new Notification.Builder(this, channelId)
+        Notification.Builder builder;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder = new Notification.Builder(this, channelId);
+        } else {
+            //noinspection deprecation
+            builder = new Notification.Builder(this);
+        }
+
+        Notification notification = builder
                 .setContentTitle("Own's Auto Snake")
                 .setContentText("Game is running...")
                 .setSmallIcon(R.mipmap.ic_launcher)
@@ -77,33 +89,48 @@ public class SnakeService extends Service {
         ComponentName thisWidget = new ComponentName(this, SnakeWidget.class);
         RemoteViews views = new RemoteViews(getPackageName(), R.layout.snake_widget);
 
+        // --- RESTORED: Read the manual theme preference from your main app ---
         SharedPreferences prefs = getSharedPreferences(SnakeWidget.PREFS_NAME, Context.MODE_PRIVATE);
         boolean isDarkTheme = prefs.getBoolean(SnakeWidget.PREF_IS_DARK, true);
 
-        // --- NEW LOGIC FOR BACKGROUND ---
-        int rootBgColor = isDarkTheme ? Color.parseColor("#151515") : Color.WHITE;
+        // Pure Black for Dark/Star Mode, Pure White for Light Mode
+        int rootBgColor = isDarkTheme ? Color.BLACK : Color.WHITE;
         int snakeColor = isDarkTheme ? Color.WHITE : Color.BLACK;
         int buttonTint = isDarkTheme ? Color.WHITE : Color.parseColor("#222222");
 
-        // Tint the background layer dynamically
         views.setInt(R.id.widget_bg_layer, "setColorFilter", rootBgColor);
 
         Bitmap bitmap = Bitmap.createBitmap(400, 400, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
-
-        // The canvas is now ALWAYS transparent so the background layer shows through!
         canvas.drawColor(Color.TRANSPARENT);
 
         Paint paint = new Paint();
         int cellSize = 400 / engine.width;
         paint.setAntiAlias(true);
 
-        paint.setColor(Color.RED);
-        canvas.drawCircle((engine.food.x * cellSize) + (cellSize / 2f), (engine.food.y * cellSize) + (cellSize / 2f), (cellSize / 2f) - 2f, paint);
+        float padding = 0.5f;
+        float cornerRadius = cellSize * 0.35f;
 
+        // 1. Draw Food (Always Red)
+        paint.setColor(Color.RED);
+        RectF foodRect = new RectF(
+                (engine.food.x * cellSize) + padding,
+                (engine.food.y * cellSize) + padding,
+                ((engine.food.x + 1) * cellSize) - padding,
+                ((engine.food.y + 1) * cellSize) - padding
+        );
+        canvas.drawRoundRect(foodRect, cornerRadius, cornerRadius, paint);
+
+        // 2. Draw Snake (White in Dark Mode, Black in Light Mode)
         paint.setColor(snakeColor);
         for (Point p : engine.snake) {
-            canvas.drawCircle((p.x * cellSize) + (cellSize / 2f), (p.y * cellSize) + (cellSize / 2f), (cellSize / 2f) - 2f, paint);
+            RectF snakeRect = new RectF(
+                    (p.x * cellSize) + padding,
+                    (p.y * cellSize) + padding,
+                    ((p.x + 1) * cellSize) - padding,
+                    ((p.y + 1) * cellSize) - padding
+            );
+            canvas.drawRoundRect(snakeRect, cornerRadius, cornerRadius, paint);
         }
 
         views.setImageViewBitmap(R.id.widget_image_view, bitmap);
@@ -123,7 +150,14 @@ public class SnakeService extends Service {
     public void onDestroy() {
         isRunning = false;
         handler.removeCallbacks(gameLoop);
-        stopForeground(true);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(Service.STOP_FOREGROUND_REMOVE);
+        } else {
+            //noinspection deprecation
+            stopForeground(true);
+        }
+
         super.onDestroy();
     }
 

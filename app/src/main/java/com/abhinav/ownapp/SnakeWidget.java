@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
+import android.util.Log;
 import android.widget.RemoteViews;
 
 public class SnakeWidget extends AppWidgetProvider {
@@ -15,17 +16,24 @@ public class SnakeWidget extends AppWidgetProvider {
     public static final String PREFS_NAME = "SnakeWidgetPrefs";
     public static final String PREF_IS_RUNNING = "is_running_";
     public static final String PREF_IS_DARK = "is_dark_theme";
+    private static final String TAG = "SnakeWidget";
 
     static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+
+        // --- RESTORED: Read the manual theme preference from your main app ---
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         boolean isRunning = prefs.getBoolean(PREF_IS_RUNNING + appWidgetId, false);
         boolean isDarkTheme = prefs.getBoolean(PREF_IS_DARK, true);
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.snake_widget);
 
-        // --- NEW: TINT THE DYNAMIC BACKGROUND LAYER ---
-        int rootBgColor = isDarkTheme ? Color.parseColor("#151515") : Color.WHITE;
+        // Pure Black for Dark/Star Mode, Pure White for Light Mode
+        int rootBgColor = isDarkTheme ? Color.BLACK : Color.WHITE;
+        int buttonTint = isDarkTheme ? Color.WHITE : Color.parseColor("#222222");
+
         views.setInt(R.id.widget_bg_layer, "setColorFilter", rootBgColor);
+        views.setInt(R.id.btn_toggle, "setColorFilter", buttonTint);
+        views.setTextColor(R.id.widget_title_text, isDarkTheme ? Color.parseColor("#888888") : Color.parseColor("#666666"));
 
         // UPDATE PLAY/PAUSE ICON
         int iconRes = isRunning ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play;
@@ -67,7 +75,7 @@ public class SnakeWidget extends AppWidgetProvider {
                                 context.startService(serviceIntent);
                             }
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            Log.e(TAG, "Failed to start SnakeService", e);
                         }
                     } else {
                         context.stopService(serviceIntent);

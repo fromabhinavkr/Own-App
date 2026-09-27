@@ -57,8 +57,8 @@
                     android:layout_height="120dp">
                     <ImageView
                         android:id="@+id/ivBrowserPreview"
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
+                        android:layout_width="105dp"
+                        android:layout_height="105dp"
                         android:layout_gravity="center"
                         android:scaleType="fitCenter"
                         android:src="@drawable/privatebrowser_icon" />
@@ -154,8 +154,8 @@
                     <!-- Note: You will need to add an image named "slate_icon" to your res/drawable folder -->
                     <ImageView
                         android:id="@+id/ivSlatePreview"
-                        android:layout_width="110dp"
-                        android:layout_height="110dp"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
                         android:layout_gravity="center"
                         android:scaleType="fitCenter"
                         android:src="@drawable/slate_icon" />

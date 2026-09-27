@@ -120,11 +120,11 @@
             android:id="@+id/btnBrowserFront"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:padding="10dp"
-            android:src="@android:drawable/ic_media_next"
+            android:padding="7dp"
+            android:src="@drawable/ic_forwardsite"
             android:background="?selectableItemBackgroundBorderless"/>
 
-        <LinearLayout
+        <RelativeLayout
             android:id="@+id/urlInputContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -132,17 +132,16 @@
             android:layout_weight="1"
             android:layout_marginVertical="6dp"
             android:layout_marginHorizontal="4dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
             android:paddingStart="12dp"
             android:paddingEnd="4dp">
 
             <EditText
                 android:id="@+id/etSearchUrl"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="43dp"
-                android:layout_weight="1"
+                android:layout_toStartOf="@id/goBtnFrame"
+                android:layout_centerVertical="true"
                 android:background="@null"
                 android:hint="Search here"
                 android:textColorHint="#888888"
@@ -154,8 +153,11 @@
                 android:inputType="textUri" />
 
             <FrameLayout
+                android:id="@+id/goBtnFrame"
                 android:layout_width="36dp"
-                android:layout_height="36dp">
+                android:layout_height="36dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true">
 
                 <ImageView
                     android:id="@+id/btnBrowserGo"
@@ -174,15 +176,14 @@
                     android:padding="2dp"
                     android:visibility="gone" />
             </FrameLayout>
-
-        </LinearLayout>
+        </RelativeLayout>
 
         <ImageView
             android:id="@+id/btnBrowserMenu"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:padding="10dp"
-            android:src="@android:drawable/ic_menu_more"
+            android:padding="5dp"
+            android:src="@drawable/baseline_more_vert_24"
             android:background="?selectableItemBackgroundBorderless"/>
 
         <FrameLayout
@@ -195,8 +196,8 @@
                 android:id="@+id/ivAutoScrollIcon"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:padding="10dp"
-                android:src="@drawable/ic_hand_gesture" />
+                android:padding="8dp"
+                android:src="@drawable/ic_androidtouch" />
 
             <ProgressBar
                 android:id="@+id/autoActionIndicator"
@@ -230,14 +231,12 @@
                 android:includeFontPadding="false" />
         </FrameLayout>
 
-        <TextView
+        <ImageView
             android:id="@+id/btnFullscreenToggle"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:text=">&lt;"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:gravity="center"
+            android:padding="8dp"
+            android:src="@drawable/ic_eggalt"
             android:background="?selectableItemBackgroundBorderless"/>
 
         <ImageView
@@ -265,29 +264,62 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp">
 
-            <TextView
+            <!-- THE SQUIRCLE FIX:
+                 1. PaddingStart is 8dp so it physically clears the curve of the parent pill.
+                 2. Size is locked exactly to 32dp.
+                 3. scaleType="fitXY" forces the vector to map flawlessly to the square space. -->
+            <LinearLayout
                 android:id="@+id/btnAddNewTab"
-                android:layout_width="60dp"
-                android:layout_height="40dp"
-                android:text="+"
-                android:textSize="24sp"
-                android:textColor="#000000"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:padding="0dp"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:paddingEnd="16dp"
                 android:layout_alignParentStart="true"
-                android:background="@drawable/modern_button"
-                android:backgroundTint="#FFB59F"/>
+                android:clipChildren="false">
+
+                <RelativeLayout
+                    android:layout_width="32dp"
+                    android:layout_height="32dp">
+
+                    <ImageView
+                        android:id="@+id/ivAddNewTabBg"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/ic_squircle"
+                        android:scaleType="fitXY"
+                        android:layout_centerInParent="true" />
+
+                    <ImageView
+                        android:id="@+id/ivAddNewTabIcon"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_add_new"
+                        android:scaleType="fitCenter"
+                        android:layout_centerInParent="true" />
+                </RelativeLayout>
+
+                <TextView
+                    android:id="@+id/tvAddNewTabText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="New Tab"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="8dp"
+                    android:textColor="#000000" />
+            </LinearLayout>
 
             <ImageView
                 android:id="@+id/btnCloseTabsOverlay"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_rounded_close"
                 android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                app:tint="#FFFFFF"/>
+                android:layout_centerVertical="true" />
         </RelativeLayout>
 
         <ScrollView
@@ -329,12 +361,12 @@
 
             <ImageView
                 android:id="@+id/btnCloseDownloadsOverlay"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_rounded_close"
                 android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                app:tint="#FFFFFF"/>
+                android:layout_centerVertical="true" />
         </RelativeLayout>
 
         <LinearLayout

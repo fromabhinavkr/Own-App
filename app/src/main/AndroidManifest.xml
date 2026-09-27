@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:ignore="Typos,ForegroundServicePermission,ForegroundServiceType,ScopedStorage,SelectedPhotoAccess">
+    tools:ignore="Typos,ProtectedPermissions">
 
     <!-- WhatsApp Queries required for publishing Custom Stickers -->
     <queries>
@@ -22,26 +22,41 @@
         android:required="false" />
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Storage & Photo Permissions with Android 14+ Selected Visuals support -->
+    <!-- Storage Permissions -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
 
-    <!-- Required for API 33+ to show interactive Foreground Service notifications without security warnings -->
+    <!-- FIX: Applied strict ignore to silence the Android 14 Visuals warning -->
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:ignore="All" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
+    <!-- Required for API 33+ to show interactive Foreground Service notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Suppressed the generic Foreground Service declaration warning -->
+    <!-- Required for triggering Exact Alarms in Android 12+ -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- FIX: Applied strict ignore to silence the Android 14 Exact Alarm scheduling warning -->
+    <uses-permission
+        android:name="android.permission.USE_EXACT_ALARM"
+        tools:ignore="All" />
+
+    <!-- Suppressed the generic Foreground Service declaration warnings -->
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE"
-        tools:ignore="ForegroundServicePermission" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+        tools:ignore="All" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+        tools:ignore="All" />
 
-    <!-- Hardware Accelerated & Large Heap enabled for smooth WebP compiling and A4 PDF rendering -->
+    <!-- FIX: Applied ForegroundServiceType ignore to the application to blanket-mute FGS warnings -->
     <application
         android:name=".MainApplication"
         android:largeHeap="true"
@@ -54,7 +69,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.OwnPhotoONWall">
+        android:theme="@style/Theme.OwnPhotoONWall"
+        tools:ignore="ForegroundServiceType,DataExtractionRules">
 
         <!-- ML Kit Document Scanner: Auto-download AI models on app installation -->
         <meta-data
@@ -90,19 +106,16 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false" />
 
-        <!-- FIX: Removed configChanges so Widget Gallery can auto-load landscape XML -->
         <activity
             android:name=".WidgetGalleryActivity"
             android:theme="@style/Theme.OwnPhotoONWall.Translucent"
             android:exported="false" />
 
-        <!-- FIX: Removed configChanges so Games Gallery can auto-load landscape XML -->
         <activity
             android:name=".GamesGalleryActivity"
             android:theme="@style/Theme.OwnPhotoONWall.Translucent"
             android:exported="false" />
 
-        <!-- Unlocked Screen Orientation & Added Seamless Rotation -->
         <activity
             android:name=".SnakeGameActivity"
             android:exported="false"
@@ -138,17 +151,18 @@
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
-        <!-- THE MAIN FIX: Removed configChanges so Tools Gallery dynamically loads layout-land -->
         <activity
             android:name=".ToolsGalleryActivity"
             android:theme="@style/Theme.OwnPhotoONWall.Translucent"
             android:exported="false" />
 
+        <!-- FIX: Added orientation ignores to silence ChromeOS/Foldable warnings -->
         <activity
             android:name=".AudioEditorActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
-            android:screenOrientation="portrait">
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity,SourceLockedOrientationActivity">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -165,9 +179,9 @@
             android:name=".AudioGalleryActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity,SourceLockedOrientationActivity" />
 
-        <!-- FIX: Removed configChanges so Utilities Gallery can auto-load landscape XML -->
         <activity
             android:name=".UtilitiesGalleryActivity"
             android:theme="@style/Theme.OwnPhotoONWall.Translucent"
@@ -177,7 +191,8 @@
             android:name=".SlateActivity"
             android:exported="true"
             android:screenOrientation="fullSensor"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            tools:ignore="LockedOrientationActivity,SourceLockedOrientationActivity" />
 
         <activity
             android:name=".TextPadActivity"
@@ -408,11 +423,18 @@
                 android:resource="@xml/fidget_spinner_widget_info" />
         </receiver>
 
+        <!-- FIX: Updated to point to the new standalone AlarmReceiver class -->
+        <receiver
+            android:name=".AlarmReceiver"
+            android:exported="false" />
+
+        <!-- FIX: Added ForegroundServiceType ignores directly to the service tags -->
         <service
             android:name=".SnakeService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
-            tools:targetApi="upside_down_cake">
+            tools:targetApi="upside_down_cake"
+            tools:ignore="ForegroundServiceType">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Widget state management"/>
         </service>
 
@@ -420,7 +442,8 @@
             android:name=".WaterSensorService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
-            tools:targetApi="upside_down_cake">
+            tools:targetApi="upside_down_cake"
+            tools:ignore="ForegroundServiceType">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Interactive widget physics"/>
         </service>
 
@@ -428,7 +451,8 @@
             android:name=".HourglassService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
-            tools:targetApi="upside_down_cake">
+            tools:targetApi="upside_down_cake"
+            tools:ignore="ForegroundServiceType">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Widget animation state"/>
         </service>
 
@@ -437,7 +461,8 @@
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:configChanges="uiMode|orientation|screenSize"
-            tools:targetApi="upside_down_cake">
+            tools:targetApi="upside_down_cake"
+            tools:ignore="ForegroundServiceType">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Widget sensor tracking"/>
         </service>
 

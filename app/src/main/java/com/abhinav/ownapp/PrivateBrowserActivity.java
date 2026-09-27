@@ -22,31 +22,38 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.webkit.URLUtil;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.ParcelFileDescriptor;
 import android.os.StrictMode;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.transition.TransitionManager;
+import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.AnticipateInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
-import android.webkit.URLUtil;
+import android.webkit.MimeTypeMap;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -68,6 +75,7 @@ import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -82,6 +90,7 @@ import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -90,7 +99,8 @@ import java.util.Locale;
 public class PrivateBrowserActivity extends AppCompatActivity {
 
     private FrameLayout webViewContainer;
-    private LinearLayout searchCapsule, urlInputContainer;
+    private RelativeLayout urlInputContainer;
+    private LinearLayout searchCapsule;
     private EditText etSearchUrl;
     private ProgressBar progressBar, pageLoadIndicator;
 
@@ -101,7 +111,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private ImageView btnVideoPlayPause, btnVideoHide, btnVideoMute;
     private FrameLayout btnAutoScroll;
     private ProgressBar autoActionIndicator;
-    private TextView btnFullscreenToggle;
+    private ImageView btnFullscreenToggle;
 
     private FrameLayout btnManageTabs;
     private View tabBoxOutline;
@@ -215,7 +225,16 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         injectAnimatedFanHeader();
         setupScrollingLandscape();
 
-        findViewById(R.id.btnCloseTabsOverlay).setOnClickListener(v -> { tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); });
+        findViewById(R.id.btnCloseTabsOverlay).setOnClickListener(v -> {
+            if (tabs.isEmpty()) {
+                createNewTab(null, false, true);
+            } else {
+                if (currentTabIndex >= tabs.size()) currentTabIndex = Math.max(0, tabs.size() - 1);
+                if (currentTabIndex < 0) currentTabIndex = 0;
+                switchTab(currentTabIndex);
+            }
+        });
+
         findViewById(R.id.btnAddNewTab).setOnClickListener(v -> { tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); createNewTab(null, false, true); });
 
         downloadsOverlay = findViewById(R.id.downloadsOverlay);
@@ -287,10 +306,8 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         View decorView = getWindow().getDecorView();
         ViewCompat.setOnApplyWindowInsetsListener(decorView, (v, windowInsets) -> {
             Insets systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-
             ViewGroup contentView = findViewById(android.R.id.content);
             View rootLayout = findViewById(R.id.browserRoot);
-
             if (mCustomView != null) {
                 if (contentView != null) contentView.setPadding(0, 0, 0, 0);
                 if (rootLayout != null) rootLayout.setPadding(0, 0, 0, 0);
@@ -301,6 +318,23 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             return WindowInsetsCompat.CONSUMED;
         });
         ViewCompat.requestApplyInsets(decorView);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        saveSession();
+        for (TabInfo t : tabs) {
+            if (t.webView != null) t.webView.onPause();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        for (TabInfo t : tabs) {
+            if (t.webView != null) t.webView.onResume();
+        }
     }
 
     private void beginSmoothTransition() {
@@ -350,8 +384,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             btnFront.setVisibility(View.GONE); urlInputContainer.setVisibility(View.GONE); btnMenu.setVisibility(View.GONE); btnAutoScroll.setVisibility(View.GONE); btnManageTabs.setVisibility(View.GONE); btnDismissSearch.setVisibility(View.GONE);
             btnVideoPlayPause.setVisibility(View.VISIBLE); btnVideoHide.setVisibility(View.VISIBLE); btnVideoMute.setVisibility(View.VISIBLE);
 
-            // FIX: explicitly lock the icon text when entering video mode
-            btnFullscreenToggle.setText("<>");
+            btnFullscreenToggle.setImageResource(R.drawable.ic_egg);
 
             updateVideoCapsuleOrientation(getResources().getConfiguration().orientation);
         }
@@ -371,7 +404,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         btnVideoPlayPause.setVisibility(View.GONE); btnVideoHide.setVisibility(View.GONE); btnVideoMute.setVisibility(View.GONE);
         btnFront.setVisibility(View.GONE); urlInputContainer.setVisibility(View.GONE); btnMenu.setVisibility(View.GONE); btnAutoScroll.setVisibility(View.GONE); btnManageTabs.setVisibility(View.GONE);
         btnFullscreenToggle.setVisibility(View.VISIBLE);
-        btnFullscreenToggle.setText("<>");
+        btnFullscreenToggle.setImageResource(R.drawable.ic_egg);
 
         searchCapsule.setOrientation(LinearLayout.HORIZONTAL);
         RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) searchCapsule.getLayoutParams();
@@ -403,8 +436,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         }
 
         if (isFullscreen && isVideoCurrentlyPlaying) {
-            // FIX: explicitly lock the icon text immediately before jumping over to video mode
-            btnFullscreenToggle.setText("<>");
+            btnFullscreenToggle.setImageResource(R.drawable.ic_egg);
             enableVideoMode(true, isVideoCurrentlyMuted);
             return;
         }
@@ -421,11 +453,11 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
 
         if (isFullscreen) {
-            btnFullscreenToggle.setText("<>");
+            btnFullscreenToggle.setImageResource(R.drawable.ic_egg);
             params.width = ViewGroup.LayoutParams.WRAP_CONTENT;
             params.addRule(RelativeLayout.ALIGN_PARENT_END);
         } else {
-            btnFullscreenToggle.setText("><");
+            btnFullscreenToggle.setImageResource(R.drawable.ic_eggalt);
             params.width = ViewGroup.LayoutParams.MATCH_PARENT;
             params.removeRule(RelativeLayout.ALIGN_PARENT_END);
         }
@@ -453,16 +485,37 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (level >= TRIM_MEMORY_MODERATE) { for (TabInfo t : tabs) { if (t.webView != null) t.webView.clearCache(false); } } }
 
     private void saveSession() {
-        try { JSONArray arr = new JSONArray(); for (TabInfo t : tabs) { if (t.isPinned && t.webView != null) { String url = t.webView.getUrl(); if (url == null || url.trim().isEmpty()) url = "about:blank"; JSONObject obj = new JSONObject(); obj.put("url", url); obj.put("isPinned", t.isPinned); arr.put(obj); } } browserPrefs.edit().putString(PREF_SAVED_SESSION, arr.toString()).apply(); } catch (Exception e) {}
+        try { JSONArray arr = new JSONArray(); for (TabInfo t : tabs) { if (t.webView != null) { String url = t.webView.getUrl(); if (url == null || url.trim().isEmpty()) url = "about:blank"; JSONObject obj = new JSONObject(); obj.put("url", url); obj.put("isPinned", t.isPinned); arr.put(obj); } } browserPrefs.edit().putString(PREF_SAVED_SESSION, arr.toString()).apply(); } catch (Exception e) {}
     }
 
     private void restoreSession() {
-        boolean loadedPinnedTab = false;
-        try { String sessionData = browserPrefs.getString(PREF_SAVED_SESSION, "[]"); JSONArray arr = new JSONArray(sessionData); for (int i = 0; i < arr.length(); i++) { JSONObject obj = arr.getJSONObject(i); String url = obj.optString("url", "about:blank"); boolean isPinned = obj.optBoolean("isPinned", false); if (isPinned) { createNewTab(url, true, false); loadedPinnedTab = true; } } } catch (Exception e) {}
-        if (!loadedPinnedTab) { createNewTab(null, false, true); } else { switchTab(tabs.size() - 1); }
+        boolean loadedTabs = false;
+        try {
+            String sessionData = browserPrefs.getString(PREF_SAVED_SESSION, "[]");
+            JSONArray arr = new JSONArray(sessionData);
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject obj = arr.getJSONObject(i);
+                String url = obj.optString("url", "about:blank");
+                boolean isPinned = obj.optBoolean("isPinned", false);
+                createNewTab(url, isPinned, false);
+                loadedTabs = true;
+            }
+        } catch (Exception e) {}
+
+        if (!loadedTabs) { createNewTab(null, false, true); }
+        else {
+            sortTabsByPinStatus();
+            switchTab(tabs.size() - 1);
+        }
     }
 
-    @Override protected void onPause() { super.onPause(); saveSession(); }
+    private void sortTabsByPinStatus() {
+        TabInfo currentActiveTab = tabs.isEmpty() ? null : tabs.get(currentTabIndex);
+        Collections.sort(tabs, (t1, t2) -> Boolean.compare(t2.isPinned, t1.isPinned));
+        if (currentActiveTab != null) {
+            currentTabIndex = tabs.indexOf(currentActiveTab);
+        }
+    }
 
     private void injectAnimatedFanHeader() {
         TextView oldTitle = findViewById(R.id.tvHomeTitle); if (oldTitle == null) return;
@@ -492,9 +545,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     }
 
     private static class PinView extends View {
-        private boolean isPinned; private int color; private final Paint paint; private float currentRotation = 45f; private int currentAlpha = 120; private ValueAnimator animator;
+        private boolean isPinned; private int color; private final Paint paint; private float currentRotation = 45f; private int currentAlpha = 255; private ValueAnimator animator;
         public PinView(Context context) { super(context); paint = new Paint(Paint.ANTI_ALIAS_FLAG); }
-        public void setPinnedState(boolean pinned, int col) { this.isPinned = pinned; this.color = col; if (animator != null) animator.cancel(); float targetRotation = isPinned ? 0f : 45f; int targetAlpha = isPinned ? 255 : 120; animator = ValueAnimator.ofFloat(0f, 1f); animator.setDuration(250); animator.setInterpolator(new AccelerateDecelerateInterpolator()); float startRotation = currentRotation; int startAlpha = currentAlpha; animator.addUpdateListener(a -> { float fraction = a.getAnimatedFraction(); currentRotation = startRotation + (targetRotation - startRotation) * fraction; currentAlpha = (int) (startAlpha + (targetAlpha - startAlpha) * fraction); invalidate(); }); animator.start(); }
+        public void setPinnedState(boolean pinned, int col) { this.isPinned = pinned; this.color = col; if (animator != null) animator.cancel(); float targetRotation = isPinned ? 0f : 45f; animator = ValueAnimator.ofFloat(0f, 1f); animator.setDuration(250); animator.setInterpolator(new AccelerateDecelerateInterpolator()); float startRotation = currentRotation; animator.addUpdateListener(a -> { float fraction = a.getAnimatedFraction(); currentRotation = startRotation + (targetRotation - startRotation) * fraction; invalidate(); }); animator.start(); }
         @Override protected void onDraw(Canvas canvas) { super.onDraw(canvas); float w = getWidth(), h = getHeight(); float cx = w / 2f, cy = h / 2f; float s = Math.min(w, h) * 0.25f; paint.setColor(color); paint.setStrokeWidth(s * 0.4f); paint.setStrokeCap(Paint.Cap.ROUND); paint.setStrokeJoin(Paint.Join.ROUND); canvas.save(); canvas.rotate(currentRotation, cx, cy); paint.setAlpha(currentAlpha); if (isPinned) { paint.setStyle(Paint.Style.FILL_AND_STROKE); } else { paint.setStyle(Paint.Style.STROKE); } canvas.drawRoundRect(cx - s, cy - s, cx + s, cy + s * 0.2f, s * 0.4f, s * 0.4f, paint); canvas.drawRect(cx - s * 0.5f, cy + s * 0.2f, cx + s * 0.5f, cy + s * 0.5f, paint); canvas.drawLine(cx, cy + s * 0.5f, cx, cy + s * 1.5f, paint); canvas.restore(); }
     }
 
@@ -520,34 +573,157 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         if (!query.contains(" ") && (query.contains(".") || query.startsWith("http"))) { if (!query.startsWith("http://") && !query.startsWith("https://")) query = "https://" + query; getCurrentWeb().loadUrl(query); } else { getCurrentWeb().loadUrl("https://www.google.com/search?q=" + query); }
     }
 
-    private TabInfo getTabForWeb(WebView web) { for (TabInfo t : tabs) if (t.webView == web) return t; return tabs.isEmpty() ? null : tabs.get(0); }
+    private TabInfo getTabForWeb(WebView web) { for (TabInfo t : tabs) if (t.webView == web) return t; return null; }
+
     private void showHomePage() { etSearchUrl.clearFocus(); etSearchUrl.setText(""); if (homeOverlay != null) { renderHomeShortcuts(); homeOverlay.setVisibility(View.VISIBLE); } updateBackgroundBlur(); }
     private void hideHomePage() { if (homeOverlay != null) homeOverlay.setVisibility(View.GONE); }
     private void openShortcut(String url) { if (url == null || url.trim().isEmpty() || getCurrentWeb() == null) return; hideHomePage(); getCurrentWeb().loadUrl(url); }
 
     private void renderHomeShortcuts() {
         if (homeShortcutList == null) return; homeShortcutList.removeAllViews();
-        int cardBg, textColor, secondaryColor, iconBg;
-        if (themeState == 0) { cardBg = Color.parseColor("#F5F5F7"); textColor = Color.parseColor("#222222"); secondaryColor = Color.parseColor("#777777"); iconBg = Color.parseColor("#E5E5EA"); } else if (themeState == 1) { cardBg = Color.parseColor("#1C1C1E"); textColor = Color.WHITE; secondaryColor = Color.parseColor("#AAAAAA"); iconBg = Color.parseColor("#2C2C2E"); } else { cardBg = Color.parseColor("#141414"); textColor = Color.WHITE; secondaryColor = Color.parseColor("#888888"); iconBg = Color.parseColor("#242424"); }
 
-        addHomeShortcut("Google", "Secure Search", "https://www.google.com/", "G", cardBg, textColor, secondaryColor, iconBg, false, -1); addHomeShortcut("DuckDuckGo", "Secure Search", "https://duckduckgo.com/", "D", cardBg, textColor, secondaryColor, iconBg, false, -1); addHomeShortcut("Yahoo", "Secure Search", "https://search.yahoo.com/", "Y", cardBg, textColor, secondaryColor, iconBg, false, -1); addHomeShortcut("Instagram", "Social Media", "https://www.instagram.com/", "IG", cardBg, textColor, secondaryColor, iconBg, false, -1); addHomeShortcut("LinkedIn", "Professional", "https://www.linkedin.com/", "in", cardBg, textColor, secondaryColor, iconBg, false, -1); addHomeShortcut("GitHub", "Development", "https://github.com/", "GH", cardBg, textColor, secondaryColor, iconBg, false, -1); addHomeShortcut("YouTube", "Video", "https://www.youtube.com/", "▶", cardBg, textColor, secondaryColor, iconBg, false, -1); addHomeShortcut("Bing", "Secure Search", "https://search.bing.com/", "B", cardBg, textColor, secondaryColor, iconBg, false, -1);
+        int cardBg, textColor, secondaryColor, squircleBgColor, iconColor;
+        if (themeState == 0) {
+            cardBg = Color.parseColor("#E5E5EA"); textColor = Color.parseColor("#000000"); secondaryColor = Color.parseColor("#555555"); squircleBgColor = Color.parseColor("#FFFFFF"); iconColor = Color.parseColor("#000000");
+        } else if (themeState == 1) {
+            cardBg = Color.parseColor("#2C2C2E"); textColor = Color.parseColor("#FFFFFF"); secondaryColor = Color.parseColor("#AAAAAA"); squircleBgColor = Color.parseColor("#D4E4FF"); iconColor = Color.parseColor("#000000");
+        } else {
+            cardBg = Color.parseColor("#1C1C1E"); textColor = Color.parseColor("#FFFFFF"); secondaryColor = Color.parseColor("#888888"); squircleBgColor = Color.parseColor("#D4E4FF"); iconColor = Color.parseColor("#000000");
+        }
 
-        try { JSONArray arr = new JSONArray(browserPrefs.getString(PREF_CUSTOM_LINKS, "[]")); for (int i = 0; i < arr.length(); i++) { JSONObject obj = arr.getJSONObject(i); addHomeShortcut(obj.getString("name"), "Custom Link", obj.getString("url"), "★", cardBg, textColor, secondaryColor, iconBg, true, i); } } catch (Exception e) {}
-        addCustomShortcutCard(cardBg, textColor, secondaryColor, iconBg);
+        addHomeShortcut("Google", "Secure Search", "https://www.google.com/", "G", cardBg, textColor, secondaryColor, squircleBgColor, iconColor, false, -1);
+        addHomeShortcut("DuckDuckGo", "Secure Search", "https://duckduckgo.com/", "D", cardBg, textColor, secondaryColor, squircleBgColor, iconColor, false, -1);
+        addHomeShortcut("Yahoo", "Secure Search", "https://search.yahoo.com/", "Y", cardBg, textColor, secondaryColor, squircleBgColor, iconColor, false, -1);
+        addHomeShortcut("Instagram", "Social Media", "https://www.instagram.com/", "IG", cardBg, textColor, secondaryColor, squircleBgColor, iconColor, false, -1);
+        addHomeShortcut("LinkedIn", "Professional", "https://www.linkedin.com/", "in", cardBg, textColor, secondaryColor, squircleBgColor, iconColor, false, -1);
+        addHomeShortcut("GitHub", "Development", "https://github.com/", "GH", cardBg, textColor, secondaryColor, squircleBgColor, iconColor, false, -1);
+        addHomeShortcut("YouTube", "Video", "https://www.youtube.com/", "YT", cardBg, textColor, secondaryColor, squircleBgColor, iconColor, false, -1);
+        addHomeShortcut("Bing", "Secure Search", "https://search.bing.com/", "B", cardBg, textColor, secondaryColor, squircleBgColor, iconColor, false, -1);
+
+        try { JSONArray arr = new JSONArray(browserPrefs.getString(PREF_CUSTOM_LINKS, "[]")); for (int i = 0; i < arr.length(); i++) { JSONObject obj = arr.getJSONObject(i); addHomeShortcut(obj.getString("name"), "Custom Link", obj.getString("url"), "C", cardBg, textColor, secondaryColor, squircleBgColor, iconColor, true, i); } } catch (Exception e) {}
+        addCustomShortcutCard(cardBg, textColor, secondaryColor, squircleBgColor, iconColor);
     }
 
-    private void addHomeShortcut(String name, String subtitle, String url, String iconText, int cardBg, int textColor, int secondaryColor, int iconBg, boolean isCustom, int customIndex) {
-        LinearLayout card = new LinearLayout(this); card.setOrientation(LinearLayout.HORIZONTAL); card.setGravity(Gravity.CENTER_VERTICAL); card.setPadding(dp(12), dp(10), dp(12), dp(10)); GridLayout.LayoutParams cardParams = new GridLayout.LayoutParams(); cardParams.width = 0; cardParams.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f); cardParams.setMargins(dp(6), dp(6), dp(6), dp(6)); card.setLayoutParams(cardParams); GradientDrawable cardDrawable = new GradientDrawable(); cardDrawable.setColor(cardBg); cardDrawable.setCornerRadius(dp(100)); card.setBackground(cardDrawable);
-        TextView icon = new TextView(this); icon.setText(iconText); icon.setTextColor(textColor); icon.setTextSize(iconText.length() > 1 ? 12f : 16f); icon.setGravity(Gravity.CENTER); icon.setTypeface(null, android.graphics.Typeface.BOLD); GradientDrawable iconDrawable = new GradientDrawable(); iconDrawable.setColor(iconBg); iconDrawable.setShape(GradientDrawable.OVAL); icon.setBackground(iconDrawable); LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(36), dp(36)); iconParams.setMargins(0, 0, dp(10), 0); icon.setLayoutParams(iconParams);
-        LinearLayout textBox = new LinearLayout(this); textBox.setOrientation(LinearLayout.VERTICAL); textBox.setGravity(Gravity.CENTER_VERTICAL); textBox.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)); TextView title = new TextView(this); title.setText(name); title.setTextColor(textColor); title.setTextSize(14f); title.setTypeface(null, android.graphics.Typeface.BOLD); title.setSingleLine(true); title.setEllipsize(TextUtils.TruncateAt.END); TextView sub = new TextView(this); sub.setText(subtitle); sub.setTextColor(secondaryColor); sub.setTextSize(11f); sub.setSingleLine(true); sub.setEllipsize(TextUtils.TruncateAt.END);
-        textBox.addView(title); textBox.addView(sub); card.addView(icon); card.addView(textBox); card.setOnClickListener(v -> openShortcut(url)); if (isCustom) { card.setOnLongClickListener(v -> { showDeleteCustomShortcutDialog(customIndex, name); return true; }); } homeShortcutList.addView(card);
+    private void addHomeShortcut(String name, String subtitle, String url, String iconText, int cardBg, int textColor, int secondaryColor, int squircleBgColor, int iconColor, boolean isCustom, int customIndex) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(8), dp(6), dp(16), dp(6));
+
+        GridLayout.LayoutParams cardParams = new GridLayout.LayoutParams();
+        cardParams.width = 0; cardParams.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        cardParams.setMargins(dp(6), dp(6), dp(6), dp(6));
+        card.setLayoutParams(cardParams);
+
+        GradientDrawable cardDrawable = new GradientDrawable();
+        cardDrawable.setColor(cardBg);
+        cardDrawable.setCornerRadius(dp(100));
+        card.setBackground(cardDrawable);
+
+        RelativeLayout iconContainer = new RelativeLayout(this);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(32), dp(32));
+        iconParams.setMarginEnd(dp(8));
+        iconContainer.setLayoutParams(iconParams);
+
+        ImageView squircleBg = new ImageView(this);
+        squircleBg.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        squircleBg.setImageResource(R.drawable.ic_squircle);
+        squircleBg.setScaleType(ImageView.ScaleType.FIT_XY);
+        squircleBg.setColorFilter(squircleBgColor, PorterDuff.Mode.SRC_IN);
+        iconContainer.addView(squircleBg);
+
+        TextView iconTextTv = new TextView(this);
+        iconTextTv.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        iconTextTv.setText(iconText);
+        iconTextTv.setTextColor(iconColor);
+        iconTextTv.setTextSize(iconText.length() > 1 ? 12f : 14f);
+        iconTextTv.setGravity(Gravity.CENTER);
+        iconTextTv.setTypeface(null, android.graphics.Typeface.BOLD);
+        iconContainer.addView(iconTextTv);
+
+        LinearLayout textBox = new LinearLayout(this);
+        textBox.setOrientation(LinearLayout.VERTICAL);
+        textBox.setGravity(Gravity.CENTER_VERTICAL);
+        textBox.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView title = new TextView(this);
+        title.setText(name);
+        title.setTextColor(textColor);
+        title.setTextSize(14f);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+
+        TextView sub = new TextView(this);
+        sub.setText(subtitle);
+        sub.setTextColor(secondaryColor);
+        sub.setTextSize(11f);
+        sub.setSingleLine(true);
+        sub.setEllipsize(TextUtils.TruncateAt.END);
+
+        textBox.addView(title); textBox.addView(sub);
+        card.addView(iconContainer); card.addView(textBox);
+        card.setOnClickListener(v -> openShortcut(url));
+        if (isCustom) { card.setOnLongClickListener(v -> { showDeleteCustomShortcutDialog(customIndex, name); return true; }); }
+        homeShortcutList.addView(card);
     }
 
-    private void addCustomShortcutCard(int cardBg, int textColor, int secondaryColor, int iconBg) {
-        LinearLayout card = new LinearLayout(this); card.setOrientation(LinearLayout.HORIZONTAL); card.setGravity(Gravity.CENTER_VERTICAL); card.setPadding(dp(12), dp(10), dp(12), dp(10)); GridLayout.LayoutParams cardParams = new GridLayout.LayoutParams(); cardParams.width = 0; cardParams.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f); cardParams.setMargins(dp(6), dp(6), dp(6), dp(6)); card.setLayoutParams(cardParams); GradientDrawable cardDrawable = new GradientDrawable(); cardDrawable.setColor(cardBg); cardDrawable.setCornerRadius(dp(100)); card.setBackground(cardDrawable);
-        TextView icon = new TextView(this); icon.setText("+"); icon.setTextColor(textColor); icon.setTextSize(18f); icon.setGravity(Gravity.CENTER); GradientDrawable iconDrawable = new GradientDrawable(); iconDrawable.setColor(iconBg); iconDrawable.setShape(GradientDrawable.OVAL); icon.setBackground(iconDrawable); LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(36), dp(36)); iconParams.setMargins(0, 0, dp(10), 0); icon.setLayoutParams(iconParams);
-        LinearLayout textBox = new LinearLayout(this); textBox.setOrientation(LinearLayout.VERTICAL); textBox.setGravity(Gravity.CENTER_VERTICAL); textBox.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)); TextView title = new TextView(this); title.setText("Add Shortcut"); title.setTextColor(textColor); title.setTextSize(14f); title.setTypeface(null, android.graphics.Typeface.BOLD); TextView sub = new TextView(this); sub.setText("Custom URL"); sub.setTextColor(secondaryColor); sub.setTextSize(11f);
-        textBox.addView(title); textBox.addView(sub); card.addView(icon); card.addView(textBox); card.setOnClickListener(v -> showCustomShortcutDialog()); homeShortcutList.addView(card);
+    private void addCustomShortcutCard(int cardBg, int textColor, int secondaryColor, int squircleBgColor, int iconColor) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(8), dp(6), dp(16), dp(6));
+
+        GridLayout.LayoutParams cardParams = new GridLayout.LayoutParams();
+        cardParams.width = 0; cardParams.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        cardParams.setMargins(dp(6), dp(6), dp(6), dp(6));
+        card.setLayoutParams(cardParams);
+
+        GradientDrawable cardDrawable = new GradientDrawable();
+        cardDrawable.setColor(cardBg);
+        cardDrawable.setCornerRadius(dp(100));
+        card.setBackground(cardDrawable);
+
+        RelativeLayout iconContainer = new RelativeLayout(this);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(32), dp(32));
+        iconParams.setMarginEnd(dp(8));
+        iconContainer.setLayoutParams(iconParams);
+
+        ImageView squircleBg = new ImageView(this);
+        squircleBg.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        squircleBg.setImageResource(R.drawable.ic_squircle);
+        squircleBg.setScaleType(ImageView.ScaleType.FIT_XY);
+        squircleBg.setColorFilter(squircleBgColor, PorterDuff.Mode.SRC_IN);
+        iconContainer.addView(squircleBg);
+
+        ImageView plusIcon = new ImageView(this);
+        plusIcon.setLayoutParams(new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        plusIcon.setImageResource(R.drawable.ic_add_new);
+        plusIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        plusIcon.setColorFilter(iconColor);
+        plusIcon.setPadding(dp(8), dp(8), dp(8), dp(8));
+        iconContainer.addView(plusIcon);
+
+        LinearLayout textBox = new LinearLayout(this);
+        textBox.setOrientation(LinearLayout.VERTICAL);
+        textBox.setGravity(Gravity.CENTER_VERTICAL);
+        textBox.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView title = new TextView(this);
+        title.setText("Add Shortcut");
+        title.setTextColor(textColor);
+        title.setTextSize(14f);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+
+        TextView sub = new TextView(this);
+        sub.setText("Custom URL");
+        sub.setTextColor(secondaryColor);
+        sub.setTextSize(11f);
+
+        textBox.addView(title); textBox.addView(sub);
+        card.addView(iconContainer); card.addView(textBox);
+        card.setOnClickListener(v -> showCustomShortcutDialog());
+        homeShortcutList.addView(card);
     }
 
     private void showCustomShortcutDialog() {
@@ -561,7 +737,11 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private int dp(int value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }
 
-    private void updateBackgroundBlur() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { boolean shouldBlur = tabsOverlay.getVisibility() == View.VISIBLE || downloadsOverlay.getVisibility() == View.VISIBLE || isMenuOpen; if (shouldBlur) webViewContainer.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(35f, 35f, android.graphics.Shader.TileMode.CLAMP)); else webViewContainer.setRenderEffect(null); } }
+    private void updateBackgroundBlur() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            webViewContainer.setRenderEffect(null);
+        }
+    }
 
     @Override public boolean dispatchTouchEvent(MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
@@ -589,7 +769,15 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
                 if (mCustomView != null) exitFullscreenVideo();
-                else if (tabsOverlay.getVisibility() == View.VISIBLE) { tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); }
+                else if (tabsOverlay.getVisibility() == View.VISIBLE) {
+                    if (tabs.isEmpty()) {
+                        createNewTab(null, false, true);
+                    } else {
+                        if (currentTabIndex >= tabs.size()) currentTabIndex = Math.max(0, tabs.size() - 1);
+                        if (currentTabIndex < 0) currentTabIndex = 0;
+                        switchTab(currentTabIndex);
+                    }
+                }
                 else if (downloadsOverlay.getVisibility() == View.VISIBLE) { downloadsOverlay.setVisibility(View.GONE); updateBackgroundBlur(); }
                 else if (!tabs.isEmpty() && getCurrentWeb() != null && getCurrentWeb().canGoBack()) getCurrentWeb().goBack();
                 else { setEnabled(false); getOnBackPressedDispatcher().onBackPressed(); }
@@ -683,18 +871,69 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         tabsOverlay.setVisibility(View.GONE); updateBackgroundBlur();
     }
 
-    private void closeTab(int index) {
+    private void closeTabAnimated(TabInfo closingInfo, View cardView) {
+        cardView.setEnabled(false);
+
+        cardView.animate()
+                .alpha(0f)
+                .scaleX(0.5f)
+                .scaleY(0.5f)
+                .translationY(dp(40))
+                .rotation((float) (Math.random() * 20 - 10))
+                .setDuration(300)
+                .setInterpolator(new AccelerateDecelerateInterpolator())
+                .withEndAction(() -> {
+                    int index = tabs.indexOf(closingInfo);
+                    if (index != -1) {
+                        closeTabBackend(index);
+                    }
+                }).start();
+    }
+
+    private void closeTabBackend(int index) {
+        if (index < 0 || index >= tabs.size()) return;
         TabInfo closing = tabs.get(index);
+
+        closing.webView.setWebChromeClient(null);
+        closing.webView.setWebViewClient(null);
+
         webViewContainer.removeView(closing.webView);
 
         closing.webView.clearHistory();
         closing.webView.loadUrl("about:blank");
-        closing.webView.destroy();
+        closing.webView.removeAllViews();
 
-        if (closing.preview != null) closing.preview.recycle(); tabs.remove(index);
+        // FIX 1: Delay the destruction of the WebView to allow UI animations to finish safely
+        WebView dyingWeb = closing.webView;
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            try { dyingWeb.destroy(); } catch (Exception ignored) {}
+        }, 500);
+
+        // FIX 2: Do NOT call .recycle() on the bitmap. The transition animation needs it!
+        // Nullify the reference and let the Android Garbage Collector clean it up safely.
+        closing.preview = null;
+
+        tabs.remove(index);
+
+        if (index < currentTabIndex) {
+            currentTabIndex--;
+        } else if (index == currentTabIndex) {
+            if (currentTabIndex >= tabs.size()) {
+                currentTabIndex = Math.max(0, tabs.size() - 1);
+            }
+        }
+
         updateTabIconCount();
         saveSession();
-        if (tabs.isEmpty()) { finish(); } else { if (currentTabIndex >= tabs.size()) currentTabIndex = tabs.size() - 1; renderVisualTabsGrid(); switchTab(currentTabIndex); }
+
+        TransitionManager.beginDelayedTransition(tabsGrid, new android.transition.ChangeBounds().setDuration(300));
+
+        if (tabs.isEmpty()) {
+            createNewTab(null, false, false);
+            renderVisualTabsGrid();
+        } else {
+            renderVisualTabsGrid();
+        }
     }
 
     private void captureCurrentTabPreview() {
@@ -712,9 +951,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         tabsGrid.removeAllViews();
         int outerUnselectedBg, innerBg, textColor, separatorColor;
 
-        if (themeState == 0) { outerUnselectedBg = Color.parseColor("#E5E5EA"); innerBg = Color.WHITE; textColor = Color.BLACK; separatorColor = Color.BLACK; }
-        else if (themeState == 1) { outerUnselectedBg = Color.parseColor("#332D2B"); innerBg = Color.parseColor("#1C1C1E"); textColor = Color.WHITE; separatorColor = Color.parseColor("#555555"); }
-        else { outerUnselectedBg = Color.parseColor("#2C2C2E"); innerBg = Color.parseColor("#000000"); textColor = Color.WHITE; separatorColor = Color.parseColor("#333333"); }
+        if (themeState == 0) { outerUnselectedBg = Color.parseColor("#E5E5EA"); innerBg = Color.parseColor("#FFFFFF"); textColor = Color.parseColor("#000000"); separatorColor = Color.parseColor("#000000"); }
+        else if (themeState == 1) { outerUnselectedBg = Color.parseColor("#2C2C2E"); innerBg = Color.parseColor("#1C1C1E"); textColor = Color.parseColor("#FFFFFF"); separatorColor = Color.parseColor("#555555"); }
+        else { outerUnselectedBg = Color.parseColor("#1C1C1E"); innerBg = Color.parseColor("#000000"); textColor = Color.parseColor("#FFFFFF"); separatorColor = Color.parseColor("#333333"); }
 
         for (int i = 0; i < tabs.size(); i++) {
             final int index = i; TabInfo info = tabs.get(i);
@@ -723,13 +962,24 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             if (themeState == 0) { outerSelectedBg = Color.parseColor("#FFB59F"); }
             else { outerSelectedBg = Color.parseColor("#6750A4"); }
 
-            LinearLayout outerCard = new LinearLayout(this); outerCard.setOrientation(LinearLayout.VERTICAL);
-            GridLayout.LayoutParams params = new GridLayout.LayoutParams(); params.width = 0; params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f); params.setMargins(dp(8), dp(8), dp(8), dp(8)); outerCard.setLayoutParams(params);
-            GradientDrawable outerGd = new GradientDrawable(); outerGd.setColor(index == currentTabIndex ? outerSelectedBg : outerUnselectedBg); outerGd.setCornerRadius(dp(16)); outerCard.setBackground(outerGd); outerCard.setPadding(dp(6), dp(10), dp(6), dp(6));
+            LinearLayout outerCard = new LinearLayout(this);
+            outerCard.setOrientation(LinearLayout.VERTICAL);
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0; params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            params.setMargins(dp(8), dp(8), dp(8), dp(8));
+            outerCard.setLayoutParams(params);
+
+            GradientDrawable outerGd = new GradientDrawable();
+            outerGd.setColor(index == currentTabIndex ? outerSelectedBg : outerUnselectedBg);
+            outerGd.setCornerRadius(dp(16));
+            outerCard.setBackground(outerGd);
+            outerCard.setPadding(dp(6), dp(10), dp(6), dp(6));
+
+            outerCard.setTag(index);
 
             LinearLayout header = new LinearLayout(this); header.setOrientation(LinearLayout.HORIZONTAL); header.setGravity(Gravity.CENTER_VERTICAL); header.setPadding(dp(4), 0, dp(4), dp(6));
 
-            int headerTextColor = (index == currentTabIndex) ? Color.WHITE : textColor;
+            int headerTextColor = (index == currentTabIndex) ? Color.parseColor("#FFFFFF") : textColor;
 
             PinView pinToggle = new PinView(this);
             LinearLayout.LayoutParams pinParams = new LinearLayout.LayoutParams(dp(28), dp(28));
@@ -738,19 +988,78 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             pinToggle.setPinnedState(info.isPinned, headerTextColor);
             pinToggle.setOnClickListener(v -> {
                 info.isPinned = !info.isPinned;
+                sortTabsByPinStatus();
                 saveSession();
-                pinToggle.setPinnedState(info.isPinned, headerTextColor);
+                renderVisualTabsGrid();
             });
 
             TextView title = new TextView(this); title.setText(info.title); title.setTextColor(headerTextColor); title.setTextSize(13f); title.setTypeface(null, android.graphics.Typeface.BOLD); title.setSingleLine(true); title.setEllipsize(TextUtils.TruncateAt.END); title.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-            TextView close = new TextView(this); close.setText("X"); close.setTextColor(headerTextColor); close.setTextSize(15f); close.setTypeface(null, android.graphics.Typeface.BOLD); close.setPadding(dp(10), 0, 0, 0); close.setOnClickListener(v -> closeTab(index));
+
+            ImageView close = new ImageView(this);
+            close.setImageResource(R.drawable.ic_rounded_close);
+            LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(dp(28), dp(28));
+            closeParams.setMargins(dp(10), 0, 0, 0);
+            close.setLayoutParams(closeParams);
+            close.setColorFilter(headerTextColor);
+            close.setPadding(dp(6), dp(6), dp(6), dp(6));
+            close.setOnClickListener(v -> closeTabAnimated(info, outerCard));
+
             header.addView(pinToggle); header.addView(title); header.addView(close);
 
             View separator = new View(this); LinearLayout.LayoutParams sepParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)); sepParams.setMargins(dp(2), 0, dp(2), dp(6)); separator.setLayoutParams(sepParams); separator.setBackgroundColor(separatorColor);
             ImageView preview = new ImageView(this); LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(160)); preview.setLayoutParams(previewParams); preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
             GradientDrawable innerGd = new GradientDrawable(); innerGd.setColor(innerBg); innerGd.setCornerRadius(dp(10)); preview.setBackground(innerGd); preview.setClipToOutline(true);
             if (info.preview != null) preview.setImageBitmap(info.preview);
-            outerCard.addView(header); outerCard.addView(separator); outerCard.addView(preview); outerCard.setOnClickListener(v -> switchTab(index)); tabsGrid.addView(outerCard);
+
+            outerCard.addView(header); outerCard.addView(separator); outerCard.addView(preview);
+            outerCard.setOnClickListener(v -> switchTab((int) outerCard.getTag()));
+
+            outerCard.setOnLongClickListener(v -> {
+                View.DragShadowBuilder shadowBuilder = new View.DragShadowBuilder(v);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    v.startDragAndDrop(null, shadowBuilder, v, 0);
+                } else {
+                    v.startDrag(null, shadowBuilder, v, 0);
+                }
+                return true;
+            });
+
+            outerCard.setOnDragListener((v, event) -> {
+                switch (event.getAction()) {
+                    case DragEvent.ACTION_DRAG_STARTED:
+                        return true;
+                    case DragEvent.ACTION_DRAG_ENTERED:
+                        v.setScaleX(1.03f); v.setScaleY(1.03f);
+                        return true;
+                    case DragEvent.ACTION_DRAG_EXITED:
+                        v.setScaleX(1.0f); v.setScaleY(1.0f);
+                        return true;
+                    case DragEvent.ACTION_DROP:
+                        v.setScaleX(1.0f); v.setScaleY(1.0f);
+                        View draggedView = (View) event.getLocalState();
+                        if (draggedView != null && draggedView != v) {
+                            int fromIdx = (int) draggedView.getTag();
+                            int toIdx = (int) v.getTag();
+                            if (fromIdx >= 0 && fromIdx < tabs.size() && toIdx >= 0 && toIdx < tabs.size()) {
+                                TabInfo cTab = tabs.get(currentTabIndex);
+                                TabInfo moved = tabs.remove(fromIdx);
+                                tabs.add(toIdx, moved);
+
+                                sortTabsByPinStatus();
+
+                                saveSession();
+                                new Handler(Looper.getMainLooper()).post(this::renderVisualTabsGrid);
+                            }
+                        }
+                        return true;
+                    case DragEvent.ACTION_DRAG_ENDED:
+                        v.setScaleX(1.0f); v.setScaleY(1.0f);
+                        return true;
+                }
+                return false;
+            });
+
+            tabsGrid.addView(outerCard);
         }
     }
 
@@ -767,49 +1076,130 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private void startAutoScroll(int speedMultiplier) { stopAutoActions(); currentAutoScrollSpeed = speedMultiplier; if (speedMultiplier > 0) { if(autoActionIndicator != null) autoActionIndicator.setVisibility(View.VISIBLE); autoScrollHandler.post(autoScrollRunnable); } }
     private void startAutoSwipe() { stopAutoActions(); isAutoSwiping = true; if(autoActionIndicator != null) autoActionIndicator.setVisibility(View.VISIBLE); autoSwipeHandler.postDelayed(autoSwipeRunnable, 4000); Toast.makeText(this, "Auto Swipe Activated (4s)", Toast.LENGTH_SHORT).show(); }
 
+    // --- LIQUID DISMISS HELPER ---
+    private void executeLiquidDismiss(PopupWindow popupWindow, View menuLayout, Runnable action) {
+        menuLayout.animate()
+                .scaleX(0.4f)
+                .scaleY(0.4f)
+                .alpha(0f)
+                .setDuration(250)
+                .setInterpolator(new AnticipateInterpolator(1.2f))
+                .withEndAction(() -> {
+                    if (popupWindow != null && popupWindow.isShowing()) {
+                        popupWindow.dismiss();
+                    }
+                    if (action != null) action.run();
+                })
+                .start();
+    }
+
     private void showAutoScrollMenu(View anchor) {
         etSearchUrl.clearFocus(); LinearLayout menuLayout = new LinearLayout(this); menuLayout.setOrientation(LinearLayout.VERTICAL); menuLayout.setMinimumWidth(dp(220));
         int bgColor, textColor;
-        if (themeState == 0) { bgColor = Color.parseColor("#99FFFFFF"); textColor = Color.BLACK; } else if (themeState == 1) { bgColor = Color.parseColor("#992C2C2E"); textColor = Color.WHITE; } else { bgColor = Color.parseColor("#E61C1C1E"); textColor = Color.WHITE; }
+        if (themeState == 0) { bgColor = Color.parseColor("#FFFFFF"); textColor = Color.BLACK; } else if (themeState == 1) { bgColor = Color.parseColor("#2C2C2E"); textColor = Color.WHITE; } else { bgColor = Color.parseColor("#1C1C1E"); textColor = Color.WHITE; }
         GradientDrawable gd = new GradientDrawable(); gd.setColor(bgColor); gd.setCornerRadius(dp(40)); menuLayout.setBackground(gd); menuLayout.setPadding(dp(16), dp(16), dp(16), dp(16));
         final PopupWindow[] popupWindow = new PopupWindow[1];
 
-        TextView tvStop = createMenuItem("Stop All", android.R.drawable.ic_media_pause, textColor); tvStop.setOnClickListener(v -> { popupWindow[0].dismiss(); stopAutoActions(); });
-        TextView tvSwipe = createMenuItem("Auto Swipe (4s)", android.R.drawable.ic_menu_upload, textColor); tvSwipe.setOnClickListener(v -> { popupWindow[0].dismiss(); startAutoSwipe(); });
-        TextView tv1x = createMenuItem("1x Speed", android.R.drawable.ic_media_play, textColor); tv1x.setOnClickListener(v -> { popupWindow[0].dismiss(); startAutoScroll(1); });
-        TextView tv2x = createMenuItem("2x Speed", android.R.drawable.ic_media_ff, textColor); tv2x.setOnClickListener(v -> { popupWindow[0].dismiss(); startAutoScroll(3); });
-        TextView tv3x = createMenuItem("3x Speed", android.R.drawable.ic_media_ff, textColor); tv3x.setOnClickListener(v -> { popupWindow[0].dismiss(); startAutoScroll(6); });
-        TextView tv4x = createMenuItem("4x Speed", android.R.drawable.ic_media_ff, textColor); tv4x.setOnClickListener(v -> { popupWindow[0].dismiss(); startAutoScroll(12); });
+        // Attach liquid shrink dismisses to buttons
+        TextView tvStop = createMenuItem("Stop All", R.drawable.ic_stopcircle, textColor); tvStop.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, this::stopAutoActions));
+        TextView tvSwipe = createMenuItem("Auto Swipe (4s)", R.drawable.ic_autoswipe, textColor); tvSwipe.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, this::startAutoSwipe));
+        TextView tv1x = createMenuItem("1x Speed", R.drawable.ic_fastscroll, textColor); tv1x.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, () -> startAutoScroll(1)));
+        TextView tv2x = createMenuItem("2x Speed", R.drawable.ic_fastscroll, textColor); tv2x.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, () -> startAutoScroll(3)));
+        TextView tv3x = createMenuItem("3x Speed", R.drawable.ic_fastscroll, textColor); tv3x.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, () -> startAutoScroll(6)));
+        TextView tv4x = createMenuItem("4x Speed", R.drawable.ic_fastscroll, textColor); tv4x.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, () -> startAutoScroll(12)));
 
         menuLayout.addView(tvStop); menuLayout.addView(tvSwipe); menuLayout.addView(tv1x); menuLayout.addView(tv2x); menuLayout.addView(tv3x); menuLayout.addView(tv4x);
+
+        // Setup liquid entrance state
+        menuLayout.setAlpha(0f);
+        menuLayout.setScaleX(0.3f);
+        menuLayout.setScaleY(0.3f);
+        menuLayout.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                menuLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                // Anchor animation bottom-right (where your finger triggered it)
+                menuLayout.setPivotX(menuLayout.getWidth() - dp(20));
+                menuLayout.setPivotY(menuLayout.getHeight());
+
+                menuLayout.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .alpha(1f)
+                        .setDuration(350)
+                        .setInterpolator(new OvershootInterpolator(1.2f))
+                        .start();
+            }
+        });
+
         isMenuOpen = true; updateBackgroundBlur();
         popupWindow[0] = new PopupWindow(menuLayout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true); popupWindow[0].setElevation(dp(30));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { android.transition.Transition enterTrans = new android.transition.Slide(Gravity.BOTTOM); enterTrans.setDuration(200); popupWindow[0].setEnterTransition(enterTrans); android.transition.Transition exitTrans = new android.transition.Fade(); exitTrans.setDuration(150); popupWindow[0].setExitTransition(exitTrans); }
-        popupWindow[0].setOnDismissListener(() -> { isMenuOpen = false; updateBackgroundBlur(); }); popupWindow[0].showAtLocation(anchor, Gravity.BOTTOM | Gravity.END, dp(20), dp(90));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Keep native fade out for out-of-bounds clicks that natively trigger dismiss
+            android.transition.Transition exitTrans = new android.transition.Fade();
+            exitTrans.setDuration(150);
+            popupWindow[0].setExitTransition(exitTrans);
+        }
+
+        popupWindow[0].setOnDismissListener(() -> { isMenuOpen = false; updateBackgroundBlur(); });
+        popupWindow[0].showAtLocation(anchor, Gravity.BOTTOM | Gravity.END, dp(20), dp(90));
     }
 
     private void showRoundedMenu(View anchor) {
         etSearchUrl.clearFocus(); LinearLayout menuLayout = new LinearLayout(this); menuLayout.setOrientation(LinearLayout.VERTICAL); menuLayout.setMinimumWidth(dp(220));
         int bgColor, textColor;
-        if (themeState == 0) { bgColor = Color.parseColor("#99FFFFFF"); textColor = Color.BLACK; } else if (themeState == 1) { bgColor = Color.parseColor("#992C2C2E"); textColor = Color.WHITE; } else { bgColor = Color.parseColor("#E61C1C1E"); textColor = Color.WHITE; }
+        if (themeState == 0) { bgColor = Color.parseColor("#FFFFFF"); textColor = Color.BLACK; } else if (themeState == 1) { bgColor = Color.parseColor("#2C2C2E"); textColor = Color.WHITE; } else { bgColor = Color.parseColor("#1C1C1E"); textColor = Color.WHITE; }
         GradientDrawable gd = new GradientDrawable(); gd.setColor(bgColor); gd.setCornerRadius(dp(40)); menuLayout.setBackground(gd); menuLayout.setPadding(dp(16), dp(16), dp(16), dp(16));
         final PopupWindow[] popupWindow = new PopupWindow[1]; WebView current = getCurrentWeb(); if (current == null) return;
 
-        TextView tvHome = createMenuItem("Home", android.R.drawable.ic_menu_compass, textColor); tvHome.setOnClickListener(v -> { popupWindow[0].dismiss(); current.loadUrl("about:blank"); showHomePage(); });
-        TextView tvReload = createMenuItem("Reload Page", android.R.drawable.ic_popup_sync, textColor); tvReload.setOnClickListener(v -> { popupWindow[0].dismiss(); current.reload(); });
+        // Attach liquid shrink dismisses to buttons
+        TextView tvHome = createMenuItem("Home", R.drawable.ic_homehouse, textColor); tvHome.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, () -> { current.loadUrl("about:blank"); showHomePage(); }));
+        TextView tvReload = createMenuItem("Reload Page", android.R.drawable.ic_popup_sync, textColor); tvReload.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, current::reload));
         boolean isDesktop = false; if (current.getTag() != null) isDesktop = (boolean) current.getTag();
-        TextView tvDesktop = createMenuItem(isDesktop ? "Switch to Mobile" : "Request Desktop Site", android.R.drawable.ic_menu_view, textColor); tvDesktop.setOnClickListener(v -> { popupWindow[0].dismiss(); toggleDesktopMode(current); });
-        TextView tvDownloads = createMenuItem("Downloads", android.R.drawable.stat_sys_download, textColor); tvDownloads.setOnClickListener(v -> { popupWindow[0].dismiss(); openVisualDownloadsManager(); });
-        TextView tvNewTab = createMenuItem("New Tab", android.R.drawable.ic_menu_add, textColor); tvNewTab.setOnClickListener(v -> { popupWindow[0].dismiss(); createNewTab(null, false, true); });
+        TextView tvDesktop = createMenuItem(isDesktop ? "Switch to Mobile" : "Request Desktop Site", R.drawable.ic_desktop, textColor); tvDesktop.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, () -> toggleDesktopMode(current)));
+        TextView tvDownloads = createMenuItem("Downloads", android.R.drawable.stat_sys_download, textColor); tvDownloads.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, this::openVisualDownloadsManager));
+        TextView tvNewTab = createMenuItem("New Tab", R.drawable.ic_newtab, textColor); tvNewTab.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, () -> createNewTab(null, false, true)));
 
-        TextView tvWipeData = createMenuItem("Del Data", android.R.drawable.ic_menu_delete, Color.parseColor("#FF3B30"));
-        tvWipeData.setOnClickListener(v -> { popupWindow[0].dismiss(); showWipeDataConfirmation(); });
+        TextView tvWipeData = createMenuItem("Delete All Data", android.R.drawable.ic_menu_delete, Color.parseColor("#FF3B30"));
+        tvWipeData.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, this::showWipeDataConfirmation));
 
         menuLayout.addView(tvHome); menuLayout.addView(tvReload); menuLayout.addView(tvDesktop); menuLayout.addView(tvDownloads); menuLayout.addView(tvNewTab); menuLayout.addView(tvWipeData);
+
+        // Setup liquid entrance state
+        menuLayout.setAlpha(0f);
+        menuLayout.setScaleX(0.3f);
+        menuLayout.setScaleY(0.3f);
+        menuLayout.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                menuLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                // Anchor animation bottom-right
+                menuLayout.setPivotX(menuLayout.getWidth() - dp(20));
+                menuLayout.setPivotY(menuLayout.getHeight());
+
+                menuLayout.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .alpha(1f)
+                        .setDuration(350)
+                        .setInterpolator(new OvershootInterpolator(1.2f))
+                        .start();
+            }
+        });
+
         isMenuOpen = true; updateBackgroundBlur();
         popupWindow[0] = new PopupWindow(menuLayout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true); popupWindow[0].setElevation(dp(30));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { android.transition.Transition enterTrans = new android.transition.Slide(Gravity.BOTTOM); enterTrans.setDuration(200); popupWindow[0].setEnterTransition(enterTrans); android.transition.Transition exitTrans = new android.transition.Fade(); exitTrans.setDuration(150); popupWindow[0].setExitTransition(exitTrans); }
-        popupWindow[0].setOnDismissListener(() -> { isMenuOpen = false; updateBackgroundBlur(); }); popupWindow[0].showAtLocation(anchor, Gravity.BOTTOM | Gravity.END, dp(20), dp(90));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Keep native fade out for out-of-bounds clicks
+            android.transition.Transition exitTrans = new android.transition.Fade();
+            exitTrans.setDuration(150);
+            popupWindow[0].setExitTransition(exitTrans);
+        }
+
+        popupWindow[0].setOnDismissListener(() -> { isMenuOpen = false; updateBackgroundBlur(); });
+        popupWindow[0].showAtLocation(anchor, Gravity.BOTTOM | Gravity.END, dp(20), dp(90));
     }
 
     private void showWipeDataConfirmation() {
@@ -817,7 +1207,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this, dialogStyle);
         builder.setTitle("Delete Everything?");
         builder.setMessage("Are you sure you want to delete all data, cookies, history, and active tabs completely?");
-        builder.setPositiveButton("Yes, Delete", (dialog, which) -> executeTotalDataWipe());
+        builder.setPositiveButton("Delete", (dialog, which) -> executeTotalDataWipe());
         builder.setNegativeButton("Cancel", null);
         AlertDialog dialog = builder.create();
         dialog.setOnShowListener(d -> styleDialogButtons(dialog));
@@ -828,14 +1218,22 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         stopAutoActions();
         for (TabInfo t : tabs) {
             if (t.webView != null) {
+                t.webView.setWebChromeClient(null);
+                t.webView.setWebViewClient(null);
                 webViewContainer.removeView(t.webView);
                 t.webView.clearHistory();
                 t.webView.clearCache(true);
                 t.webView.clearFormData();
                 t.webView.loadUrl("about:blank");
-                t.webView.destroy();
+                t.webView.removeAllViews();
+
+                WebView dyingWeb = t.webView;
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    try { dyingWeb.destroy(); } catch (Exception ignored) {}
+                }, 500);
             }
-            if (t.preview != null) t.preview.recycle();
+            // Remove .recycle() here as well
+            t.preview = null;
         }
         tabs.clear();
         browserPrefs.edit().remove(PREF_SAVED_SESSION).apply();
@@ -849,7 +1247,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private TextView createMenuItem(String text, int iconResId, int color) {
         TextView tv = new TextView(this); tv.setText(text); tv.setTextColor(color); tv.setTextSize(16f); tv.setPadding(dp(16), dp(12), dp(16), dp(12)); tv.setGravity(Gravity.CENTER_VERTICAL); tv.setCompoundDrawablePadding(dp(16));
-        if (iconResId != 0) { Drawable icon = androidx.core.content.ContextCompat.getDrawable(this, iconResId); if (icon != null) { icon = icon.mutate(); int iconSize = dp(24); icon.setBounds(0, 0, iconSize, iconSize); icon.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)); icon.setAlpha(200); tv.setCompoundDrawables(icon, null, null, null); } }
+        if (iconResId != 0) { Drawable icon = androidx.core.content.ContextCompat.getDrawable(this, iconResId); if (icon != null) { icon = icon.mutate(); int iconSize = dp(24); icon.setBounds(0, 0, iconSize, iconSize); icon.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)); tv.setCompoundDrawables(icon, null, null, null); } }
         return tv;
     }
 
@@ -859,32 +1257,105 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         if (!dir.exists() || files == null || files.length == 0) return; Arrays.sort(files, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
         SimpleDateFormat sdf = new SimpleDateFormat("MMM d, yyyy", Locale.US);
         int primaryText, secondaryText, iconBg;
-        if (themeState == 0) { primaryText = Color.BLACK; secondaryText = Color.parseColor("#555555"); iconBg = Color.parseColor("#E0E0E0"); } else if (themeState == 1) { primaryText = Color.WHITE; secondaryText = Color.parseColor("#AAAAAA"); iconBg = Color.parseColor("#3D322F"); } else { primaryText = Color.WHITE; secondaryText = Color.parseColor("#AAAAAA"); iconBg = Color.parseColor("#1C1C1E"); }
+        if (themeState == 0) { primaryText = Color.parseColor("#000000"); secondaryText = Color.parseColor("#555555"); iconBg = Color.parseColor("#E0E0E0"); } else if (themeState == 1) { primaryText = Color.parseColor("#FFFFFF"); secondaryText = Color.parseColor("#AAAAAA"); iconBg = Color.parseColor("#3D322F"); } else { primaryText = Color.parseColor("#FFFFFF"); secondaryText = Color.parseColor("#AAAAAA"); iconBg = Color.parseColor("#1C1C1E"); }
 
         for (File file : files) {
             TextView dateHeader = new TextView(this); dateHeader.setText(sdf.format(new Date(file.lastModified()))); dateHeader.setTextColor(primaryText); dateHeader.setTypeface(null, android.graphics.Typeface.BOLD); dateHeader.setPadding(0, dp(12), 0, dp(4)); downloadsList.addView(dateHeader);
             LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setPadding(0, dp(8), 0, dp(8)); row.setGravity(Gravity.CENTER_VERTICAL);
             ImageView thumb = new ImageView(this); thumb.setLayoutParams(new LinearLayout.LayoutParams(dp(48), dp(48))); thumb.setScaleType(ImageView.ScaleType.CENTER_CROP); String name = file.getName().toLowerCase();
-            if (name.endsWith(".jpg") || name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".jpeg")) { BitmapFactory.Options opts = new BitmapFactory.Options(); opts.inSampleSize = 4; thumb.setImageBitmap(BitmapFactory.decodeFile(file.getAbsolutePath(), opts)); } else { thumb.setImageResource(android.R.drawable.ic_menu_crop); thumb.setColorFilter(primaryText); thumb.setBackgroundColor(iconBg); }
+
+            if (name.endsWith(".jpg") || name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".jpeg")) {
+                BitmapFactory.Options opts = new BitmapFactory.Options(); opts.inSampleSize = 4; thumb.setImageBitmap(BitmapFactory.decodeFile(file.getAbsolutePath(), opts));
+            } else if (name.endsWith(".pdf") && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                try {
+                    ParcelFileDescriptor fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
+                    PdfRenderer renderer = new PdfRenderer(fd);
+                    if (renderer.getPageCount() > 0) {
+                        PdfRenderer.Page page = renderer.openPage(0);
+                        Bitmap bitmap = Bitmap.createBitmap(dp(64), dp(64), Bitmap.Config.ARGB_8888);
+                        bitmap.eraseColor(Color.WHITE);
+                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                        thumb.setImageBitmap(bitmap);
+                        page.close();
+                    } else {
+                        thumb.setImageResource(android.R.drawable.ic_menu_agenda); thumb.setColorFilter(primaryText); thumb.setBackgroundColor(iconBg);
+                    }
+                    renderer.close();
+                    fd.close();
+                } catch (Exception e) {
+                    thumb.setImageResource(android.R.drawable.ic_menu_agenda); thumb.setColorFilter(primaryText); thumb.setBackgroundColor(iconBg);
+                }
+            } else {
+                int fallbackIcon = android.R.drawable.ic_menu_info_details;
+                if (name.endsWith(".mp4") || name.endsWith(".mkv") || name.endsWith(".avi")) fallbackIcon = android.R.drawable.ic_media_play;
+                else if (name.endsWith(".zip") || name.endsWith(".rar")) fallbackIcon = android.R.drawable.ic_menu_save;
+                else if (name.endsWith(".txt") || name.endsWith(".doc")) fallbackIcon = android.R.drawable.ic_menu_agenda;
+
+                thumb.setImageResource(fallbackIcon);
+                thumb.setColorFilter(primaryText);
+                thumb.setBackgroundColor(iconBg);
+            }
             row.addView(thumb);
+
             LinearLayout details = new LinearLayout(this); details.setOrientation(LinearLayout.VERTICAL); details.setPadding(dp(12), 0, 0, 0); details.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
             TextView title = new TextView(this); title.setText(file.getName()); title.setTextColor(primaryText); title.setTextSize(16f); title.setSingleLine(true);
             TextView sub = new TextView(this); sub.setText(String.format(Locale.US, "%.2f MB • Phone Storage", (file.length() / (1024f * 1024f)))); sub.setTextColor(secondaryText); sub.setTextSize(12f);
             details.addView(title); details.addView(sub); row.addView(details);
-            TextView menu = new TextView(this); menu.setText("⋮"); menu.setTextColor(primaryText); menu.setTextSize(24f); menu.setPadding(dp(12), 0, dp(12), 0); menu.setOnClickListener(v -> showFileActionDialog(file));
+
+            ImageView menu = new ImageView(this);
+            menu.setImageResource(android.R.drawable.ic_menu_more);
+            menu.setColorFilter(primaryText);
+            menu.setPadding(dp(12), dp(12), dp(12), dp(12));
+            menu.setOnClickListener(v -> showFileActionDialog(file));
             row.setOnClickListener(v -> openFileDirectly(file)); row.addView(menu); downloadsList.addView(row);
         }
     }
 
-    private void openFileDirectly(File file) { try { Intent intent = new Intent(Intent.ACTION_VIEW); intent.setDataAndType(Uri.fromFile(file), "*/*"); intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(Intent.createChooser(intent, "Open File...")); } catch (Exception e) { Toast.makeText(this, "No app found to open this file.", Toast.LENGTH_SHORT).show(); } }
-    private void showFileActionDialog(File file) { int dialogStyle = isDarkTheme ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert; AlertDialog.Builder b = new AlertDialog.Builder(this, dialogStyle); b.setTitle(file.getName()); b.setPositiveButton("🗑️ Delete", (dialog, which) -> { if (file.delete()) openVisualDownloadsManager(); }); b.setNeutralButton("📂 Open / Share", (dialog, which) -> openFileDirectly(file)); b.setNegativeButton("Cancel", null); AlertDialog dialog = b.show(); styleDialogButtons(dialog); }
+    private void openFileDirectly(File file) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            Uri uri;
+            try {
+                uri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", file);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch (Exception e) {
+                uri = Uri.fromFile(file);
+            }
+
+            String mimeType = "*/*";
+            String extension = MimeTypeMap.getFileExtensionFromUrl(file.getAbsolutePath());
+            if (extension == null || extension.isEmpty()) {
+                int dotPos = file.getName().lastIndexOf('.');
+                if (dotPos >= 0) extension = file.getName().substring(dotPos + 1).toLowerCase();
+            }
+
+            if (extension != null && !extension.isEmpty()) {
+                String mappedType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension.toLowerCase());
+                if (mappedType != null) {
+                    mimeType = mappedType;
+                } else {
+                    if (extension.equalsIgnoreCase("pdf")) mimeType = "application/pdf";
+                    else if (extension.equalsIgnoreCase("mp4")) mimeType = "video/mp4";
+                    else if (extension.equalsIgnoreCase("apk")) mimeType = "application/vnd.android.package-archive";
+                }
+            }
+
+            intent.setDataAndType(uri, mimeType);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(Intent.createChooser(intent, "Open File..."));
+        } catch (Exception e) {
+            Toast.makeText(this, "No app found to open this file.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showFileActionDialog(File file) { int dialogStyle = isDarkTheme ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert; AlertDialog.Builder b = new AlertDialog.Builder(this, dialogStyle); b.setTitle(file.getName()); b.setPositiveButton("Delete", (dialog, which) -> { if (file.delete()) openVisualDownloadsManager(); }); b.setNeutralButton("Open / Share", (dialog, which) -> openFileDirectly(file)); b.setNegativeButton("Cancel", null); AlertDialog dialog = b.show(); styleDialogButtons(dialog); }
 
     private void triggerAskBeforeDownload(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
         String fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
         if (fileName.endsWith(".bin")) { if (mimeType != null && mimeType.startsWith("image/")) fileName = fileName.replace(".bin", ".jpg"); else if (mimeType != null && mimeType.startsWith("video/")) fileName = fileName.replace(".bin", ".mp4"); else if (url.toLowerCase().contains(".jpg") || url.toLowerCase().contains(".jpeg")) fileName = fileName.replace(".bin", ".jpg"); else if (url.toLowerCase().contains(".png")) fileName = fileName.replace(".bin", ".png"); else if (url.toLowerCase().contains(".webp")) fileName = fileName.replace(".bin", ".webp"); else if (url.toLowerCase().contains(".mp4")) fileName = fileName.replace(".bin", ".mp4"); }
         if (mimeType != null) { if (mimeType.startsWith("image/") && !fileName.matches(".*\\.(jpg|jpeg|png|webp|gif)$")) fileName += ".jpg"; else if (mimeType.startsWith("video/") && !fileName.matches(".*\\.(mp4|mkv|webm)$")) fileName += ".mp4"; }
         int dialogStyle = isDarkTheme ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert; AlertDialog.Builder b = new AlertDialog.Builder(this, dialogStyle); b.setTitle("Download File?"); b.setMessage("Folder: OWN's Browser downloads\nFile: " + fileName); final String finalFileName = fileName;
-        b.setPositiveButton("Yes, Download", (dialog, which) -> { try { DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url)); request.setMimeType(mimeType); request.addRequestHeader("User-Agent", userAgent); request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED); request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "OWN's Browser downloads/" + finalFileName); DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE); if (dm != null) dm.enqueue(request); Toast.makeText(this, "Downloading...", Toast.LENGTH_SHORT).show(); } catch (Exception e) { Toast.makeText(this, "Download failed.", Toast.LENGTH_SHORT).show(); } }); b.setNegativeButton("Cancel", null); AlertDialog dialog = b.show(); styleDialogButtons(dialog);
+        b.setPositiveButton("Download", (dialog, which) -> { try { DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url)); request.setMimeType(mimeType); request.addRequestHeader("User-Agent", userAgent); request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED); request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "OWN's Browser downloads/" + finalFileName); DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE); if (dm != null) dm.enqueue(request); Toast.makeText(this, "Downloading...", Toast.LENGTH_SHORT).show(); } catch (Exception e) { Toast.makeText(this, "Download failed.", Toast.LENGTH_SHORT).show(); } }); b.setNegativeButton("Cancel", null); AlertDialog dialog = b.show(); styleDialogButtons(dialog);
     }
 
     private void toggleDesktopMode(WebView webView) {
@@ -894,12 +1365,12 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     }
 
     private class JavascriptBridge {
-        @JavascriptInterface @SuppressWarnings("unused") public void processLinkText(String text) { runOnUiThread(() -> { ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE); if (clipboard != null) { clipboard.setPrimaryClip(ClipData.newPlainText("Link Text", text)); Toast.makeText(PrivateBrowserActivity.this, "Copied Link Text!", Toast.LENGTH_SHORT).show(); } }); }
-        @JavascriptInterface @SuppressWarnings("unused") public void handleVideoLongPress(String videoUrl) { if (videoUrl == null || videoUrl.isEmpty()) return; runOnUiThread(() -> { int dialogStyle = isDarkTheme ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert; AlertDialog.Builder b = new AlertDialog.Builder(PrivateBrowserActivity.this, dialogStyle); b.setTitle("Video Options"); String[] options = {"Copy Video Link", "Download Video (MP4)"}; b.setItems(options, (dialog, which) -> { if (which == 0) { ClipboardManager clip = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE); if (clip != null) { clip.setPrimaryClip(ClipData.newPlainText("Video URL", videoUrl)); Toast.makeText(PrivateBrowserActivity.this, "Video Link Copied!", Toast.LENGTH_SHORT).show(); } } else if (which == 1) { WebView current = getCurrentWeb(); String ua = current != null ? current.getSettings().getUserAgentString() : ""; triggerAskBeforeDownload(videoUrl, ua, null, "video/mp4", 0); } }); b.show(); }); }
+        @JavascriptInterface @SuppressWarnings("unused") public void processLinkText(String text) { runOnUiThread(() -> { if (isFinishing() || isDestroyed()) return; ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE); if (clipboard != null) { clipboard.setPrimaryClip(ClipData.newPlainText("Link Text", text)); Toast.makeText(PrivateBrowserActivity.this, "Copied Link Text!", Toast.LENGTH_SHORT).show(); } }); }
+        @JavascriptInterface @SuppressWarnings("unused") public void handleVideoLongPress(String videoUrl) { if (videoUrl == null || videoUrl.isEmpty()) return; runOnUiThread(() -> { if (isFinishing() || isDestroyed()) return; int dialogStyle = isDarkTheme ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert; AlertDialog.Builder b = new AlertDialog.Builder(PrivateBrowserActivity.this, dialogStyle); b.setTitle("Video Options"); String[] options = {"Copy Video Link", "Download Video (MP4)"}; b.setItems(options, (dialog, which) -> { if (which == 0) { ClipboardManager clip = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE); if (clip != null) { clip.setPrimaryClip(ClipData.newPlainText("Video URL", videoUrl)); Toast.makeText(PrivateBrowserActivity.this, "Video Link Copied!", Toast.LENGTH_SHORT).show(); } } else if (which == 1) { WebView current = getCurrentWeb(); String ua = current != null ? current.getSettings().getUserAgentString() : ""; triggerAskBeforeDownload(videoUrl, ua, null, "video/mp4", 0); } }); b.show(); }); }
 
-        @JavascriptInterface @SuppressWarnings("unused") public void onVideoPlayState(boolean playing, boolean muted) { runOnUiThread(() -> { isVideoCurrentlyPlaying = playing; isVideoCurrentlyMuted = muted; if(playing && isFullscreen) enableVideoMode(true, muted); else if(isVideoMode && !playing) btnVideoPlayPause.setImageResource(android.R.drawable.ic_media_play); }); }
-        @JavascriptInterface @SuppressWarnings("unused") public void onVideoVolumeState(boolean muted) { runOnUiThread(() -> { isVideoCurrentlyMuted = muted; if(btnVideoMute != null) btnVideoMute.setImageResource(muted ? android.R.drawable.ic_lock_silent_mode : android.R.drawable.ic_lock_silent_mode_off); }); }
-        @JavascriptInterface @SuppressWarnings("unused") public void onVideoEnded() { runOnUiThread(() -> { isVideoCurrentlyPlaying = false; disableVideoMode(); }); }
+        @JavascriptInterface @SuppressWarnings("unused") public void onVideoPlayState(boolean playing, boolean muted) { runOnUiThread(() -> { if (isFinishing() || isDestroyed()) return; isVideoCurrentlyPlaying = playing; isVideoCurrentlyMuted = muted; if(playing && isFullscreen) enableVideoMode(true, muted); else if(isVideoMode && !playing) btnVideoPlayPause.setImageResource(android.R.drawable.ic_media_play); }); }
+        @JavascriptInterface @SuppressWarnings("unused") public void onVideoVolumeState(boolean muted) { runOnUiThread(() -> { if (isFinishing() || isDestroyed()) return; isVideoCurrentlyMuted = muted; if(btnVideoMute != null) btnVideoMute.setImageResource(muted ? android.R.drawable.ic_lock_silent_mode : android.R.drawable.ic_lock_silent_mode_off); }); }
+        @JavascriptInterface @SuppressWarnings("unused") public void onVideoEnded() { runOnUiThread(() -> { if (isFinishing() || isDestroyed()) return; isVideoCurrentlyPlaying = false; disableVideoMode(); }); }
     }
 
     private void handleLongPress(WebView.HitTestResult result) {
@@ -941,7 +1412,15 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             @Override public void onShowCustomView(View view, CustomViewCallback callback) { enterFullscreenVideo(view, callback); }
             @Override public void onHideCustomView() { exitFullscreenVideo(); }
             @Override public void onProgressChanged(WebView view, int newProgress) { if (view == getCurrentWeb()) { if (newProgress == 100) { progressBar.setVisibility(View.GONE); pageLoadIndicator.setVisibility(View.GONE); } else { progressBar.setVisibility(View.VISIBLE); progressBar.setProgress(newProgress); pageLoadIndicator.setVisibility(View.VISIBLE); } } }
-            @Override public void onReceivedTitle(WebView view, String title) { super.onReceivedTitle(view, title); tabs.get(tabs.indexOf(getTabForWeb(view))).title = title != null ? title : "New Tab"; saveSession(); }
+
+            @Override public void onReceivedTitle(WebView view, String title) {
+                super.onReceivedTitle(view, title);
+                TabInfo info = getTabForWeb(view);
+                if (info != null) {
+                    info.title = title != null ? title : "New Tab";
+                    saveSession();
+                }
+            }
         });
 
         web.setWebViewClient(new WebViewClient() {
@@ -956,9 +1435,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void applyTheme() {
         int bgColor, textColor, hintColor, buttonBgColor, accentBgColor, accentTextColor, capsuleGlassColor, overlayGlassColor, urlInnerColor;
-        if (themeState == 0) { bgColor = Color.parseColor("#FFFFFF"); textColor = Color.parseColor("#333333"); hintColor = Color.parseColor("#A0A0A0"); buttonBgColor = Color.WHITE; accentBgColor = Color.parseColor("#6750A4"); accentTextColor = Color.WHITE; capsuleGlassColor = Color.parseColor("#D9FFFFFF"); overlayGlassColor = Color.parseColor("#80FFFFFF"); urlInnerColor = Color.parseColor("#E5E5EA"); }
-        else if (themeState == 1) { bgColor = Color.parseColor("#1C1C1E"); textColor = Color.WHITE; hintColor = Color.parseColor("#888888"); buttonBgColor = Color.parseColor("#332D2B"); accentBgColor = Color.parseColor("#FFB59F"); accentTextColor = Color.parseColor("#000000"); capsuleGlassColor = Color.parseColor("#D92C2C2E"); overlayGlassColor = Color.parseColor("#801C1C1E"); urlInnerColor = Color.parseColor("#141415"); }
-        else { bgColor = Color.parseColor("#000000"); textColor = Color.WHITE; hintColor = Color.parseColor("#888888"); buttonBgColor = Color.parseColor("#1C1C1E"); accentBgColor = Color.parseColor("#FFB59F"); accentTextColor = Color.parseColor("#000000"); capsuleGlassColor = Color.parseColor("#D91C1C1E"); overlayGlassColor = Color.parseColor("#B3000000"); urlInnerColor = Color.parseColor("#0A0A0A"); }
+        if (themeState == 0) { bgColor = Color.parseColor("#FFFFFF"); textColor = Color.parseColor("#333333"); hintColor = Color.parseColor("#A0A0A0"); buttonBgColor = Color.parseColor("#FFFFFF"); accentBgColor = Color.parseColor("#6750A4"); accentTextColor = Color.parseColor("#FFFFFF"); capsuleGlassColor = Color.parseColor("#FFFFFF"); overlayGlassColor = Color.parseColor("#FFFFFF"); urlInnerColor = Color.parseColor("#E5E5EA"); }
+        else if (themeState == 1) { bgColor = Color.parseColor("#1C1C1E"); textColor = Color.parseColor("#FFFFFF"); hintColor = Color.parseColor("#888888"); buttonBgColor = Color.parseColor("#332D2B"); accentBgColor = Color.parseColor("#FFB59F"); accentTextColor = Color.parseColor("#000000"); capsuleGlassColor = Color.parseColor("#2C2C2E"); overlayGlassColor = Color.parseColor("#1C1C1E"); urlInnerColor = Color.parseColor("#141415"); }
+        else { bgColor = Color.parseColor("#000000"); textColor = Color.parseColor("#FFFFFF"); hintColor = Color.parseColor("#888888"); buttonBgColor = Color.parseColor("#1C1C1E"); accentBgColor = Color.parseColor("#FFB59F"); accentTextColor = Color.parseColor("#000000"); capsuleGlassColor = Color.parseColor("#1C1C1E"); overlayGlassColor = Color.parseColor("#000000"); urlInnerColor = Color.parseColor("#0A0A0A"); }
 
         getWindow().setStatusBarColor(bgColor);
         findViewById(R.id.browserRoot).setBackgroundColor(bgColor);
@@ -972,7 +1451,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
         etSearchUrl.setTextColor(textColor); etSearchUrl.setHintTextColor(hintColor);
         btnFront.setColorFilter(textColor); btnGo.setColorFilter(textColor); btnMenu.setColorFilter(textColor); ivAutoScrollIcon.setColorFilter(textColor); btnDismissSearch.setColorFilter(textColor);
-        btnFullscreenToggle.setTextColor(textColor);
+        btnFullscreenToggle.setColorFilter(textColor);
         btnVideoPlayPause.setColorFilter(textColor); btnVideoHide.setColorFilter(textColor); btnVideoMute.setColorFilter(textColor);
 
         tvTabCount.setTextColor(textColor);
@@ -983,8 +1462,65 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         boxGd.setColor(Color.TRANSPARENT);
         tabBoxOutline.setBackground(boxGd);
 
-        TextView btnAddNewTab = findViewById(R.id.btnAddNewTab); ImageView btnCloseTabsOverlay = findViewById(R.id.btnCloseTabsOverlay); TextView tvDownloadsTitle = findViewById(R.id.tvDownloadsTitle); ImageView btnCloseDownloadsOverlay = findViewById(R.id.btnCloseDownloadsOverlay); TextView btnAllDownloads = findViewById(R.id.btnAllDownloads);
-        btnAddNewTab.setTextColor(accentTextColor); btnAddNewTab.setBackgroundTintList(ColorStateList.valueOf(accentBgColor)); btnCloseTabsOverlay.setColorFilter(textColor); tvDownloadsTitle.setTextColor(textColor); btnCloseDownloadsOverlay.setColorFilter(textColor); btnAllDownloads.setTextColor(textColor); btnAllDownloads.setBackgroundTintList(ColorStateList.valueOf(buttonBgColor));
+        LinearLayout btnAddNewTab = findViewById(R.id.btnAddNewTab);
+        TextView tvAddNewTabText = findViewById(R.id.tvAddNewTabText);
+        ImageView ivAddNewTabIcon = findViewById(R.id.ivAddNewTabIcon);
+        ImageView ivAddNewTabBg = findViewById(R.id.ivAddNewTabBg);
+        ImageView btnCloseTabsOverlay = findViewById(R.id.btnCloseTabsOverlay);
+
+        TextView tvDownloadsTitle = findViewById(R.id.tvDownloadsTitle);
+        ImageView btnCloseDownloadsOverlay = findViewById(R.id.btnCloseDownloadsOverlay);
+        TextView btnAllDownloads = findViewById(R.id.btnAllDownloads);
+
+        int newTabBg, newTabTextCol, newTabIconCol, squircleCol;
+        if (themeState == 0) {
+            newTabBg = Color.parseColor("#E5E5EA");
+            newTabTextCol = Color.parseColor("#000000");
+            newTabIconCol = Color.parseColor("#000000");
+            squircleCol = Color.parseColor("#FFFFFF");
+        } else {
+            newTabBg = Color.parseColor("#2C2C2E");
+            newTabTextCol = Color.parseColor("#FFFFFF");
+            newTabIconCol = Color.parseColor("#000000");
+            squircleCol = Color.parseColor("#D4E4FF");
+        }
+
+        // Apply background to the container instead of XML drawable to prevent clipping conflicts
+        GradientDrawable newTabGd = new GradientDrawable();
+        newTabGd.setColor(newTabBg);
+        newTabGd.setCornerRadius(dp(100));
+        if (btnAddNewTab != null) btnAddNewTab.setBackground(newTabGd);
+
+        if (tvAddNewTabText != null) tvAddNewTabText.setTextColor(newTabTextCol);
+        if (ivAddNewTabIcon != null) ivAddNewTabIcon.setColorFilter(newTabIconCol);
+
+        // Pure Tinting - Zero shape overriding!
+        if (ivAddNewTabBg != null) {
+            ivAddNewTabBg.clearColorFilter();
+            ivAddNewTabBg.setColorFilter(squircleCol, PorterDuff.Mode.SRC_IN);
+        }
+
+        int closeBgCol, closeIconCol;
+        if (themeState == 0) {
+            closeBgCol = Color.parseColor("#E5E5EA");
+            closeIconCol = Color.parseColor("#000000");
+        } else {
+            closeBgCol = Color.parseColor("#3A3A3C");
+            closeIconCol = Color.parseColor("#FFFFFF");
+        }
+
+        GradientDrawable closeGd = new GradientDrawable();
+        closeGd.setShape(GradientDrawable.OVAL);
+        closeGd.setColor(closeBgCol);
+
+        btnCloseTabsOverlay.setBackground(closeGd);
+        btnCloseTabsOverlay.setColorFilter(closeIconCol);
+
+        tvDownloadsTitle.setTextColor(textColor);
+        btnCloseDownloadsOverlay.setBackground(closeGd);
+        btnCloseDownloadsOverlay.setColorFilter(closeIconCol);
+        btnAllDownloads.setTextColor(textColor);
+        btnAllDownloads.setBackgroundTintList(ColorStateList.valueOf(buttonBgColor));
     }
 
     @Override
