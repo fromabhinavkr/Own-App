@@ -1,7 +1,7 @@
 <div align="center">
   <img width="125" height="125" alt="appicon" src="https://github.com/user-attachments/assets/695fbecf-d105-4c9f-9f9c-68c5febb6681" />
   
-  <h1>Own App</h1>
+  <h1>Own Apparatus</h1>
 
   <p>A secure no-ADs Android application featuring a collection of interactive tools and decorative stuffs. Built with Java and the modern Android SDK.</p>
 </div>
