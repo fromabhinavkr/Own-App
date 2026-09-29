@@ -33,6 +33,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.os.StrictMode;
 import android.os.SystemClock;
@@ -54,6 +55,7 @@ import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.MimeTypeMap;
+import android.webkit.WebBackForwardList;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -89,7 +91,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -130,7 +131,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private SharedPreferences prefs, browserPrefs;
 
-    private static class TabInfo { WebView webView; Bitmap preview; String title = "New Tab"; boolean isPinned = false; }
+    private static class TabInfo { WebView webView; Bitmap preview; String title = "New Tab"; boolean isPinned = false; String savedStateBase64 = null; }
     private final List<TabInfo> tabs = new ArrayList<>();
     private int currentTabIndex = 0;
     private String defaultUserAgent = null;
@@ -484,8 +485,71 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     @Override public void onLowMemory() { super.onLowMemory(); for (TabInfo t : tabs) { if (t.webView != null) t.webView.clearCache(false); } }
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (level >= TRIM_MEMORY_MODERATE) { for (TabInfo t : tabs) { if (t.webView != null) t.webView.clearCache(false); } } }
 
+    private String encodeWebViewState(WebView webView) {
+        try {
+            Bundle bundle = new Bundle();
+            WebBackForwardList list = webView.saveState(bundle);
+            if (list != null && list.getSize() > 0) {
+                Parcel parcel = Parcel.obtain();
+                bundle.writeToParcel(parcel, 0);
+                byte[] bytes = parcel.marshall();
+                parcel.recycle();
+                return android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private boolean restoreWebViewState(WebView webView, String base64State) {
+        if (base64State == null || base64State.trim().isEmpty()) return false;
+        try {
+            byte[] bytes = android.util.Base64.decode(base64State, android.util.Base64.NO_WRAP);
+            Parcel parcel = Parcel.obtain();
+            parcel.unmarshall(bytes, 0, bytes.length);
+            parcel.setDataPosition(0);
+
+            Bundle bundle = new Bundle();
+            bundle.setClassLoader(PrivateBrowserActivity.class.getClassLoader());
+            bundle.readFromParcel(parcel);
+            parcel.recycle();
+
+            WebBackForwardList list = webView.restoreState(bundle);
+            return list != null && list.getSize() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     private void saveSession() {
-        try { JSONArray arr = new JSONArray(); for (TabInfo t : tabs) { if (t.webView != null) { String url = t.webView.getUrl(); if (url == null || url.trim().isEmpty()) url = "about:blank"; JSONObject obj = new JSONObject(); obj.put("url", url); obj.put("isPinned", t.isPinned); arr.put(obj); } } browserPrefs.edit().putString(PREF_SAVED_SESSION, arr.toString()).apply(); } catch (Exception e) {}
+        try {
+            JSONArray arr = new JSONArray();
+            for (int i = 0; i < tabs.size(); i++) {
+                TabInfo t = tabs.get(i);
+                if (t.webView != null) {
+                    String url = t.webView.getUrl();
+                    if (url == null || url.trim().isEmpty()) url = "about:blank";
+                    JSONObject obj = new JSONObject();
+                    obj.put("url", url);
+                    obj.put("isPinned", t.isPinned);
+
+                    String encodedState = encodeWebViewState(t.webView);
+                    if (encodedState != null) {
+                        obj.put("webState", encodedState);
+                        t.savedStateBase64 = encodedState;
+                    } else if (t.savedStateBase64 != null) {
+                        obj.put("webState", t.savedStateBase64);
+                    }
+
+                    arr.put(obj);
+                }
+            }
+            browserPrefs.edit().putString(PREF_SAVED_SESSION, arr.toString()).apply();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void restoreSession() {
@@ -495,9 +559,12 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             JSONArray arr = new JSONArray(sessionData);
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject obj = arr.getJSONObject(i);
-                String url = obj.optString("url", "about:blank");
+
+                String fallbackUrl = obj.optString("url", "about:blank");
                 boolean isPinned = obj.optBoolean("isPinned", false);
-                createNewTab(url, isPinned, false);
+                String webState = obj.optString("webState", null);
+
+                createNewTab(fallbackUrl, isPinned, false, webState);
                 loadedTabs = true;
             }
         } catch (Exception e) {}
@@ -841,6 +908,10 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private WebView getCurrentWeb() { if (tabs.isEmpty() || currentTabIndex < 0 || currentTabIndex >= tabs.size()) return null; return tabs.get(currentTabIndex).webView; }
 
     private void createNewTab(String url, boolean isPinned, boolean switchImmediately) {
+        createNewTab(url, isPinned, switchImmediately, null);
+    }
+
+    private void createNewTab(String url, boolean isPinned, boolean switchImmediately, String stateBase64) {
         captureCurrentTabPreview();
         TabInfo info = new TabInfo(); info.webView = new WebView(this);
         info.webView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)); info.webView.setTag(false);
@@ -850,8 +921,19 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         updateTabIconCount();
         webViewContainer.addView(info.webView);
 
-        if (url != null && !url.isEmpty() && !url.equals("about:blank")) { info.webView.loadUrl(url); }
-        else { info.webView.loadUrl("about:blank"); }
+        boolean restored = false;
+
+        if (stateBase64 != null) {
+            restored = restoreWebViewState(info.webView, stateBase64);
+            if (restored) {
+                info.savedStateBase64 = stateBase64;
+            }
+        }
+
+        if (!restored) {
+            if (url != null && !url.isEmpty() && !url.equals("about:blank")) { info.webView.loadUrl(url); }
+            else { info.webView.loadUrl("about:blank"); }
+        }
 
         if (switchImmediately) { switchTab(tabs.size() - 1); }
         else { info.webView.setVisibility(View.GONE); }
@@ -903,14 +985,11 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         closing.webView.loadUrl("about:blank");
         closing.webView.removeAllViews();
 
-        // FIX 1: Delay the destruction of the WebView to allow UI animations to finish safely
         WebView dyingWeb = closing.webView;
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             try { dyingWeb.destroy(); } catch (Exception ignored) {}
         }, 500);
 
-        // FIX 2: Do NOT call .recycle() on the bitmap. The transition animation needs it!
-        // Nullify the reference and let the Android Garbage Collector clean it up safely.
         closing.preview = null;
 
         tabs.remove(index);
@@ -939,7 +1018,9 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private void captureCurrentTabPreview() {
         if (tabs.isEmpty() || currentTabIndex >= tabs.size()) return; TabInfo current = tabs.get(currentTabIndex);
         if (current.webView.getWidth() > 0 && current.webView.getHeight() > 0) {
-            try { Bitmap bmp = Bitmap.createBitmap(current.webView.getWidth(), current.webView.getHeight(), Bitmap.Config.ARGB_8888); Canvas c = new Canvas(bmp); current.webView.draw(c);
+            try {
+                Bitmap bmp = Bitmap.createBitmap(current.webView.getWidth(), current.webView.getHeight(), Bitmap.Config.RGB_565);
+                Canvas c = new Canvas(bmp); current.webView.draw(c);
                 if (current.preview != null) current.preview.recycle(); current.preview = Bitmap.createScaledBitmap(bmp, 300, 500, true); bmp.recycle();
             } catch (OutOfMemoryError ignored) {}
         }
@@ -1076,7 +1157,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private void startAutoScroll(int speedMultiplier) { stopAutoActions(); currentAutoScrollSpeed = speedMultiplier; if (speedMultiplier > 0) { if(autoActionIndicator != null) autoActionIndicator.setVisibility(View.VISIBLE); autoScrollHandler.post(autoScrollRunnable); } }
     private void startAutoSwipe() { stopAutoActions(); isAutoSwiping = true; if(autoActionIndicator != null) autoActionIndicator.setVisibility(View.VISIBLE); autoSwipeHandler.postDelayed(autoSwipeRunnable, 4000); Toast.makeText(this, "Auto Swipe Activated (4s)", Toast.LENGTH_SHORT).show(); }
 
-    // --- LIQUID DISMISS HELPER ---
     private void executeLiquidDismiss(PopupWindow popupWindow, View menuLayout, Runnable action) {
         menuLayout.animate()
                 .scaleX(0.4f)
@@ -1100,7 +1180,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         GradientDrawable gd = new GradientDrawable(); gd.setColor(bgColor); gd.setCornerRadius(dp(40)); menuLayout.setBackground(gd); menuLayout.setPadding(dp(16), dp(16), dp(16), dp(16));
         final PopupWindow[] popupWindow = new PopupWindow[1];
 
-        // Attach liquid shrink dismisses to buttons
         TextView tvStop = createMenuItem("Stop All", R.drawable.ic_stopcircle, textColor); tvStop.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, this::stopAutoActions));
         TextView tvSwipe = createMenuItem("Auto Swipe (4s)", R.drawable.ic_autoswipe, textColor); tvSwipe.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, this::startAutoSwipe));
         TextView tv1x = createMenuItem("1x Speed", R.drawable.ic_fastscroll, textColor); tv1x.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, () -> startAutoScroll(1)));
@@ -1110,7 +1189,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
         menuLayout.addView(tvStop); menuLayout.addView(tvSwipe); menuLayout.addView(tv1x); menuLayout.addView(tv2x); menuLayout.addView(tv3x); menuLayout.addView(tv4x);
 
-        // Setup liquid entrance state
         menuLayout.setAlpha(0f);
         menuLayout.setScaleX(0.3f);
         menuLayout.setScaleY(0.3f);
@@ -1118,7 +1196,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             @Override
             public void onGlobalLayout() {
                 menuLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                // Anchor animation bottom-right (where your finger triggered it)
                 menuLayout.setPivotX(menuLayout.getWidth() - dp(20));
                 menuLayout.setPivotY(menuLayout.getHeight());
 
@@ -1136,7 +1213,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         popupWindow[0] = new PopupWindow(menuLayout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true); popupWindow[0].setElevation(dp(30));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Keep native fade out for out-of-bounds clicks that natively trigger dismiss
             android.transition.Transition exitTrans = new android.transition.Fade();
             exitTrans.setDuration(150);
             popupWindow[0].setExitTransition(exitTrans);
@@ -1153,7 +1229,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         GradientDrawable gd = new GradientDrawable(); gd.setColor(bgColor); gd.setCornerRadius(dp(40)); menuLayout.setBackground(gd); menuLayout.setPadding(dp(16), dp(16), dp(16), dp(16));
         final PopupWindow[] popupWindow = new PopupWindow[1]; WebView current = getCurrentWeb(); if (current == null) return;
 
-        // Attach liquid shrink dismisses to buttons
         TextView tvHome = createMenuItem("Home", R.drawable.ic_homehouse, textColor); tvHome.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, () -> { current.loadUrl("about:blank"); showHomePage(); }));
         TextView tvReload = createMenuItem("Reload Page", android.R.drawable.ic_popup_sync, textColor); tvReload.setOnClickListener(v -> executeLiquidDismiss(popupWindow[0], menuLayout, current::reload));
         boolean isDesktop = false; if (current.getTag() != null) isDesktop = (boolean) current.getTag();
@@ -1166,7 +1241,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
         menuLayout.addView(tvHome); menuLayout.addView(tvReload); menuLayout.addView(tvDesktop); menuLayout.addView(tvDownloads); menuLayout.addView(tvNewTab); menuLayout.addView(tvWipeData);
 
-        // Setup liquid entrance state
         menuLayout.setAlpha(0f);
         menuLayout.setScaleX(0.3f);
         menuLayout.setScaleY(0.3f);
@@ -1174,7 +1248,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             @Override
             public void onGlobalLayout() {
                 menuLayout.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                // Anchor animation bottom-right
                 menuLayout.setPivotX(menuLayout.getWidth() - dp(20));
                 menuLayout.setPivotY(menuLayout.getHeight());
 
@@ -1192,7 +1265,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         popupWindow[0] = new PopupWindow(menuLayout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true); popupWindow[0].setElevation(dp(30));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Keep native fade out for out-of-bounds clicks
             android.transition.Transition exitTrans = new android.transition.Fade();
             exitTrans.setDuration(150);
             popupWindow[0].setExitTransition(exitTrans);
@@ -1216,6 +1288,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void executeTotalDataWipe() {
         stopAutoActions();
+
         for (TabInfo t : tabs) {
             if (t.webView != null) {
                 t.webView.setWebChromeClient(null);
@@ -1232,7 +1305,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
                     try { dyingWeb.destroy(); } catch (Exception ignored) {}
                 }, 500);
             }
-            // Remove .recycle() here as well
             t.preview = null;
         }
         tabs.clear();
@@ -1254,7 +1326,10 @@ public class PrivateBrowserActivity extends AppCompatActivity {
     private void openVisualDownloadsManager() {
         etSearchUrl.clearFocus(); downloadsList.removeAllViews(); downloadsOverlay.setVisibility(View.VISIBLE); updateBackgroundBlur();
         File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "OWN's Browser downloads"); File[] files = dir.listFiles();
-        if (!dir.exists() || files == null || files.length == 0) return; Arrays.sort(files, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
+        if (!dir.exists() || files == null || files.length == 0) return;
+
+        java.util.Arrays.sort(files, (File f1, File f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
+
         SimpleDateFormat sdf = new SimpleDateFormat("MMM d, yyyy", Locale.US);
         int primaryText, secondaryText, iconBg;
         if (themeState == 0) { primaryText = Color.parseColor("#000000"); secondaryText = Color.parseColor("#555555"); iconBg = Color.parseColor("#E0E0E0"); } else if (themeState == 1) { primaryText = Color.parseColor("#FFFFFF"); secondaryText = Color.parseColor("#AAAAAA"); iconBg = Color.parseColor("#3D322F"); } else { primaryText = Color.parseColor("#FFFFFF"); secondaryText = Color.parseColor("#AAAAAA"); iconBg = Color.parseColor("#1C1C1E"); }
@@ -1424,8 +1499,63 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         });
 
         web.setWebViewClient(new WebViewClient() {
+
+            @Override
+            public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    runOnUiThread(() -> {
+                        TabInfo crashedTab = getTabForWeb(view);
+                        if (crashedTab != null) {
+                            ViewGroup parent = (ViewGroup) view.getParent();
+                            if (parent != null) parent.removeView(view);
+                            view.destroy();
+
+                            WebView newWeb = new WebView(PrivateBrowserActivity.this);
+                            newWeb.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                            newWeb.setTag(false);
+                            setupSuperSecureWebView(newWeb);
+
+                            crashedTab.webView = newWeb;
+                            webViewContainer.addView(newWeb);
+
+                            if (tabs.indexOf(crashedTab) != currentTabIndex) {
+                                newWeb.setVisibility(View.GONE);
+                            }
+
+                            boolean recovered = false;
+                            if (crashedTab.savedStateBase64 != null) {
+                                recovered = restoreWebViewState(newWeb, crashedTab.savedStateBase64);
+                            }
+
+                            if (!recovered) {
+                                String lastUrl = view.getUrl();
+                                newWeb.loadUrl(lastUrl != null ? lastUrl : "about:blank");
+                            }
+
+                            Toast.makeText(PrivateBrowserActivity.this, "Site recovered from memory limit.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+
+                    return true;
+                }
+                return super.onRenderProcessGone(view, detail);
+            }
+
             @Override public void onPageStarted(WebView view, String url, Bitmap favicon) { super.onPageStarted(view, url, favicon); isVideoCurrentlyPlaying = false; disableVideoMode(); if (view == getCurrentWeb()) { pageLoadIndicator.setVisibility(View.VISIBLE); } if (view == getCurrentWeb() && !isFullscreen) { if (url == null || url.equals("about:blank") || url.startsWith("http://startpage") || url.isEmpty()) { etSearchUrl.setText(""); showHomePage(); } else { hideHomePage(); etSearchUrl.setText(url); } } }
-            @Override public void onPageFinished(WebView view, String url) { super.onPageFinished(view, url); saveSession(); if (view == getCurrentWeb()) { pageLoadIndicator.setVisibility(View.GONE); } Boolean isDesktop = (Boolean) view.getTag(); if (isDesktop != null && isDesktop) { view.evaluateJavascript("try { var meta = document.querySelector('meta[name=\"viewport\"]'); if (meta) { meta.setAttribute('content', 'width=1024'); } else { var m = document.createElement('meta'); m.name = 'viewport'; m.content = 'width=1024'; document.head.appendChild(m); } } catch(e) {}", null); } view.evaluateJavascript("document.addEventListener('contextmenu', function(e) { if(e.target.tagName === 'VIDEO') { OwnBrowser.handleVideoLongPress(e.target.src || e.target.currentSrc); } });", null);
+
+            @Override public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+
+                TabInfo info = getTabForWeb(view);
+                if (info != null) {
+                    String snapshot = encodeWebViewState(view);
+                    if (snapshot != null) {
+                        info.savedStateBase64 = snapshot;
+                    }
+                }
+
+                saveSession();
+                if (view == getCurrentWeb()) { pageLoadIndicator.setVisibility(View.GONE); } Boolean isDesktop = (Boolean) view.getTag(); if (isDesktop != null && isDesktop) { view.evaluateJavascript("try { var meta = document.querySelector('meta[name=\"viewport\"]'); if (meta) { meta.setAttribute('content', 'width=1024'); } else { var m = document.createElement('meta'); m.name = 'viewport'; m.content = 'width=1024'; document.head.appendChild(m); } } catch(e) {}", null); } view.evaluateJavascript("document.addEventListener('contextmenu', function(e) { if(e.target.tagName === 'VIDEO') { OwnBrowser.handleVideoLongPress(e.target.src || e.target.currentSrc); } });", null);
                 String videoJs = "document.addEventListener('play', function(e){ if(e.target.tagName==='VIDEO'){ window.activeVideo=e.target; OwnBrowser.onVideoPlayState(true, e.target.muted); } }, true); document.addEventListener('pause', function(e){ if(e.target.tagName==='VIDEO' && window.activeVideo===e.target){ OwnBrowser.onVideoPlayState(false, e.target.muted); } }, true); document.addEventListener('volumechange', function(e){ if(e.target===window.activeVideo){ OwnBrowser.onVideoVolumeState(e.target.muted || e.target.volume === 0); } }, true); document.addEventListener('ended', function(e){ if(e.target.tagName==='VIDEO' && window.activeVideo===e.target){ window.activeVideo=null; OwnBrowser.onVideoEnded(); } }, true);";
                 view.evaluateJavascript(videoJs, null);
             }
@@ -1485,7 +1615,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             squircleCol = Color.parseColor("#D4E4FF");
         }
 
-        // Apply background to the container instead of XML drawable to prevent clipping conflicts
         GradientDrawable newTabGd = new GradientDrawable();
         newTabGd.setColor(newTabBg);
         newTabGd.setCornerRadius(dp(100));
@@ -1494,7 +1623,6 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         if (tvAddNewTabText != null) tvAddNewTabText.setTextColor(newTabTextCol);
         if (ivAddNewTabIcon != null) ivAddNewTabIcon.setColorFilter(newTabIconCol);
 
-        // Pure Tinting - Zero shape overriding!
         if (ivAddNewTabBg != null) {
             ivAddNewTabBg.clearColorFilter();
             ivAddNewTabBg.setColorFilter(squircleCol, PorterDuff.Mode.SRC_IN);
