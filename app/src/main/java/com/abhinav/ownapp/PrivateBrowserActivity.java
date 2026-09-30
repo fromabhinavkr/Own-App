@@ -1,5 +1,6 @@
 package com.abhinav.ownapp;
 
+import android.Manifest;
 import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
@@ -9,6 +10,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -22,6 +24,7 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.webkit.PermissionRequest;
 import android.webkit.URLUtil;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
@@ -50,11 +53,13 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.AnticipateInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.MimeTypeMap;
+import android.webkit.ValueCallback;
 import android.webkit.WebBackForwardList;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -75,14 +80,20 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.core.view.inputmethod.EditorInfoCompat;
+import androidx.core.view.inputmethod.InputConnectionCompat;
+import androidx.core.view.inputmethod.InputContentInfoCompat;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -131,6 +142,14 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private SharedPreferences prefs, browserPrefs;
 
+    // File chooser support for gallery/image uploads (e.g., Instagram)
+    private ValueCallback<Uri[]> filePathCallback;
+    private ActivityResultLauncher<Intent> fileChooserLauncher;
+
+    // WebRTC Permissions (Camera & Mic) support
+    private ActivityResultLauncher<String[]> permissionLauncher;
+    private PermissionRequest mPendingPermissionRequest;
+
     private static class TabInfo { WebView webView; Bitmap preview; String title = "New Tab"; boolean isPinned = false; String savedStateBase64 = null; }
     private final List<TabInfo> tabs = new ArrayList<>();
     private int currentTabIndex = 0;
@@ -178,6 +197,55 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         setContentView(R.layout.activity_private_browser);
+
+        // Native Permission Launcher for Voice Messages and Video/Audio calls
+        permissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+            if (mPendingPermissionRequest != null) {
+                List<String> grantedResources = new ArrayList<>();
+                for (String resource : mPendingPermissionRequest.getResources()) {
+                    if (resource.equals(PermissionRequest.RESOURCE_VIDEO_CAPTURE) && Boolean.TRUE.equals(result.get(Manifest.permission.CAMERA))) {
+                        grantedResources.add(resource);
+                    } else if (resource.equals(PermissionRequest.RESOURCE_AUDIO_CAPTURE) && Boolean.TRUE.equals(result.get(Manifest.permission.RECORD_AUDIO))) {
+                        grantedResources.add(resource);
+                    }
+                }
+                if (!grantedResources.isEmpty()) {
+                    mPendingPermissionRequest.grant(grantedResources.toArray(new String[0]));
+                } else {
+                    mPendingPermissionRequest.deny();
+                }
+                mPendingPermissionRequest = null;
+            }
+        });
+
+        // FIXED: Re-added robust default parseResult to support standard Android files/cameras with manual extraction fallback
+        fileChooserLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (filePathCallback == null) return;
+                    Uri[] results = null;
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        // Attempt to parse standard intents (handles standard gallery & camera apps)
+                        results = WebChromeClient.FileChooserParams.parseResult(result.getResultCode(), result.getData());
+
+                        // Fallback logic for weird OEM galleries (like Xiaomi/Samsung)
+                        if (results == null) {
+                            Intent data = result.getData();
+                            if (data.getDataString() != null) {
+                                results = new Uri[]{Uri.parse(data.getDataString())};
+                            } else if (data.getClipData() != null) {
+                                int count = data.getClipData().getItemCount();
+                                results = new Uri[count];
+                                for (int i = 0; i < count; i++) {
+                                    results[i] = data.getClipData().getItemAt(i).getUri();
+                                }
+                            }
+                        }
+                    }
+                    filePathCallback.onReceiveValue(results);
+                    filePathCallback = null;
+                }
+        );
 
         View rootLayout = findViewById(R.id.browserRoot);
         rootLayout.setAlpha(0f);
@@ -913,7 +981,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
 
     private void createNewTab(String url, boolean isPinned, boolean switchImmediately, String stateBase64) {
         captureCurrentTabPreview();
-        TabInfo info = new TabInfo(); info.webView = new WebView(this);
+        TabInfo info = new TabInfo(); info.webView = new CustomWebView(this);
         info.webView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)); info.webView.setTag(false);
         info.isPinned = isPinned;
         setupSuperSecureWebView(info.webView); tabs.add(info);
@@ -1459,8 +1527,14 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setGeolocationEnabled(false);
-        settings.setAllowFileAccess(false);
-        settings.setAllowContentAccess(false);
+
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+
+        // FIXED: Needed for reliable image loading from Local URIs (File/Content bounds)
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
+
         settings.setSaveFormData(false);
         settings.setDatabaseEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -1486,6 +1560,64 @@ public class PrivateBrowserActivity extends AppCompatActivity {
             @Override public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) { callback.invoke(origin, false, false); }
             @Override public void onShowCustomView(View view, CustomViewCallback callback) { enterFullscreenVideo(view, callback); }
             @Override public void onHideCustomView() { exitFullscreenVideo(); }
+
+            // FIXED: Added handling for Camera and Microphone prompts (WebRTC)
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                List<String> permissionsToRequest = new ArrayList<>();
+                for (String resource : request.getResources()) {
+                    if (resource.equals(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
+                        if (ContextCompat.checkSelfPermission(PrivateBrowserActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                            permissionsToRequest.add(Manifest.permission.CAMERA);
+                        }
+                    } else if (resource.equals(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                        if (ContextCompat.checkSelfPermission(PrivateBrowserActivity.this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO);
+                        }
+                    }
+                }
+
+                if (permissionsToRequest.isEmpty()) {
+                    // We already have native permissions, grant the WebView access immediately.
+                    request.grant(request.getResources());
+                } else {
+                    // We need to request native permissions from the user.
+                    mPendingPermissionRequest = request;
+                    permissionLauncher.launch(permissionsToRequest.toArray(new String[0]));
+                }
+            }
+
+            @Override
+            public void onPermissionRequestCanceled(PermissionRequest request) {
+                mPendingPermissionRequest = null;
+            }
+
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                if (PrivateBrowserActivity.this.filePathCallback != null) {
+                    PrivateBrowserActivity.this.filePathCallback.onReceiveValue(null);
+                }
+                PrivateBrowserActivity.this.filePathCallback = filePathCallback;
+
+                try {
+                    // Use FileChooserParams to generate intent correctly (fixes camera intent capturing & native OEM bugs)
+                    Intent intent = fileChooserParams.createIntent();
+                    fileChooserLauncher.launch(intent);
+                } catch (Exception e) {
+                    // Fallback to explicit simple intent
+                    Intent fallbackIntent = new Intent(Intent.ACTION_GET_CONTENT);
+                    fallbackIntent.addCategory(Intent.CATEGORY_OPENABLE);
+                    fallbackIntent.setType("*/*");
+                    try {
+                        fileChooserLauncher.launch(fallbackIntent);
+                    } catch (Exception ex) {
+                        PrivateBrowserActivity.this.filePathCallback = null;
+                        return false;
+                    }
+                }
+                return true;
+            }
+
             @Override public void onProgressChanged(WebView view, int newProgress) { if (view == getCurrentWeb()) { if (newProgress == 100) { progressBar.setVisibility(View.GONE); pageLoadIndicator.setVisibility(View.GONE); } else { progressBar.setVisibility(View.VISIBLE); progressBar.setProgress(newProgress); pageLoadIndicator.setVisibility(View.VISIBLE); } } }
 
             @Override public void onReceivedTitle(WebView view, String title) {
@@ -1510,7 +1642,7 @@ public class PrivateBrowserActivity extends AppCompatActivity {
                             if (parent != null) parent.removeView(view);
                             view.destroy();
 
-                            WebView newWeb = new WebView(PrivateBrowserActivity.this);
+                            WebView newWeb = new CustomWebView(PrivateBrowserActivity.this);
                             newWeb.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
                             newWeb.setTag(false);
                             setupSuperSecureWebView(newWeb);
@@ -1649,6 +1781,92 @@ public class PrivateBrowserActivity extends AppCompatActivity {
         btnCloseDownloadsOverlay.setColorFilter(closeIconCol);
         btnAllDownloads.setTextColor(textColor);
         btnAllDownloads.setBackgroundTintList(ColorStateList.valueOf(buttonBgColor));
+    }
+
+    private class CustomWebView extends WebView {
+        public CustomWebView(@NonNull Context context) {
+            super(context);
+        }
+
+        @Override
+        public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+            InputConnection ic = super.onCreateInputConnection(outAttrs);
+            if (ic == null) return null;
+
+            String[] mimeTypes = new String[]{"image/png", "image/gif", "image/jpeg", "image/webp", "image/*"};
+            EditorInfoCompat.setContentMimeTypes(outAttrs, mimeTypes);
+
+            return InputConnectionCompat.createWrapper(ic, outAttrs, new InputConnectionCompat.OnCommitContentListener() {
+                @Override
+                public boolean onCommitContent(InputContentInfoCompat inputContentInfo, int flags, Bundle opts) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1 && (flags & InputConnectionCompat.INPUT_CONTENT_GRANT_READ_URI_PERMISSION) != 0) {
+                        try {
+                            inputContentInfo.requestPermission();
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    }
+
+                    Uri uri = inputContentInfo.getContentUri();
+                    injectImageToWebView(CustomWebView.this, uri, inputContentInfo);
+                    return true;
+                }
+            });
+        }
+    }
+
+    private void injectImageToWebView(WebView webView, Uri uri, InputContentInfoCompat inputContentInfo) {
+        new Thread(() -> {
+            try {
+                java.io.InputStream is = getContentResolver().openInputStream(uri);
+                if (is == null) return;
+                java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+                int nRead;
+                byte[] data = new byte[16384];
+                while ((nRead = is.read(data, 0, data.length)) != -1) {
+                    buffer.write(data, 0, nRead);
+                }
+                buffer.flush();
+                byte[] imageBytes = buffer.toByteArray();
+
+                String base64 = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP);
+                String mimeType = getContentResolver().getType(uri);
+                if (mimeType == null) mimeType = "image/jpeg";
+
+                String js = "javascript:(function() {" +
+                        "try {" +
+                        "var byteStr = atob('" + base64 + "');" +
+                        "var arr = new Uint8Array(byteStr.length);" +
+                        "for (var i = 0; i < byteStr.length; i++) {" +
+                        "  arr[i] = byteStr.charCodeAt(i);" +
+                        "}" +
+                        "var mime = '" + mimeType + "';" +
+                        "var ext = mime.split('/')[1] || 'jpg';" +
+                        "var blob = new Blob([arr], {type: mime});" +
+                        "var file = new File([blob], 'pasted_image.' + ext, {type: mime});" +
+                        "var dt = new DataTransfer();" +
+                        "dt.items.add(file);" +
+                        "var ev = new ClipboardEvent('paste', {" +
+                        "  clipboardData: dt," +
+                        "  bubbles: true," +
+                        "  cancelable: true" +
+                        "});" +
+                        "document.activeElement.dispatchEvent(ev);" +
+                        "} catch(e) { console.error(e); }" +
+                        "})();";
+
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    webView.evaluateJavascript(js, null);
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1 && inputContentInfo != null) {
+                    try { inputContentInfo.releasePermission(); } catch (Exception ignored) {}
+                }
+            }
+        }).start();
     }
 
     @Override
